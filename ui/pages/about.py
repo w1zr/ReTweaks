@@ -12,10 +12,11 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
-    ("35 new tweaks", "Now 44 individual tweaks in five groups: Gaming, Privacy, Interface, Services and "
-                      "Maintenance. Each one explains what it does and its trade-off, and has its own Undo."),
-    ("New presets", "Esports, Max FPS, Balanced and Privacy on the Profiles page, next to Max Performance "
-                    "and Windows Default."),
+    ("44 new tweaks and search", "Now 53 individual tweaks in five groups (Gaming, Privacy, Interface, "
+                                 "Services, Maintenance) with a search box. Each one explains what it does and "
+                                 "its trade-off, and has its own Undo."),
+    ("Presets", "Esports, Max FPS, Balanced, Low-end PC, High quality, Ultra quality, Streamer and Privacy. "
+                "Each turns individual tweaks on or off and shows what will change before applying."),
     ("Essentials", "Clear the DNS cache, clear the Windows Update download cache (shows the size first) "
                    "and check and repair system files (SFC), from the Tweaks page."),
     ("Theme maker", "Pick every color yourself, preview it live, save it, and share it as a code."),

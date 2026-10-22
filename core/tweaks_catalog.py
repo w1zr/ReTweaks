@@ -271,10 +271,90 @@ def more_tweaks():
           "home network. Off makes Windows download updates only from Microsoft.",
           "Off: each PC on your network downloads updates on its own.",
           _d(POL + r"\DeliveryOptimization", "DODownloadMode", 1, 0), admin=True),
+
+        # ------------------------------------------------------------ v1.4.3 performance and gaming extras
+        T("power_throttling", "Power throttling", GAMING, ADVANCED,
+          "Windows slows down apps it thinks are in the background to save power. Off is the official "
+          "“Turn off Power Throttling” policy, so no app gets slowed down.",
+          "Off uses more power; on a laptop the battery drains faster and it runs warmer. No FPS gain is "
+          "promised. Restart to apply.",
+          _d(r"HKLM\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling", "PowerThrottlingOff", 0, 1),
+          admin=True, restart="restart"),
+        T("mmcss_reserve", "CPU reserved for background tasks (20%)", GAMING, ADVANCED,
+          "The Multimedia Class Scheduler keeps a share of CPU time for low-priority tasks while games "
+          "and audio run. Windows' default is 20%. Off lowers it to 10%, the smallest value Microsoft allows "
+          "(SystemResponsiveness).",
+          "Background apps (downloads, Discord, OBS) get less CPU while you play. Effect on games depends "
+          "on the PC and isn't promised; measure with the FPS test. Restart to apply.",
+          _d(r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile",
+             "SystemResponsiveness", 20, 10), admin=True, restart="restart"),
+        T("notification_banners", "Notification banners", GAMING, STANDARD,
+          "Pop-up notifications in the corner of the screen. Off stops them appearing over your game or "
+          "stream. Same switch as Settings → System → Notifications.",
+          "Off: you won't see pop-ups at all; notifications still collect in the notification center.",
+          _d(CU + r"\PushNotifications", "ToastEnabled", 1, 0)),
+        T("narrator_shortcut", "Narrator keyboard shortcut (Ctrl+Win+Enter)", GAMING, STANDARD,
+          "Pressing Ctrl+Win+Enter starts Narrator, which reads the screen aloud. Easy to hit by "
+          "accident while gaming.",
+          "Off: you can still start Narrator from Settings → Accessibility.",
+          _d(r"HKCU\Software\Microsoft\Narrator\NoRoam", "WinEnterLaunchEnabled", 1, 0)),
+        T("edge_background", "Microsoft Edge running in the background", GAMING, STANDARD,
+          "Edge's Startup boost and “Continue running background extensions and apps when Edge is "
+          "closed” keep Edge processes running even when you don't use it. Off uses the official Edge "
+          "policies (StartupBoostEnabled, BackgroundModeEnabled).",
+          "Off: Edge opens a little slower and its extensions don't run after you close it. Edge shows "
+          "“managed by your organization” because these are policies.",
+          _many([(r"HKLM\SOFTWARE\Policies\Microsoft\Edge", "StartupBoostEnabled", 1, 0),
+                 (r"HKLM\SOFTWARE\Policies\Microsoft\Edge", "BackgroundModeEnabled", 1, 0)]), admin=True),
+        T("key_repeat_fast", "Shortest key-repeat delay", GAMING, STANDARD,
+          "How long you hold a key before it starts repeating. On uses the shortest delay (Control Panel → "
+          "Keyboard → Repeat delay all the way to Short); off is Windows' default.",
+          "Holding a key repeats sooner, which can feel touchy when typing. Sign out to apply.",
+          ({(r"HKCU\Control Panel\Keyboard", "KeyboardDelay"): (REG_SZ, "0")},
+           {(r"HKCU\Control Panel\Keyboard", "KeyboardDelay"): (REG_SZ, "1")}), restart="signout"),
+        T("game_bar_button", "Open Game Bar with the controller's Xbox button", GAMING, STANDARD,
+          "Pressing the Xbox button on a controller opens Game Bar. Same switch as Settings → Gaming → "
+          "Game Bar.",
+          "Off: the Xbox button no longer opens Game Bar (Win+G still works).",
+          _d(r"HKCU\Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 1, 0)),
+        T("recall", "Recall snapshots (Copilot+ PCs)", PRIVACY, STANDARD,
+          "On Copilot+ PCs, Recall saves snapshots of your screen so you can search what you've seen. "
+          "Off is the official “Turn off saving snapshots for Windows” policy. Does nothing on other PCs.",
+          "Off: Recall can't save or show snapshots.",
+          _d(r"HKCU\Software\Policies\Microsoft\Windows\WindowsAI", "DisableAIDataAnalysis", 0, 1),
+          restart="signout"),
+        T("clock_seconds", "Seconds in the taskbar clock", INTERFACE, STANDARD,
+          "Shows seconds in the clock at the bottom right. Same switch as Settings → Personalization → "
+          "Taskbar → Taskbar behaviors.",
+          "Uses a tiny bit more power. Sign out (or restart Explorer) to apply.",
+          _d(ADV, "ShowSecondsInSystemClock", 1, 0), restart="signout"),
     ]
 
 
 # Categories for the tweaks that already existed before v1.4.3
+# Extra words the Tweaks search box matches (besides name, description and trade-off)
+KEYWORDS = {
+    "sticky_keys_popup": "sticky keys filter keys toggle keys shift five times 5 accessibility",
+    "game_mode": "gamemode performance fps",
+    "xbox_capture": "game dvr recording clips xbox game bar captures",
+    "mouse_accel": "mouse acceleration enhance pointer precision raw input aim",
+    "hags": "gpu scheduling frame generation dlss nvidia",
+    "windowed_games": "borderless flip model latency",
+    "transparency": "visual effects blur",
+    "animations": "visual effects",
+    "menu_delay": "visual effects menu speed",
+    "power_throttling": "ecoqos battery cpu performance",
+    "mmcss_reserve": "system responsiveness multimedia mmcss",
+    "notification_banners": "toast pop-ups do not disturb focus stream",
+    "edge_background": "startup boost browser",
+    "svc_sysmain": "superfetch prefetch",
+    "svc_diagtrack": "telemetry",
+    "diag_data": "telemetry",
+    "web_search_start": "bing",
+    "update_restart": "windows update reboot",
+    "classic_menu": "context menu show more options",
+}
+
 EXISTING_CATEGORY = {"game_mode": GAMING, "xbox_capture": GAMING, "mouse_accel": GAMING,
                      "windowed_games": GAMING, "hags": GAMING, "transparency": INTERFACE,
                      "sticky_keys_popup": INTERFACE, "fast_startup": MAINTENANCE,
