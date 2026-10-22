@@ -39,8 +39,13 @@ MAX_BACKUPS = 10
 # Each format: parse(text) -> {key: value}; write(text, changes) -> (new_text, applied, skipped)
 
 def _style_value(old, new):
-    """Write the new value in the same style as the old one (True vs true, 60.000000 vs 60)."""
+    """Write the new value in the same style as the old one (True vs true, 60.000000 vs 60,
+    and "quoted" if the old value was quoted, as in newer Minecraft options.txt files)."""
     new = str(new)
+    if len(old) >= 2 and old[0] == old[-1] == '"':
+        return '"' + _style_value(old[1:-1], new.strip('"')) + '"'
+    if not old:
+        return new
     if old.lower() in ("true", "false") and new.lower() in ("true", "false"):
         if old.isupper():
             return new.upper()
@@ -178,6 +183,12 @@ def backup_dir(game_id):
 
 
 def make_backup(game_id, path):
+    # The very first backup of each file is the user's original: kept forever, never pruned
+    original = backup_dir(game_id) / f"ORIGINAL__{Path(path).name}"
+    if not original.exists():
+        shutil.copyfile(path, original)
+        original.with_suffix(original.suffix + ".json").write_text(
+            json.dumps({"original": str(path)}), encoding="utf-8")
     stamp = time.strftime('%Y-%m-%d_%H-%M-%S')
     dest = backup_dir(game_id) / f"{stamp}__{Path(path).name}"
     n = 2
@@ -188,7 +199,7 @@ def make_backup(game_id, path):
     meta = dest.with_suffix(dest.suffix + ".json")
     meta.write_text(json.dumps({"original": str(path)}), encoding="utf-8")
     backups = list_backups(game_id)
-    for old in backups[MAX_BACKUPS:]:  # keep the newest 10
+    for old in [b for b in backups if not b["pinned"]][MAX_BACKUPS:]:  # keep the newest 10 (+ the original)
         for p in (old["file"], old["file"].with_suffix(old["file"].suffix + ".json")):
             try:
                 p.unlink()
@@ -206,7 +217,9 @@ def list_backups(game_id):
             original = json.loads(meta.read_text(encoding="utf-8"))["original"]
         except Exception:
             continue
-        out.append({"file": f, "original": original, "when": f.name.split("__")[0].replace("_", " ")})
+        pinned = f.name.startswith("ORIGINAL__")
+        when = "Original (before RYTWEAKS)" if pinned else f.name.split("__")[0].replace("_", " ")
+        out.append({"file": f, "original": original, "when": when, "pinned": pinned})
     return out
 
 
@@ -234,8 +247,30 @@ def restore_backup(game_id, backup):
 
 # ================================================================ games
 
+def documents_folder():
+    """The real Documents folder, even when it's moved to OneDrive or another drive."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            import uuid
+            from ctypes import wintypes
+
+            class GUID(ctypes.Structure):
+                _fields_ = [("a", wintypes.DWORD), ("b", wintypes.WORD), ("c", wintypes.WORD),
+                            ("d", ctypes.c_ubyte * 8)]
+            fid = GUID.from_buffer_copy(uuid.UUID("FDD39AD0-238F-46AF-ADB4-6C85480369C7").bytes_le)
+            ptr = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(fid), 0, None, ctypes.byref(ptr)) == 0:
+                path = ptr.value
+                ctypes.windll.ole32.CoTaskMemFree(ptr)
+                return path
+        except Exception:
+            pass
+    return os.path.join(os.path.expanduser("~"), "Documents")
+
+
 def _env(path):
-    return os.path.expandvars(path)
+    return os.path.expandvars(path.replace("%DOCUMENTS%", documents_folder()))
 
 
 class Game:
@@ -341,8 +376,8 @@ GAMES = [
               "option (+fps_max), not in this file.",
          lockable=True),
     Game("rocket_league", "Rocket League", "ini",
-         [r"%USERPROFILE%\Documents\My Games\Rocket League\TAGame\Config\TASystemSettings.ini",
-          r"%USERPROFILE%\OneDrive\Documents\My Games\Rocket League\TAGame\Config\TASystemSettings.ini"],
+         [r"%DOCUMENTS%\My Games\Rocket League\TAGame\Config\TASystemSettings.ini",
+          r"%USERPROFILE%\Documents\My Games\Rocket League\TAGame\Config\TASystemSettings.ini"],
          ["rocketleague.exe"],
          {
              "Low": {"MaxAnisotropy": 0, "DynamicShadows": FALSE, "AmbientOcclusion": FALSE, "Bloom": FALSE,

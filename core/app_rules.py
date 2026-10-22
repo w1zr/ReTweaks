@@ -217,6 +217,11 @@ class AutoGameMode:
                 events.append(f"{rule['name']} started.")
                 if rule.get("boost") and self.saved_plan is None:
                     current = _active_plan()
+                    if current is None:
+                        events.append("Couldn't read your current power plan, so it wasn't changed "
+                                      "(RYTWEAKS must be able to switch it back).")
+                        self.running[exe] = pids
+                        continue
                     r = run(["powercfg", "-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61",
                              ULTIMATE_GUID], timeout=15)
                     r = run(["powercfg", "/setactive", ULTIMATE_GUID], timeout=15)

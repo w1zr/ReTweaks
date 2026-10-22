@@ -88,9 +88,8 @@ class SettingsPage(Page):
         row.addSpacing(20)
         row.addWidget(label("Open on", "cardLine"))
         self.start_page = QComboBox()
-        self.start_page.addItems(ctx.page_names())
-        self.start_page.setCurrentText(s.get("startup_page", "Dashboard"))
-        self.start_page.currentTextChanged.connect(lambda t: ctx.set_setting("startup_page", t))
+        self.start_page.addItem(s.get("startup_page", "Dashboard"))  # full list is filled in on_shown
+        self.start_page.currentTextChanged.connect(self._start_page_changed)
         row.addWidget(self.start_page)
         row.addStretch()
         beh.body.addLayout(row)
@@ -189,7 +188,17 @@ class SettingsPage(Page):
         self.ctx.set_custom_accent(None)
 
     # ------------------------------------------------------------ behavior
+    def _start_page_changed(self, text):
+        if text:
+            self.ctx.set_setting("startup_page", text)
+
     def on_shown(self):
+        current = self.ctx.settings.get("startup_page", "Dashboard")
+        self.start_page.blockSignals(True)
+        self.start_page.clear()
+        self.start_page.addItems(self.ctx.page_names())
+        self.start_page.setCurrentText(current)
+        self.start_page.blockSignals(False)
         if autostart.available():
             self.run_task(autostart.is_enabled, on_done=self._show_autostart)
 

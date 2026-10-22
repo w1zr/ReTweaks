@@ -101,6 +101,17 @@ class MainWindow(QMainWindow):
         self._auto = AutoGameWorker()
         self._auto.event.connect(self.rules_page.on_auto_event)
         self._auto.start()
+        from core import updater
+        result = updater.read_update_status()   # left behind by the in-app updater
+        if result == "OK":
+            self.log_action("Update", f"Installed v{__version__}", "Success")
+            self.settings_page.upd_msg.setText(f"Updated to v{__version__}. The previous version is saved as "
+                                               "RYTWEAKS.old.exe next to RYTWEAKS.exe.")
+        elif result == "FAILED":
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Update", "The update couldn't be installed (Windows kept the file locked), "
+                                f"so you're still on v{__version__}. Try again from Settings → Updates, or "
+                                "download it from the release page.")
         if self.settings.get("check_updates", True):
             # quiet: only says something if an update exists
             self.settings_page.check_updates(quiet=True)
