@@ -87,6 +87,17 @@ class MainWindow(QMainWindow):
         self.settings = self._load_settings()
         common.TEMP_UNIT["unit"] = "F" if self.settings.get("temp_unit") == "F" else "C"
         self.update_label = None
+        from core import themes as _themes
+        _themes.set_custom_themes(self.settings.get("custom_themes"))   # theme maker (v1.4.3)
+        self._preview_theme = None
+        # Discord status (v1.4.3): off unless the user turns it on; only talks to the local Discord app
+        from core.discord_rpc import DiscordPresence
+        self.discord = DiscordPresence()
+        self._discord_games = {}
+        self.discord.configure(bool(self.settings.get("discord_status", False)),
+                               bool(self.settings.get("discord_show_game", True)))
+        if self.settings.get("discord_status", False):
+            self.discord.start()
         self.theme = get_theme(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
         self.static = {}
         self.last_sample = None
@@ -123,6 +134,7 @@ class MainWindow(QMainWindow):
         self.rules_page = next(p for p in self.pages if isinstance(p, RulesPage))
         self._auto = AutoGameWorker()
         self._auto.event.connect(self.rules_page.on_auto_event)
+        self._auto.event.connect(self._discord_event)
         self._auto.start()
         from core import updater
         result = updater.read_update_status()   # left behind by the in-app updater
@@ -421,7 +433,10 @@ class MainWindow(QMainWindow):
     def apply_theme(self):
         from ui.widgets import brand
         brand.set_logo_color(self.theme.get("logo"))
-        qss = get_stylesheet(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
+        if self._preview_theme:
+            qss = get_stylesheet(self._preview_theme, None)
+        else:
+            qss = get_stylesheet(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
         if self.theme.get("stars"):
             try:
                 path = brand.galaxy_backdrop_path().replace("\\", "/")
@@ -462,7 +477,61 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._save_settings()
 
+    # ------------------------------------------------------------ theme maker (v1.4.3)
+
+    def _discord_event(self, text):
+        """Auto game mode says a game started or closed: show it in the Discord status."""
+        from core.discord_rpc import friendly_game_name, parse_game_event
+        ev = parse_game_event(text)
+        if not ev:
+            return
+        kind, name = ev
+        if kind == "started":
+            self._discord_games[name] = friendly_game_name(name)
+        else:
+            self._discord_games.pop(name, None)
+        self.discord.set_game(next(iter(self._discord_games.values()), None))
+
+    def preview_theme(self, colors):
+        """Show unsaved colors right away. Nothing is saved until save_custom_theme()."""
+        from core import themes as T
+        T._custom["__preview__"] = T.build_palette(colors)
+        self._preview_theme = "__preview__"
+        self.theme = get_theme("__preview__", None)
+        self.apply_theme()
+
+    def end_preview(self):
+        """Back to the saved theme (used by Discard, or after saving)."""
+        from core import themes as T
+        T._custom.pop("__preview__", None)
+        self._preview_theme = None
+        self.theme = get_theme(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
+        self.apply_theme()
+
+    def save_custom_theme(self, name, colors):
+        """Store a custom theme (10 colors) under its name and switch to it. Other themes are kept."""
+        from core import themes as T
+        saved = dict(self.settings.get("custom_themes") or {})
+        saved[name] = {k: colors[k] for k in T.EDITABLE_KEYS}
+        self.settings["custom_themes"] = saved
+        T.set_custom_themes(saved)
+        T._custom.pop("__preview__", None)
+        self._preview_theme = None
+        self.set_theme(name)
+
+    def delete_custom_theme(self, name):
+        from core import themes as T
+        saved = dict(self.settings.get("custom_themes") or {})
+        saved.pop(name, None)
+        self.settings["custom_themes"] = saved
+        T.set_custom_themes(saved)
+        if self.settings.get("theme") == name:
+            self.set_theme("Midnight")
+        else:
+            self._save_settings()
+
     def set_theme(self, name):
+        self._preview_theme = None
         self.settings["theme"] = name
         self.theme = get_theme(name, self.settings.get("custom_accent"))
         self.apply_theme()
@@ -505,6 +574,8 @@ class MainWindow(QMainWindow):
         if getattr(self, "_auto", None):
             self._auto.stop()        # also switches the power plan back if a game was boosted
             self._auto.wait()
+        if getattr(self, "discord", None):
+            self.discord.stop()      # clears the Discord status and closes the connection
         if self._scan_worker:
             self._scan_worker.wait()
         stuck = False
