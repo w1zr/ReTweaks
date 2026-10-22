@@ -163,3 +163,21 @@ def test_new_tweaks_and_search_keywords():
     for tid in tw.KEYWORDS:
         assert tid in tw.BY_ID
     assert "sticky" in tw.KEYWORDS["sticky_keys_popup"]
+
+
+def test_preset_selection_matches_preset_and_applies(tmp_path, monkeypatch):
+    setup(tmp_path, monkeypatch)
+    sel = profiles.preset_selection("Streamer")
+    assert sel[0] == ("power", "ultimate")
+    assert ("notification_banners", False) in sel
+    for name in profiles.SELECTABLE_PRESETS:
+        for key, _ in profiles.preset_selection(name):
+            assert key == "power" or key in tw.BY_ID
+    # user unticks the power plan and one tweak, then applies the rest
+    mine = [s for s in sel if s[0] not in ("power", "game_mode")]
+    res = profiles.apply_selection(mine)
+    assert len(res) == len(mine) and all(ok for _, ok, _ in res)
+    assert tw.BY_ID["notification_banners"].get_state() == "Off"
+    assert tw.BY_ID["game_mode"].get_state() == "Windows default"     # unticked = untouched
+    prev = profiles.selection_preview(mine)
+    assert not any(ch for *_, ch in prev)                               # now nothing left to change
