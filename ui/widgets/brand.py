@@ -13,6 +13,16 @@ from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 LOGO_COLOR = "#e8eaed"
+_current = {"logo": LOGO_COLOR}
+
+
+def set_logo_color(color):
+    """Called by MainWindow when the theme changes (dark on the Light theme, grey/white otherwise)."""
+    _current["logo"] = color or LOGO_COLOR
+
+
+def logo_color():
+    return _current["logo"]
 
 # Pins: (x1, y1, x2, y2) in viewBox units; order = top L→R, right T→B, bottom R→L, left B→T
 PINS = [
@@ -128,16 +138,16 @@ def chip_pixmap(size, background=None, dpr=1.0):
 
 
 class ChipLogo(QWidget):
-    """Static logo widget."""
+    """Static logo widget. color=None follows the theme's logo color."""
 
-    def __init__(self, size=96, color=LOGO_COLOR, parent=None):
+    def __init__(self, size=96, color=None, parent=None):
         super().__init__(parent)
         self._color = color
         self.setFixedSize(size, size)
 
     def paintEvent(self, _):
         p = QPainter(self)
-        paint_chip(p, QRectF(self.rect()), self._color)
+        paint_chip(p, QRectF(self.rect()), self._color or logo_color())
         p.end()
 
 
@@ -145,7 +155,7 @@ class ChipLoader(QWidget):
     """Mini chip with a looping scan line. Only show it while real work is running:
     call start() when the work begins and stop() when the real result arrives."""
 
-    def __init__(self, size=22, parent=None, color=LOGO_COLOR):
+    def __init__(self, size=22, parent=None, color=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
         self._color = color
@@ -171,7 +181,7 @@ class ChipLoader(QWidget):
         p = QPainter(self)
         t = (self._clock.elapsed() % 1100) / 1100.0 if self._clock.isValid() else 0
         scan = 0.5 - 0.5 * math.cos(t * 2 * math.pi)
-        paint_chip(p, QRectF(self.rect()), self._color, r=0.0, scan=scan, stroke_scale=1.6,
+        paint_chip(p, QRectF(self.rect()), self._color or logo_color(), r=0.0, scan=scan, stroke_scale=1.6,
                    pins=[0.35 + 0.65 * (abs(((i / 12) - t + 1) % 1 - 0.5) < 0.12) for i in range(12)])
         p.end()
 
@@ -204,7 +214,7 @@ class _FaintChip(QWidget):
 
     def paintEvent(self, _):
         p = QPainter(self)
-        c = QColor(LOGO_COLOR)
+        c = QColor(logo_color())
         c.setAlphaF(0.22)
         paint_chip(p, QRectF(self.rect()), c, r=0.0, stroke_scale=0.8)
         p.end()
@@ -369,3 +379,41 @@ def nav_icon_names():
     if _ICONS is None:
         _ICONS = _icon_paths()
     return list(_ICONS)
+
+
+def galaxy_backdrop_path():
+    """A starfield tile for the Galaxy theme, generated once (fixed seed, so it's always the same)."""
+    import os
+    import random
+    from pathlib import Path
+    from PySide6.QtGui import QImage, QRadialGradient
+    folder = Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS"
+    path = folder / "galaxy_backdrop_v1.png"
+    if path.exists():
+        return str(path)
+    folder.mkdir(parents=True, exist_ok=True)
+    w, h = 1200, 800
+    img = QImage(w, h, QImage.Format_ARGB32)
+    img.fill(QColor("#0c0a1d"))
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    for cx, cy, rx, col, a in ((0.85, 0.05, 520, "#7c3aed", 0.22), (0.05, 0.95, 460, "#06b6d4", 0.12)):
+        g = QRadialGradient(QPointF(w * cx, h * cy), rx)
+        c = QColor(col)
+        c.setAlphaF(a)
+        g.setColorAt(0, c)
+        c2 = QColor(col)
+        c2.setAlphaF(0)
+        g.setColorAt(1, c2)
+        p.fillRect(img.rect(), g)
+    rnd = random.Random(1404)
+    p.setPen(Qt.NoPen)
+    for _ in range(170):
+        c = QColor(rnd.choice(["#ffffff", "#ffffff", "#c4b5fd", "#a5f3fc"]))
+        c.setAlphaF(rnd.uniform(0.25, 0.8))
+        p.setBrush(c)
+        r = rnd.choice([0.6, 0.8, 1.0, 1.3])
+        p.drawEllipse(QPointF(rnd.uniform(0, w), rnd.uniform(0, h)), r, r)
+    p.end()
+    img.save(str(path), "PNG")
+    return str(path)
