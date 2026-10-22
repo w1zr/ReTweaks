@@ -40,6 +40,10 @@ jobs:
       - name: Run tests
         run: python -m pytest tests -q
 
+      - name: Display functions work on real Windows (names, native size, modes)
+        continue-on-error: true      # a runner has no real monitor; reported, not blocking
+        run: python tools/display_smoke.py
+
       - name: Browser engine loads (Edge WebView2 + .NET bridge)
         run: python tools/browser_smoke.py --load-only
 

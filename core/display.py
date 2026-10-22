@@ -9,6 +9,7 @@ Drivers: CIM Win32_VideoController gives DriverVersion and DriverDate (DMTF form
 Everything that touches Windows is guarded so this module imports on any OS.
 """
 
+import ctypes
 import re
 import sys
 from datetime import date, datetime
@@ -196,6 +197,128 @@ if IS_WINDOWS or sys.platform == "win32":
         return dm
 
 
+# ------------------------------------------------------------------ monitor names / native size (v1.5)
+# Windows' documented display-configuration API (QueryDisplayConfig + DisplayConfigGetDeviceInfo):
+# for each active \\.\DISPLAYn it gives the monitor's real name (from its EDID), its preferred
+# (native) resolution and its rotation. Works for every graphics card brand. Struct sizes were checked
+# against the Windows SDK headers (mingw-w64) and are tested in tests/test_display.py.
+QDC_ONLY_ACTIVE_PATHS = 2
+GET_SOURCE_NAME, GET_TARGET_NAME, GET_TARGET_PREFERRED_MODE = 1, 2, 3
+ROTATED = (2, 4)            # DISPLAYCONFIG_ROTATION_ROTATE90 / ROTATE270
+
+
+class _LUID(ctypes.Structure):
+    _fields_ = [("LowPart", ctypes.c_uint32), ("HighPart", ctypes.c_int32)]   # DWORD, LONG
+
+
+class _RATIONAL(ctypes.Structure):
+    _fields_ = [("Numerator", ctypes.c_uint32), ("Denominator", ctypes.c_uint32)]
+
+
+class _PATH_SOURCE(ctypes.Structure):
+    _fields_ = [("adapterId", _LUID), ("id", ctypes.c_uint32), ("modeInfoIdx", ctypes.c_uint32),
+                ("statusFlags", ctypes.c_uint32)]
+
+
+class _PATH_TARGET(ctypes.Structure):
+    _fields_ = [("adapterId", _LUID), ("id", ctypes.c_uint32), ("modeInfoIdx", ctypes.c_uint32),
+                ("outputTechnology", ctypes.c_uint32), ("rotation", ctypes.c_uint32),
+                ("scaling", ctypes.c_uint32), ("refreshRate", _RATIONAL),
+                ("scanLineOrdering", ctypes.c_uint32), ("targetAvailable", ctypes.c_int32),
+                ("statusFlags", ctypes.c_uint32)]
+
+
+class DISPLAYCONFIG_PATH_INFO(ctypes.Structure):
+    _fields_ = [("sourceInfo", _PATH_SOURCE), ("targetInfo", _PATH_TARGET), ("flags", ctypes.c_uint32)]
+
+
+class DISPLAYCONFIG_MODE_INFO(ctypes.Structure):
+    _fields_ = [("infoType", ctypes.c_uint32), ("id", ctypes.c_uint32), ("adapterId", _LUID),
+                ("data", ctypes.c_uint8 * 48)]
+
+
+class _HEADER(ctypes.Structure):
+    _fields_ = [("type", ctypes.c_uint32), ("size", ctypes.c_uint32), ("adapterId", _LUID),
+                ("id", ctypes.c_uint32)]
+
+
+class DISPLAYCONFIG_SOURCE_DEVICE_NAME(ctypes.Structure):
+    _fields_ = [("header", _HEADER), ("viewGdiDeviceName", ctypes.c_wchar * 32)]
+
+
+class DISPLAYCONFIG_TARGET_DEVICE_NAME(ctypes.Structure):
+    _fields_ = [("header", _HEADER), ("flags", ctypes.c_uint32), ("outputTechnology", ctypes.c_uint32),
+                ("edidManufactureId", ctypes.c_uint16), ("edidProductCodeId", ctypes.c_uint16),
+                ("connectorInstance", ctypes.c_uint32), ("monitorFriendlyDeviceName", ctypes.c_wchar * 64),
+                ("monitorDevicePath", ctypes.c_wchar * 128)]
+
+
+class _2DREGION(ctypes.Structure):
+    _fields_ = [("cx", ctypes.c_uint32), ("cy", ctypes.c_uint32)]
+
+
+class _VIDEO_SIGNAL_INFO(ctypes.Structure):
+    _fields_ = [("pixelRate", ctypes.c_uint64), ("hSyncFreq", _RATIONAL), ("vSyncFreq", _RATIONAL),
+                ("activeSize", _2DREGION), ("totalSize", _2DREGION), ("videoStandard", ctypes.c_uint32),
+                ("scanLineOrdering", ctypes.c_uint32)]
+
+
+class DISPLAYCONFIG_TARGET_PREFERRED_MODE(ctypes.Structure):
+    _fields_ = [("header", _HEADER), ("width", ctypes.c_uint32), ("height", ctypes.c_uint32),
+                ("targetMode", _VIDEO_SIGNAL_INFO)]
+
+
+def _device_info(user32, struct, kind, adapter_id, target_id):
+    info = struct()
+    info.header.type, info.header.size = kind, ctypes.sizeof(struct)
+    info.header.adapterId, info.header.id = adapter_id, target_id
+    return info if user32.DisplayConfigGetDeviceInfo(ctypes.byref(info)) == 0 else None
+
+
+def display_config():
+    """{"\\\\.\\DISPLAY1": {"name": "LG HDR 4K", "native": (3840, 2160), "rotated": False}} for every
+    active display, from Windows' display configuration. Missing pieces are None; {} if unavailable."""
+    if not IS_WINDOWS:
+        return {}
+    try:
+        user32 = _user32()
+        n_paths, n_modes = ctypes.c_uint32(0), ctypes.c_uint32(0)
+        for _ in range(3):           # the configuration can change between the two calls
+            if user32.GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, ctypes.byref(n_paths),
+                                                  ctypes.byref(n_modes)) != 0:
+                return {}
+            paths = (DISPLAYCONFIG_PATH_INFO * n_paths.value)()
+            modes = (DISPLAYCONFIG_MODE_INFO * n_modes.value)()
+            rc = user32.QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ctypes.byref(n_paths), paths,
+                                           ctypes.byref(n_modes), modes, None)
+            if rc == 0:
+                break
+            if rc != 122:            # ERROR_INSUFFICIENT_BUFFER: try again
+                return {}
+        else:
+            return {}
+        out = {}
+        for path in paths[:n_paths.value]:
+            src = _device_info(user32, DISPLAYCONFIG_SOURCE_DEVICE_NAME, GET_SOURCE_NAME,
+                               path.sourceInfo.adapterId, path.sourceInfo.id)
+            if src is None or not src.viewGdiDeviceName:
+                continue
+            tgt = _device_info(user32, DISPLAYCONFIG_TARGET_DEVICE_NAME, GET_TARGET_NAME,
+                               path.targetInfo.adapterId, path.targetInfo.id)
+            pref = _device_info(user32, DISPLAYCONFIG_TARGET_PREFERRED_MODE, GET_TARGET_PREFERRED_MODE,
+                                path.targetInfo.adapterId, path.targetInfo.id)
+            rotated = path.targetInfo.rotation in ROTATED
+            native = None
+            if pref is not None and pref.width and pref.height:
+                native = (pref.width, pref.height)
+            out.setdefault(src.viewGdiDeviceName, {
+                "name": (tgt.monitorFriendlyDeviceName.strip() or None) if tgt is not None else None,
+                "native": native, "rotated": rotated})
+        return out
+    except Exception:
+        return {}
+
+
 def list_displays():
     """Active displays with current mode and the best refresh rate at that resolution.
 
@@ -208,6 +331,7 @@ def list_displays():
         user32 = _user32()
     except Exception:
         return []
+    config = display_config()
     out = []
     i = 0
     while i < 32:
@@ -246,6 +370,10 @@ def list_displays():
             "max_hz": max_refresh_at(modes, w, h, b),
             "modes": modes,        # every mode the driver offers (v1.5: stretched-resolution check)
         })
+        info = config.get(adapter.DeviceName) or {}
+        out[-1]["name"] = info.get("name")          # the monitor's own name (EDID), per display
+        out[-1]["native"] = info.get("native")      # its preferred (native) resolution
+        out[-1]["rotated"] = bool(info.get("rotated") or getattr(cur, "dmDisplayOrientation", 0) in (1, 3))
     return out
 
 
@@ -257,7 +385,11 @@ STRETCH_WIDTHS_1080 = [1720, 1680, 1650, 1600, 1440]
 
 
 def native_size(display):
-    """The monitor's largest mode (its native resolution), from the driver's mode list."""
+    """The monitor's native resolution: its preferred mode reported by Windows (from the monitor's
+    EDID). Only if that's unavailable: the largest mode in the driver's list (which can be too big
+    when the driver offers super-resolution modes like NVIDIA DSR / AMD VSR)."""
+    if display.get("native"):
+        return tuple(display["native"])
     sizes = [(m[0], m[1]) for m in display.get("modes") or [] if m[0] and m[1]]
     if not sizes:
         return display.get("width"), display.get("height")

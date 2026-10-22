@@ -101,9 +101,11 @@ class DisplayPage(Page):
                                       "muted", wrap=True))
             self.mon_box.addWidget(card)
             return
-        names = self._friendly_names(len(displays))
-        for d, friendly in zip(displays, names):
-            self.mon_box.addWidget(self._monitor_card(d, friendly or d.get("monitor") or d["device"]))
+        for d in displays:
+            # The monitor's own name comes from Windows per display (v1.5). The hardware scan's list is
+            # in a different order, so it's only used when there is a single monitor.
+            fallback = self._friendly_names(1)[0] if len(displays) == 1 else None
+            self.mon_box.addWidget(self._monitor_card(d, d.get("name") or fallback or d.get("monitor") or d["device"]))
 
     def _monitor_card(self, d, name):
         card = Card(name + (" (primary)" if d.get("primary") else ""))
@@ -111,7 +113,8 @@ class DisplayPage(Page):
         cur, mx = d.get("hz"), d.get("max_hz")
         grid.set_rows([
             ("Display", d["device"]),
-            ("Resolution", f"{d['width']} x {d['height']}"),
+            ("Resolution", f"{d['width']} x {d['height']}" + (" (rotated)" if d.get("rotated") else "")),
+            ("Native resolution", "{} x {}".format(*d["native"]) if d.get("native") else NA),
             ("Refresh rate", f"{cur} Hz" if cur else NA),
             ("Max at this resolution", f"{mx} Hz" if mx else NA),
             ("Bit depth", f"{d['bpp']}-bit" if d.get("bpp") else NA),
@@ -144,6 +147,10 @@ class DisplayPage(Page):
     def _stretch_section(self, card, d):
         """Global stretched resolution for this monitor, like NVIDIA Control Panel: the desktop runs at
         a narrower resolution stretched to fill the screen, so games in Windowed Fullscreen are too."""
+        if d.get("rotated"):
+            card.body.addWidget(label("Stretched resolution isn't offered for a rotated (portrait) screen.",
+                                      "muted", wrap=True))
+            return
         choices = dsp.stretch_choices(d)
         nw, nh = dsp.native_size(d)
         if not choices or not nw:
@@ -151,7 +158,7 @@ class DisplayPage(Page):
         card.body.addWidget(label("Stretched resolution", "sectionTitle"))
         stretched = (d["width"], d["height"]) != (nw, nh)
         card.body.addWidget(label(
-            (f"Now stretched: {d['width']}×{d['height']} on a {nw}×{nh} screen." if stretched else
+            (f"Now running {d['width']}×{d['height']} on a {nw}×{nh} screen." if stretched else
              f"Runs the whole screen at a narrower resolution stretched to fill it (native: {nw}×{nh}). "
              "Games in Windowed Fullscreen, like Fortnite, use it automatically. Characters look wider; "
              "you don't see more of the map. Fortnite's Arena and tournaments stay 16:9 (Epic's rule)."),

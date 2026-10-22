@@ -2,7 +2,10 @@
 """Small helpers for talking to Windows safely from a --windowed exe."""
 
 import base64
+import os
+import sys
 import json
+import ntpath
 import platform
 import subprocess
 
@@ -105,6 +108,54 @@ def single_instance():
         return handle
     except Exception:
         return True
+
+
+def other_instances():
+    """Other running copies of this RYTWEAKS .exe (e.g. one stuck while closing), as psutil processes.
+    Only works for the built .exe: when running from source every copy is just python.exe, so nothing
+    is returned rather than risk closing an unrelated Python program. Our own process and our own
+    one-file launcher (the parent RYTWEAKS.exe that PyInstaller starts first) are never included."""
+    if not IS_WINDOWS or not getattr(sys, "frozen", False):
+        return []
+    try:
+        import psutil
+        me = psutil.Process()
+        exe_name = ntpath.basename(sys.executable).lower()   # Windows path rules on any OS
+        mine = {me.pid}
+        try:
+            parent = me.parent()
+            if parent and (parent.name() or "").lower() == exe_name:
+                mine.add(parent.pid)
+        except Exception:
+            pass
+        found = []
+        for p in psutil.process_iter(["pid", "name"]):
+            if p.info["pid"] not in mine and (p.info["name"] or "").lower() == exe_name:
+                found.append(p)
+        return found
+    except Exception:
+        return []
+
+
+def close_other_instances(timeout=5.0):
+    """Force-closes other_instances(). Returns (ok, message) after checking they really exited."""
+    procs = other_instances()
+    if not procs:
+        return False, "No other RYTWEAKS process was found."
+    try:
+        import psutil
+        for p in procs:
+            try:
+                p.kill()
+            except psutil.NoSuchProcess:
+                pass
+        gone, alive = psutil.wait_procs(procs, timeout=timeout)
+        if alive:
+            return False, (f"{len(alive)} RYTWEAKS process(es) could not be closed. Restart the PC, "
+                           "or run 'taskkill /F /IM RYTWEAKS.exe' in an administrator PowerShell.")
+        return True, f"Closed {len(gone)} stuck RYTWEAKS process(es)."
+    except Exception as e:
+        return False, f"Couldn't close the other RYTWEAKS: {e}"
 
 
 def is_admin():

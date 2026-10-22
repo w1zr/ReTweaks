@@ -17,6 +17,43 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+def _handle_running_copy():
+    """Another RYTWEAKS holds the single-instance lock. Usually it's in the tray; sometimes a copy got
+    stuck while closing (invisible, but it keeps the lock and locks the .exe file). Offer to close it."""
+    from PySide6.QtWidgets import QMessageBox
+    from core.winutil import close_other_instances, other_instances, single_instance
+    box = QMessageBox(QMessageBox.Information, "RYTWEAKS",
+                      "RYTWEAKS is already running. Check the taskbar or the system tray (it may have "
+                      "started minimized with Windows).")
+    close_btn = None
+    if other_instances():
+        box.setInformativeText("Can't find it? A copy may be stuck in the background. "
+                               "Close it and start RYTWEAKS again?")
+        close_btn = box.addButton("Close it and start", QMessageBox.AcceptRole)
+    box.addButton("OK" if close_btn is None else "Cancel", QMessageBox.RejectRole)
+    box.exec()
+    if close_btn is None or box.clickedButton() is not close_btn:
+        sys.exit(0)
+    ok, msg = close_other_instances()
+    lock = single_instance() if ok else None
+    if lock is None:
+        QMessageBox.warning(None, "RYTWEAKS", msg if not ok else
+                            "The other copy closed, but the lock is still held. Restart the PC and try again.")
+        sys.exit(0)
+    return lock
+
+
+def _exit(code):
+    """Leave the process for sure: if something (e.g. the Edge engine's .NET threads) blocks
+    Python's normal shutdown for more than a few seconds, end it anyway, so no invisible copy keeps
+    the single-instance lock or locks the .exe. Settings are already saved on every change."""
+    import threading
+    t = threading.Timer(6.0, os._exit, args=(int(code or 0),))
+    t.daemon = True
+    t.start()
+    sys.exit(code)
+
+
 def main():
     # Set explicit AppUserModelID so Windows Taskbar uses the custom icon
     try:
@@ -31,10 +68,7 @@ def main():
     from core.winutil import single_instance
     instance_lock = single_instance()
     if instance_lock is None:
-        from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar or the "
-                                "system tray (it may have started minimized with Windows).")
-        sys.exit(0)
+        instance_lock = _handle_running_copy()
     
     # Apply app icon globally across all windows
     # Window + taskbar use the v1.4 drawing (owner preference); the .exe file keeps icon.ico
@@ -48,7 +82,7 @@ def main():
     if "--minimized" in sys.argv:
         window = MainWindow()
         window.start_hidden()        # tray if "Keep running in the tray" is on, else minimized
-        sys.exit(app.exec())
+        _exit(app.exec())
 
     # Chip-scan splash plays while the window really loads (no added waiting)
     splash = RytweaksSplash()
@@ -60,7 +94,7 @@ def main():
         raise
     splash.finish(window)
 
-    sys.exit(app.exec())
+    _exit(app.exec())
 
 if __name__ == "__main__":
     freeze_support()  # Crucial for PyInstaller executables on Windows
