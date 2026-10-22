@@ -30,6 +30,7 @@ from ui.pages.snapshot import SnapshotPage
 from ui.pages.startup import StartupPage
 from ui.pages.storage import StoragePage
 from ui.pages.tweaks import TweaksPage
+from ui.widgets import common
 from ui.widgets.common import label, set_role
 from ui.workers import StaticScanWorker, TelemetryWorker
 
@@ -65,6 +66,8 @@ class MainWindow(QMainWindow):
 
         # Shared state that pages read through self.ctx
         self.settings = self._load_settings()
+        common.TEMP_UNIT["unit"] = "F" if self.settings.get("temp_unit") == "F" else "C"
+        self.update_label = None
         self.theme = get_theme(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
         self.static = {}
         self.last_sample = None
@@ -84,10 +87,16 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.logs_page = next(p for p in self.pages if isinstance(p, LogsPage))
+        self.settings_page = next(p for p in self.pages if isinstance(p, SettingsPage))
         self.apply_theme()
-        self._select(0)
+        names = self.page_names()
+        start = self.settings.get("startup_page", "Dashboard")
+        self._select(names.index(start) if start in names else 0)
         self.start_static_scan()
         self.start_telemetry()
+        if self.settings.get("check_updates", True):
+            # quiet: only says something if an update exists
+            self.settings_page.check_updates(quiet=True)
 
     # ------------------------------------------------------------ layout
 
@@ -122,11 +131,26 @@ class MainWindow(QMainWindow):
         v.addStretch(1)
         for text, cls in BOTTOM_NAV:
             add_button(text, cls)
+        self.update_label = set_role(QPushButton(""), "primary")
+        self.update_label.hide()
+        self.update_label.clicked.connect(lambda: self._select(self.stack.indexOf(self.settings_page)))
+        v.addWidget(self.update_label)
         admin = "Running as administrator" if is_admin() else "Not running as administrator"
         footer = label(admin, "sidebarFooter", wrap=True)
         footer.setContentsMargins(10, 10, 0, 0)
         v.addWidget(footer)
         return side
+
+    def page_names(self):
+        return [self.nav_group.button(i).text().replace("&&", "&") for i in range(len(self.pages))]
+
+    def show_update_available(self, version):
+        self.update_label.setText(f"Update available: {version}")
+        self.update_label.show()
+
+    def quit_for_update(self):
+        """The updater script is waiting for this process to exit."""
+        QApplication.instance().quit()
 
     def _select(self, index):
         self.nav_group.button(index).setChecked(True)
@@ -184,6 +208,18 @@ class MainWindow(QMainWindow):
         QApplication.setPalette(pal)
         for p in self.pages:
             p.on_theme(self.theme)
+
+    def set_setting(self, key, value):
+        self.settings[key] = value
+        if key == "temp_unit":
+            common.TEMP_UNIT["unit"] = value
+        self._save_settings()
+
+    def set_custom_accent(self, hex_color):
+        self.settings["custom_accent"] = hex_color
+        self.theme = get_theme(self.settings.get("theme", "Midnight"), hex_color)
+        self.apply_theme()
+        self._save_settings()
 
     def set_theme(self, name):
         self.settings["theme"] = name

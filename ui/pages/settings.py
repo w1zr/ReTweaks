@@ -1,15 +1,34 @@
 # ui/pages/settings.py
-"""Theme, refresh speed, sensor setup help, and about."""
+"""Appearance, behavior, updates, sensor setup help, and about."""
 
-from PySide6.QtWidgets import QComboBox, QHBoxLayout
+import re
+from urllib.parse import quote
 
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLineEdit, QMessageBox,
+                               QProgressBar, QPushButton)
+
+from core import autostart, updater
+from core.report import build_report, report_to_text
 from core.themes import THEMES
 from core.version import APP_NAME, __version__
-from ui.widgets.common import Card, Page, label
+from ui.widgets.common import Card, Page, label, set_role
 
 LHM_URL = "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases"
 REPO_URL = "https://github.com/w1zr/rytweaks"
 INTERVALS = {"Every second": 1.0, "Every 2 seconds": 2.0, "Every 5 seconds": 5.0}
+HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def open_report_issue(ctx):
+    """Copy the hardware report and open a new GitHub issue. Nothing is sent automatically."""
+    text = report_to_text(build_report(ctx.static, ctx.last_sample, ctx.sources))
+    QGuiApplication.clipboard().setText(text)
+    body = ("**What happened?**\n\n\n**What did you expect?**\n\n\n"
+            "**Hardware report:** RYTWEAKS copied it to your clipboard. Paste it below (Ctrl+V).\n\n")
+    url = f"{REPO_URL}/issues/new?title={quote(f'[v{__version__}] ')}&body={quote(body)}"
+    QDesktopServices.openUrl(QUrl(url))
 
 
 class SettingsPage(Page):
@@ -17,33 +36,109 @@ class SettingsPage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
+        s = ctx.settings
+        self.update_info = None
+        self._progress = 0
+        self._downloading = False
 
+        # ---------------- Appearance
         look = Card("Appearance")
         row = QHBoxLayout()
-        row.addWidget(label("Accent color", "cardLine"))
+        row.addWidget(label("Theme", "cardLine"))
         self.theme = QComboBox()
         self.theme.addItems(list(THEMES.keys()))
-        self.theme.setCurrentText(ctx.settings.get("theme", "Midnight"))
+        self.theme.setCurrentText(s.get("theme", "Midnight"))
         self.theme.currentTextChanged.connect(ctx.set_theme)
         row.addWidget(self.theme)
+        row.addSpacing(20)
+        row.addWidget(label("Custom accent (HEX)", "cardLine"))
+        self.hex = QLineEdit(s.get("custom_accent") or "")
+        self.hex.setPlaceholderText("#3b82f6")
+        self.hex.setMaximumWidth(110)
+        self.hex.returnPressed.connect(self.apply_hex)
+        b_hex = QPushButton("Apply")
+        b_hex.clicked.connect(self.apply_hex)
+        b_hex_clear = QPushButton("Use theme color")
+        b_hex_clear.clicked.connect(self.clear_hex)
+        for w in (self.hex, b_hex, b_hex_clear):
+            row.addWidget(w)
         row.addStretch()
         look.body.addLayout(row)
+        self.hex_msg = label("", "muted")
+        look.body.addWidget(self.hex_msg)
         self.content.addWidget(look)
 
-        live = Card("Live data")
+        # ---------------- Behavior
+        beh = Card("Behavior")
         row = QHBoxLayout()
         row.addWidget(label("Refresh", "cardLine"))
         self.interval = QComboBox()
         self.interval.addItems(list(INTERVALS))
-        current = ctx.settings.get("interval", 1.0)
+        current = s.get("interval", 1.0)
         self.interval.setCurrentText(next((k for k, v in INTERVALS.items() if v == current), "Every second"))
         self.interval.currentTextChanged.connect(lambda t: ctx.set_interval(INTERVALS[t]))
         row.addWidget(self.interval)
+        row.addSpacing(20)
+        row.addWidget(label("Temperature", "cardLine"))
+        self.unit = QComboBox()
+        self.unit.addItems(["°C", "°F"])
+        self.unit.setCurrentText("°F" if s.get("temp_unit") == "F" else "°C")
+        self.unit.currentTextChanged.connect(lambda t: ctx.set_setting("temp_unit", "F" if t == "°F" else "C"))
+        row.addWidget(self.unit)
+        row.addSpacing(20)
+        row.addWidget(label("Open on", "cardLine"))
+        self.start_page = QComboBox()
+        self.start_page.addItems(ctx.page_names())
+        self.start_page.setCurrentText(s.get("startup_page", "Dashboard"))
+        self.start_page.currentTextChanged.connect(lambda t: ctx.set_setting("startup_page", t))
+        row.addWidget(self.start_page)
         row.addStretch()
-        live.body.addLayout(row)
-        live.body.addWidget(label("Slower refresh uses a little less CPU.", "muted"))
-        self.content.addWidget(live)
+        beh.body.addLayout(row)
 
+        self.autostart = QCheckBox("Start RYTWEAKS when I sign in to Windows")
+        self.autostart.setEnabled(autostart.available())
+        if not autostart.available():
+            self.autostart.setToolTip("Only available in RYTWEAKS.exe.")
+        self.autostart.toggled.connect(self.toggle_autostart)
+        beh.body.addWidget(self.autostart)
+        self.minimized = QCheckBox("Start minimized when started with Windows")
+        self.minimized.setChecked(bool(s.get("start_minimized", True)))
+        self.minimized.toggled.connect(self.toggle_minimized)
+        beh.body.addWidget(self.minimized)
+        self.beh_msg = label("", "muted")
+        beh.body.addWidget(self.beh_msg)
+        self.content.addWidget(beh)
+
+        # ---------------- Updates
+        upd = Card("Updates")
+        upd.body.addWidget(label(f"You have {APP_NAME} v{__version__}.", "cardLine"))
+        self.auto_check = QCheckBox("Check for updates when RYTWEAKS starts (asks before downloading anything)")
+        self.auto_check.setChecked(bool(s.get("check_updates", True)))
+        self.auto_check.toggled.connect(lambda v: ctx.set_setting("check_updates", v))
+        upd.body.addWidget(self.auto_check)
+        row = QHBoxLayout()
+        self.b_check = QPushButton("Check now")
+        self.b_check.clicked.connect(lambda: self.check_updates(False))
+        self.b_install = set_role(QPushButton("Download and install"), "primary")
+        self.b_install.clicked.connect(self.install_update)
+        self.b_install.hide()
+        self.b_page = QPushButton("Open release page")
+        self.b_page.clicked.connect(self.open_release_page)
+        self.b_page.hide()
+        for b in (self.b_check, self.b_install, self.b_page):
+            row.addWidget(b)
+        row.addStretch()
+        upd.body.addLayout(row)
+        self.upd_bar = QProgressBar()
+        self.upd_bar.setRange(0, 100)
+        self.upd_bar.setFixedHeight(6)
+        self.upd_bar.hide()
+        upd.body.addWidget(self.upd_bar)
+        self.upd_msg = label("", "cardLine", wrap=True)
+        upd.body.addWidget(self.upd_msg)
+        self.content.addWidget(upd)
+
+        # ---------------- Sensors help
         sensors = Card("Temperatures & fans")
         self.lhm_status = label("LibreHardwareMonitor: checking…", "cardLine")
         sensors.body.addWidget(self.lhm_status)
@@ -63,14 +158,138 @@ class SettingsPage(Page):
         sensors.body.addWidget(help_)
         self.content.addWidget(sensors)
 
+        # ---------------- About
         about = Card("About")
-        a = label(f"{APP_NAME} v{__version__}<br>Open source: <a href='{REPO_URL}'>{REPO_URL}</a><br>"
-                  "Found something wrong? Open an issue on GitHub and attach a hardware report "
-                  "(Hardware → Export hardware report).", "cardLine", wrap=True)
+        a = label(f"{APP_NAME} v{__version__}<br>Open source: <a href='{REPO_URL}'>{REPO_URL}</a>",
+                  "cardLine", wrap=True)
         a.setOpenExternalLinks(True)
         about.body.addWidget(a)
+        b_report = QPushButton("Report a problem")
+        b_report.setToolTip("Copies your hardware report (no personal info) and opens a new GitHub issue.")
+        b_report.clicked.connect(lambda: open_report_issue(self.ctx))
+        about.body.addWidget(b_report)
         self.content.addWidget(about)
         self.finish()
+
+    # ------------------------------------------------------------ appearance
+    def apply_hex(self):
+        text = self.hex.text().strip()
+        if text and not text.startswith("#"):
+            text = "#" + text
+        if not HEX_RE.match(text):
+            self.hex_msg.setText("Enter a color like #3b82f6 (6 hex digits).")
+            return
+        self.hex.setText(text.lower())
+        self.hex_msg.setText("")
+        self.ctx.set_custom_accent(text.lower())
+
+    def clear_hex(self):
+        self.hex.clear()
+        self.hex_msg.setText("")
+        self.ctx.set_custom_accent(None)
+
+    # ------------------------------------------------------------ behavior
+    def on_shown(self):
+        if autostart.available():
+            self.run_task(autostart.is_enabled, on_done=self._show_autostart)
+
+    def _show_autostart(self, enabled):
+        self.autostart.blockSignals(True)
+        self.autostart.setChecked(enabled is True)
+        self.autostart.blockSignals(False)
+
+    def toggle_autostart(self, on):
+        self.beh_msg.setText("Updating…")
+
+        def done(result):
+            ok, msg = result
+            self.beh_msg.setText(msg)
+            self.ctx.log_action("Start with Windows", "On" if on else "Off", "Success" if ok else "Failed",
+                                "" if ok else msg)
+            if not ok:
+                self._show_autostart(not on)
+
+        self.run_task(autostart.set_enabled, on, self.minimized.isChecked(), on_done=done)
+
+    def toggle_minimized(self, value):
+        self.ctx.set_setting("start_minimized", value)
+        if self.autostart.isChecked():  # re-create the sign-in task with/without --minimized
+            self.toggle_autostart(True)
+
+    # ------------------------------------------------------------ updates
+    def check_updates(self, quiet=False):
+        self.b_check.setEnabled(False)
+        if not quiet:
+            self.upd_msg.setText("Checking GitHub…")
+        self.run_task(updater.check_for_update, on_done=lambda info: self._show_update(info, quiet))
+
+    def _show_update(self, info, quiet=False):
+        self.b_check.setEnabled(True)
+        if not isinstance(info, dict) or "error" in info:
+            if not quiet:
+                self.upd_msg.setText(info.get("error", "Update check failed.") if isinstance(info, dict)
+                                     else "Update check failed.")
+            return
+        self.update_info = info
+        if info["available"]:
+            self.b_page.show()
+            if updater.can_self_update():
+                self.upd_msg.setText(f"{info['version']} is available.")
+                self.b_install.show()
+            else:
+                self.upd_msg.setText(f"{info['version']} is available. You're running from source: "
+                                     "use git pull, or download the .exe from the release page.")
+            self.ctx.show_update_available(info["version"])
+        elif not quiet:
+            self.upd_msg.setText(f"You're up to date (latest release is {info['version']}).")
+
+    def open_release_page(self):
+        if self.update_info and self.update_info.get("page"):
+            QDesktopServices.openUrl(QUrl(self.update_info["page"]))
+
+    def install_update(self):
+        info = self.update_info
+        if not info:
+            return
+        if QMessageBox.question(
+                self, "Install update",
+                f"Download {info['version']} from GitHub, check it, and restart RYTWEAKS?\n\n"
+                "Your settings are kept. The current version is saved as RYTWEAKS.old.exe.") != QMessageBox.Yes:
+            return
+        self.b_install.setEnabled(False)
+        self.upd_bar.setValue(0)
+        self.upd_bar.show()
+        self.upd_msg.setText("Downloading…")
+        self._progress = 0
+        self._downloading = True
+        # The progress callback runs on the worker thread, so it only stores a number;
+        # a timer on the UI thread shows it.
+        self.run_task(updater.download_update, info, lambda p: setattr(self, "_progress", p),
+                      on_done=self._downloaded)
+        self._poll_progress()
+
+    def _poll_progress(self):
+        if self._downloading:
+            self.upd_bar.setValue(self._progress)
+            QTimer.singleShot(200, self._poll_progress)
+
+    def _downloaded(self, result):
+        self._downloading = False
+        ok, value = result
+        if not ok:
+            self.b_install.setEnabled(True)
+            self.upd_bar.hide()
+            self.upd_msg.setText(value)
+            self.ctx.log_action("Update", self.update_info["version"], "Failed", value)
+            return
+        self.upd_bar.setValue(100)
+        ok, msg = updater.install_and_restart(value)
+        self.upd_msg.setText(msg)
+        self.ctx.log_action("Update", self.update_info["version"], "Success" if ok else "Failed", "" if ok else msg)
+        if ok:
+            self.ctx.quit_for_update()
+        else:
+            self.b_install.setEnabled(True)
 
     def on_sources(self, src):
         lhm = src.get("lhm")

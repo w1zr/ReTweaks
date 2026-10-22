@@ -1,0 +1,153 @@
+# core/updater.py
+"""Update check and in-app updates.
+
+- check_for_update(): asks GitHub for the latest release of w1zr/rytweaks (read-only).
+- download_update(): downloads RYTWEAKS.exe and its .sha256 file from THAT release only,
+  and refuses the file unless its SHA-256 matches. The .sha256 file is created by the
+  GitHub Actions build (.github/workflows/build.yml), so a damaged or swapped download
+  is never installed.
+- install_and_restart(): only for the packaged .exe. A small script waits for RYTWEAKS to
+  close, keeps the old exe as RYTWEAKS.old.exe (so it can be restored), puts the new one
+  in place and starts it (if the swap fails, the old exe is put back). User settings in %APPDATA%\\RYTWEAKS are not touched.
+
+Nothing is downloaded or installed without the user clicking a button.
+"""
+
+import hashlib
+import json
+import os
+import re
+import sys
+import tempfile
+import urllib.request
+
+from core.version import __version__
+from core.winutil import CREATE_NO_WINDOW, IS_WINDOWS
+
+REPO = "w1zr/rytweaks"
+LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
+EXE_NAME = "RYTWEAKS.exe"
+# Downloads are only accepted from these hosts (GitHub release assets)
+ALLOWED_HOSTS = ("https://github.com/", "https://objects.githubusercontent.com/",
+                 "https://release-assets.githubusercontent.com/", "https://api.github.com/")
+
+
+def parse_version(text):
+    """'v1.3' / '1.3.0' -> (1, 3, 0). Returns None if it doesn't look like a version."""
+    m = re.match(r"^v?(\d+(?:\.\d+)*)$", (text or "").strip())
+    if not m:
+        return None
+    parts = [int(p) for p in m.group(1).split(".")]
+    return tuple(parts + [0] * (3 - len(parts)))[:3]
+
+
+def is_newer(remote, local=__version__):
+    r, l = parse_version(remote), parse_version(local)
+    return bool(r and l and r > l)
+
+
+def _get(url, timeout=15):
+    req = urllib.request.Request(url, headers={"User-Agent": f"RYTWEAKS/{__version__}",
+                                               "Accept": "application/vnd.github+json"})
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
+def check_for_update():
+    """Returns a dict: {"available": bool, "version", "notes", "exe_url", "sha_url", "page"}
+    or {"error": "..."} if GitHub couldn't be reached."""
+    try:
+        with _get(LATEST_URL) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        return {"error": f"Couldn't reach GitHub: {e}"}
+    tag = data.get("tag_name", "")
+    assets = {a.get("name"): a.get("browser_download_url") for a in data.get("assets", [])}
+    return {
+        "available": is_newer(tag),
+        "version": tag,
+        "notes": data.get("body") or "",
+        "page": data.get("html_url"),
+        "exe_url": assets.get(EXE_NAME),
+        "sha_url": assets.get(EXE_NAME + ".sha256"),
+    }
+
+
+def _allowed(url):
+    return bool(url) and url.startswith(ALLOWED_HOSTS)
+
+
+def parse_sha256_file(text):
+    """Accepts 'HASH', 'HASH  RYTWEAKS.exe' or PowerShell-style output; returns lowercase hex."""
+    m = re.search(r"\b([0-9a-fA-F]{64})\b", text or "")
+    return m.group(1).lower() if m else None
+
+
+def download_update(info, progress=None):
+    """Download and verify. Returns (ok, path_or_error_message)."""
+    exe_url, sha_url = info.get("exe_url"), info.get("sha_url")
+    if not exe_url or not sha_url:
+        return False, ("This release has no verified download (missing RYTWEAKS.exe or its .sha256 file). "
+                       "Download it from the release page instead.")
+    if not (_allowed(exe_url) and _allowed(sha_url)):
+        return False, "Refusing to download from an unexpected address."
+    try:
+        with _get(sha_url) as resp:
+            expected = parse_sha256_file(resp.read().decode("utf-8", "replace"))
+        if not expected:
+            return False, "The release's checksum file is not readable."
+        dest = os.path.join(tempfile.gettempdir(), f"RYTWEAKS_update_{info.get('version', 'new')}.exe")
+        digest = hashlib.sha256()
+        with _get(exe_url, timeout=60) as resp, open(dest, "wb") as f:
+            total = int(resp.headers.get("Content-Length") or 0)
+            done = 0
+            while True:
+                chunk = resp.read(1024 * 256)
+                if not chunk:
+                    break
+                f.write(chunk)
+                digest.update(chunk)
+                done += len(chunk)
+                if progress and total:
+                    progress(int(done * 100 / total))
+        if digest.hexdigest() != expected:
+            os.remove(dest)
+            return False, "The download didn't match the release's SHA-256 checksum, so it was deleted."
+        return True, dest
+    except Exception as e:
+        return False, f"Download failed: {e}"
+
+
+def can_self_update():
+    """True only when running as the packaged RYTWEAKS.exe (not from python main.py)."""
+    return IS_WINDOWS and getattr(sys, "frozen", False)
+
+
+def install_and_restart(new_exe):
+    """Start the swap script; the caller must then quit the app. Returns (ok, message)."""
+    if not can_self_update():
+        return False, "In-app updates only work in RYTWEAKS.exe. When running from source, use git pull."
+    current = sys.executable
+    backup = os.path.join(os.path.dirname(current), "RYTWEAKS.old.exe")
+
+    def q(path):  # PowerShell single-quoted string (handles ' and non-English characters)
+        return "'" + path.replace("'", "''") + "'"
+
+    # Wait for this process to exit, keep a backup, swap in the new exe, start it.
+    # If the swap fails, the backup is put back so the user is never left without the app.
+    ps = (
+        f"Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue; "
+        f"Copy-Item -LiteralPath {q(current)} -Destination {q(backup)} -Force; "
+        f"try {{ Move-Item -LiteralPath {q(new_exe)} -Destination {q(current)} -Force -ErrorAction Stop }} "
+        f"catch {{ Copy-Item -LiteralPath {q(backup)} -Destination {q(current)} -Force }}; "
+        f"Start-Process -FilePath {q(current)}"
+    )
+    try:
+        import base64
+        import subprocess
+        encoded = base64.b64encode(ps.encode("utf-16-le")).decode("ascii")
+        subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                          "-EncodedCommand", encoded],
+                         creationflags=CREATE_NO_WINDOW, close_fds=True)
+        return True, "Installing the update. RYTWEAKS will restart in a few seconds."
+    except Exception as e:
+        return False, f"Couldn't start the installer: {e}"
