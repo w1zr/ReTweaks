@@ -67,6 +67,10 @@ def get_stylesheet(theme_name="Midnight", custom_accent=None):
         border-radius: 8px; padding: 7px 12px; text-align: left; font-size: 13px; }}
     QPushButton[role="nav"]:hover {{ background-color: {t['card_hover']}; color: {t['text']}; }}
     QPushButton[role="nav"]:checked {{ background-color: {t['card']}; color: {t['text']}; font-weight: 600; }}
+    QFrame#updateBar {{ background-color: {t['card']}; border-bottom: 1px solid {t['border']};
+        border-left: 3px solid {t['accent']}; }}
+    QFrame#updateBar QLabel {{ background-color: transparent; }}
+    QLabel#updateBarText {{ color: {t['text']}; font-weight: 600; }}
     QFrame#sidebar QFrame#navIndicator {{ background-color: {t['accent']}; border-radius: 2px; }}
     QScrollArea#navScroll {{ background: transparent; border: none; }}
     QLabel#sidebarFooter {{ color: {t['muted']}; font-size: 11px; }}

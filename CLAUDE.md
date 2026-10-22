@@ -44,7 +44,7 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/tweaks.py` — Individual tweaks (Standard/Advanced): real state, original values saved before the first change, Undo and Undo everything, restore point.
 - `core/game_presets.py` — Game settings presets: parsers for ini / key:value / Valve KeyValues files, backups, only changes keys that already exist, refuses while the game runs.
 - `core/app_rules.py` — Per-program rules (GPU preference, fullscreen optimizations, CPU priority) and auto game mode.
-- `core/updater.py` — Update check and in-app updates (SHA-256 verified, keeps RYTWEAKS.old.exe).
+- `core/updater.py` — Update check and in-app updates (SHA-256 verified, keeps RYTWEAKS.old.exe); since v1.4 an update bar at the top of every page offers **Update now** (owner request 2026-10-21).
 - `core/nettest.py` — DNS speed test and ping test (1.1.1.1 / 1.0.0.1).
 - `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
 - `core/profiles.py` — System profiles (bundles of real tweaks).
