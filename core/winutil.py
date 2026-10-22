@@ -104,6 +104,10 @@ def single_instance():
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)   # reliable GetLastError from ctypes
         handle = k32.CreateMutexW(None, False, "Local\\RYTWEAKS_single_instance")
         if ctypes.get_last_error() == 183:   # ERROR_ALREADY_EXISTS
+            # CreateMutexW still opened the existing mutex: close our handle, otherwise this process
+            # itself keeps the mutex alive and a later retry (after the other copy closed) fails.
+            if handle:
+                k32.CloseHandle(handle)
             return None
         return handle
     except Exception:
