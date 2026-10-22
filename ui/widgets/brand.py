@@ -324,6 +324,13 @@ def _icon_paths():
     p.moveTo(6, 6); p.lineTo(18, 18); p.moveTo(18, 6); p.lineTo(6, 18)
     icons["Fun tools"] = p
 
+    p = P()  # Browser: globe
+    p.addEllipse(QPointF(12, 12), 9, 9)
+    p.addEllipse(QPointF(12, 12), 4, 9)
+    p.moveTo(3, 12); p.lineTo(21, 12)
+    p.moveTo(4.5, 7.5); p.lineTo(19.5, 7.5); p.moveTo(4.5, 16.5); p.lineTo(19.5, 16.5)
+    icons["Browser"] = p
+
     p = P()  # Logs: document
     p.addRoundedRect(QRectF(5, 3, 14, 18), 2.5, 2.5)
     for y in (8, 12, 16):

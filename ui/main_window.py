@@ -22,6 +22,7 @@ from core.version import APP_NAME, __version__
 from core.winutil import is_admin
 from ui.pages.about import AboutPage
 from ui.pages.assistant import AssistantPage
+from ui.pages.browser import BrowserPage
 from ui.pages.audio import AudioPage
 from ui.pages.clicker import ClickerPage
 from ui.pages.dashboard import DashboardPage
@@ -51,7 +52,8 @@ NAV = [
     ("OPTIMIZE", [("Tweaks", TweaksPage), ("Profiles", ProfilesPage), ("Game presets", GamesPage),
                   ("Program rules", RulesPage),
                   ("Startup apps", StartupPage), ("Network", NetworkPage)]),
-    ("TOOLS", [("Storage && cleanup", StoragePage), ("Audio mixer", AudioPage), ("Auto clicker", ClickerPage),
+    ("TOOLS", [("Browser", BrowserPage), ("Storage && cleanup", StoragePage), ("Audio mixer", AudioPage),
+               ("Auto clicker", ClickerPage),
                ("AI Assistant", AssistantPage), ("Snapshots", SnapshotPage), ("Fun tools", FunPage),
                ("Logs", LogsPage)]),
 ]
@@ -578,6 +580,12 @@ class MainWindow(QMainWindow):
             self.discord.stop()      # clears the Discord status and closes the connection
         if self._scan_worker:
             self._scan_worker.wait()
+        for p in self.pages:
+            if hasattr(p, "shutdown"):       # e.g. the Browser closes its Edge engine tabs
+                try:
+                    p.shutdown()
+                except Exception:
+                    pass
         stuck = False
         for p in self.pages:
             if p.wait_for_tasks() is False:

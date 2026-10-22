@@ -9,6 +9,15 @@ def build_app():
     
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
+    # Browser (v1.5): Microsoft's WebView2 SDK DLLs, taken from the pywebview package.
+    import importlib.util
+    spec = importlib.util.find_spec("webview")
+    lib = os.path.join(list(spec.submodule_search_locations)[0], "lib")
+    webview2 = [
+        f"--add-data={os.path.join(lib, 'Microsoft.Web.WebView2.Core.dll')};webview2",
+        f"--add-data={os.path.join(lib, 'runtimes', 'win-x64', 'native', 'WebView2Loader.dll')};webview2",
+    ]
+
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
@@ -20,6 +29,10 @@ def build_app():
         "--add-data=assets/taskbar.ico;assets",  # Window + taskbar icon (the v1.4 drawing)
         "--collect-submodules=pycaw",        # Audio mixer: pycaw's COM interface modules
         "--hidden-import=comtypes.stream",
+        "--collect-all=pythonnet",           # Browser: .NET bridge (Python.Runtime.dll)
+        "--collect-all=clr_loader",
+        "--hidden-import=clr",
+        *webview2,
         "--name=RYTWEAKS",
         "main.py"
     ]
