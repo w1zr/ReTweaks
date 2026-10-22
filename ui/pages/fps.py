@@ -177,7 +177,7 @@ class FpsPage(Page):
             self.capture.cancel()
             self.capture.cleanup()
             self.capture = None
-        super().wait_for_tasks()
+        return super().wait_for_tasks()
 
     # ---------------------------------------------------------------- PresentMon path
     def browse(self):
@@ -290,6 +290,7 @@ class FpsPage(Page):
                 return
         self.timer.stop()
         self.status.setText("Reading the results…")
+        self.btn_cancel.setEnabled(False)   # too late to cancel: the results are being read
         self.run_task(cap.finish, on_done=lambda res, c=cap, g=self.capture_game, s=cap.seconds:
                       self._finished(res, c, g, s))
 
