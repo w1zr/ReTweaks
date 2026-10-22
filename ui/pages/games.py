@@ -512,6 +512,14 @@ class GamesPage(Page):
         if gp.game_running("fortnite"):
             QMessageBox.warning(self, "Set up NVIDIA", "Close Fortnite first.")
             return
+        try:
+            available, hz, _m = display.stretch_mode_status(w, h)
+        except Exception:
+            available = None
+        if available:
+            self.stretch_check.setText(f"✔ Your graphics card already offers {w}×{h} (up to {hz} Hz). Nothing to set "
+                                       "up: in Fortnite pick Window Mode: Fullscreen, then this resolution.")
+            return
         if QMessageBox.question(
                 self, "Set up NVIDIA",
                 f"RYTWEAKS will add {w}×{h} to your NVIDIA graphics card, stretched to fill your screen.\n\n"
