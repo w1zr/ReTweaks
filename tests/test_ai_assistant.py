@@ -166,29 +166,36 @@ def test_decode_blob_and_unavailable():
             AI.save_key("k")
 
 
-def test_save_and_load_key_like_pywin32(monkeypatch):
-    """Mimics pywin32: CredWrite only accepts text for the blob and CredRead returns UTF-16-LE bytes."""
+def test_save_load_delete_key_roundtrip(monkeypatch):
+    """Credential Manager stores raw bytes; we write the key's UTF-16-LE text and read it back."""
     store = {}
-
-    class FakeCred:
-        CRED_TYPE_GENERIC = 1
-        CRED_PERSIST_LOCAL_MACHINE = 2
-
-        @staticmethod
-        def CredWrite(cred, flags):
-            if not isinstance(cred["CredentialBlob"], str):
-                raise TypeError("Objects of type 'bytes' can not be converted to Unicode.")
-            store[cred["TargetName"]] = cred["CredentialBlob"].encode("utf-16-le")
-
-        @staticmethod
-        def CredRead(target, kind, flags):
-            return {"CredentialBlob": store[target]}
-
-        @staticmethod
-        def CredDelete(target, kind, flags):
-            del store[target]
-
-    monkeypatch.setattr(AI, "win32cred", FakeCred)
-    AI.save_key("  my-test-key  ")
-    assert AI.load_key() == "my-test-key"
+    monkeypatch.setattr(AI, "_advapi", object())
+    monkeypatch.setattr(AI, "_cred_write", lambda t, blob, c: store.__setitem__(t, bytes(blob)))
+    monkeypatch.setattr(AI, "_cred_read", lambda t: store.get(t))
+    monkeypatch.setattr(AI, "_cred_delete", lambda t: store.pop(t, None) is not None or True)
+    AI.save_key("  AQ.test-key-123  ")
+    assert store[AI.CRED_TARGET] == "AQ.test-key-123".encode("utf-16-le")
+    assert AI.load_key() == "AQ.test-key-123"
     assert AI.delete_key() and AI.load_key() is None
+
+
+def test_save_key_reports_the_real_read_error(monkeypatch):
+    monkeypatch.setattr(AI, "_advapi", object())
+    monkeypatch.setattr(AI, "_cred_write", lambda t, blob, c: None)
+
+    def bad_read(t):
+        raise AI.AIError("Reading from Windows Credential Manager failed: Access is denied. (Windows error 5).")
+    monkeypatch.setattr(AI, "_cred_read", bad_read)
+    import pytest
+    with pytest.raises(AI.AIError, match="Access is denied"):
+        AI.save_key("k")
+    assert AI.load_key() is None      # load_key stays quiet; save_key shows the reason
+
+
+def test_save_key_detects_a_changed_value(monkeypatch):
+    monkeypatch.setattr(AI, "_advapi", object())
+    monkeypatch.setattr(AI, "_cred_write", lambda t, blob, c: None)
+    monkeypatch.setattr(AI, "_cred_read", lambda t: "other".encode("utf-16-le"))
+    import pytest
+    with pytest.raises(AI.AIError, match="different"):
+        AI.save_key("k")

@@ -226,14 +226,10 @@ class AssistantPage(Page):
 
     def _save_key(self):
         try:
-            AI.save_key(self.key_edit.text())
+            AI.save_key(self.key_edit.text())   # also reads it back to confirm Windows kept it
         except Exception as e:
             self.setup_status.setText(f"Couldn't save the key: {e}")
             self.ctx.log_action("AI Assistant", "Save API key", "Failed", str(e))
-            return
-        if AI.load_key() is None:
-            self.setup_status.setText("Windows didn't keep the key. Nothing was saved.")
-            self.ctx.log_action("AI Assistant", "Save API key", "Failed", "read-back failed")
             return
         self.key_edit.clear()
         self.setup_status.setText("")

@@ -2,7 +2,7 @@
 """AI Assistant: advice-only chat through the Google Gemini API (bring your own free key).
 
 - Plain HTTPS with urllib (no SDK). Endpoint and JSON shapes: ai.google.dev/gemini-api/docs
-- The API key lives in Windows Credential Manager (win32cred), never in config.json or logs.
+- The API key lives in Windows Credential Manager (advapi32 CredWriteW/CredReadW), never in config.json or logs.
 - Nothing here runs commands or changes settings; it only sends text and returns text.
 - Pure logic (request body, specs summary, response/error parsing) is unit tested.
 """
@@ -59,47 +59,128 @@ class AIError(Exception):
 
 # ---------------------------------------------------------------- API key storage
 
-try:
-    if sys.platform == "win32":
-        import win32cred  # from pywin32
-    else:
-        win32cred = None
-except Exception:  # ImportError or a broken pywin32
-    win32cred = None
+# Windows Credential Manager through advapi32 directly (ctypes). pywin32's win32cred wrapper
+# converts the secret in ways that don't round-trip reliably, so the bytes written and read here
+# are exactly the UTF-16-LE text of the key, and any failure reports the real Windows error.
+
+CRED_TYPE_GENERIC = 1
+CRED_PERSIST_LOCAL_MACHINE = 2
+ERROR_NOT_FOUND = 1168
+
+_advapi = None
+if sys.platform == "win32":
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _FILETIME(ctypes.Structure):
+            _fields_ = [("dwLowDateTime", wintypes.DWORD), ("dwHighDateTime", wintypes.DWORD)]
+
+        class _CREDENTIALW(ctypes.Structure):
+            _fields_ = [
+                ("Flags", wintypes.DWORD),
+                ("Type", wintypes.DWORD),
+                ("TargetName", wintypes.LPWSTR),
+                ("Comment", wintypes.LPWSTR),
+                ("LastWritten", _FILETIME),
+                ("CredentialBlobSize", wintypes.DWORD),
+                ("CredentialBlob", ctypes.POINTER(ctypes.c_ubyte)),
+                ("Persist", wintypes.DWORD),
+                ("AttributeCount", wintypes.DWORD),
+                ("Attributes", ctypes.c_void_p),
+                ("TargetAlias", wintypes.LPWSTR),
+                ("UserName", wintypes.LPWSTR),
+            ]
+
+        _advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+        _advapi.CredWriteW.argtypes = [ctypes.POINTER(_CREDENTIALW), wintypes.DWORD]
+        _advapi.CredWriteW.restype = wintypes.BOOL
+        _advapi.CredReadW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                      ctypes.POINTER(ctypes.POINTER(_CREDENTIALW))]
+        _advapi.CredReadW.restype = wintypes.BOOL
+        _advapi.CredDeleteW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD]
+        _advapi.CredDeleteW.restype = wintypes.BOOL
+        _advapi.CredFree.argtypes = [ctypes.c_void_p]
+        _advapi.CredFree.restype = None
+    except Exception:  # very unusual: advapi32 not loadable
+        _advapi = None
+
+
+def _win_error(what):
+    import ctypes
+    code = ctypes.get_last_error()
+    return AIError(f"{what} failed: {ctypes.FormatError(code).strip()} (Windows error {code}).")
+
+
+def _cred_write(target, blob, comment):
+    import ctypes
+    buf = (ctypes.c_ubyte * len(blob)).from_buffer_copy(blob)
+    cred = _CREDENTIALW()
+    cred.Type = CRED_TYPE_GENERIC
+    cred.TargetName = target
+    cred.Comment = comment
+    cred.CredentialBlobSize = len(blob)
+    cred.CredentialBlob = ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte))
+    cred.Persist = CRED_PERSIST_LOCAL_MACHINE
+    cred.UserName = "RYTWEAKS"
+    if not _advapi.CredWriteW(ctypes.byref(cred), 0):
+        raise _win_error("Saving to Windows Credential Manager")
+
+
+def _cred_read(target):
+    """The stored bytes, or None if there is no such credential. Raises AIError on other errors."""
+    import ctypes
+    ptr = ctypes.POINTER(_CREDENTIALW)()
+    if not _advapi.CredReadW(target, CRED_TYPE_GENERIC, 0, ctypes.byref(ptr)):
+        if ctypes.get_last_error() == ERROR_NOT_FOUND:
+            return None
+        raise _win_error("Reading from Windows Credential Manager")
+    try:
+        c = ptr.contents
+        return bytes(ctypes.string_at(c.CredentialBlob, c.CredentialBlobSize)) if c.CredentialBlobSize else b""
+    finally:
+        _advapi.CredFree(ptr)
+
+
+def _cred_delete(target):
+    """True if deleted or it didn't exist."""
+    import ctypes
+    if _advapi.CredDeleteW(target, CRED_TYPE_GENERIC, 0):
+        return True
+    if ctypes.get_last_error() == ERROR_NOT_FOUND:
+        return True
+    raise _win_error("Removing from Windows Credential Manager")
 
 
 def credentials_available():
-    return win32cred is not None
+    return _advapi is not None
 
 
 def save_key(key):
+    """Store the key, then read it back to prove Windows kept it. Raises AIError with the real reason."""
     if not credentials_available():
         raise AIError("Windows Credential Manager isn't available here.")
     key = (key or "").strip()
     if not key:
         raise AIError("The key is empty.")
-    cred = {
-        "Type": win32cred.CRED_TYPE_GENERIC,
-        "TargetName": CRED_TARGET,
-        "UserName": "RYTWEAKS",
-        "Comment": "RYTWEAKS Gemini API key",
-        # pywin32 wants text here and stores it as UTF-16-LE itself (passing bytes raises
-        # "Objects of type 'bytes' can not be converted to Unicode"). CredRead returns those bytes.
-        "CredentialBlob": key,
-        "Persist": win32cred.CRED_PERSIST_LOCAL_MACHINE,
-    }
-    win32cred.CredWrite(cred, 0)
+    _cred_write(CRED_TARGET, key.encode("utf-16-le"), "RYTWEAKS Gemini API key")
+    if read_key_checked() != key:
+        raise AIError("Windows saved the key but returned something different when it was read back.")
+
+
+def read_key_checked():
+    """Like load_key, but raises AIError (with the Windows reason) instead of hiding read errors."""
+    if not credentials_available():
+        return None
+    return decode_blob(_cred_read(CRED_TARGET))
 
 
 def load_key():
     """The saved key, or None."""
-    if not credentials_available():
-        return None
     try:
-        cred = win32cred.CredRead(CRED_TARGET, win32cred.CRED_TYPE_GENERIC, 0)
-    except Exception:  # not found (error 1168) or unreadable
+        return read_key_checked()
+    except AIError:
         return None
-    return decode_blob(cred.get("CredentialBlob"))
 
 
 def decode_blob(blob):
@@ -120,10 +201,9 @@ def delete_key():
     if not credentials_available():
         return False
     try:
-        win32cred.CredDelete(CRED_TARGET, win32cred.CRED_TYPE_GENERIC, 0)
-    except Exception:
+        return _cred_delete(CRED_TARGET)
+    except AIError:
         return load_key() is None
-    return True
 
 
 # ---------------------------------------------------------------- specs summary (whitelist)
