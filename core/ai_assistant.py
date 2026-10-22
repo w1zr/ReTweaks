@@ -78,14 +78,17 @@ def save_key(key):
     key = (key or "").strip()
     if not key:
         raise AIError("The key is empty.")
-    win32cred.CredWrite({
+    cred = {
         "Type": win32cred.CRED_TYPE_GENERIC,
         "TargetName": CRED_TARGET,
         "UserName": "RYTWEAKS",
         "Comment": "RYTWEAKS Gemini API key",
-        "CredentialBlob": key.encode("utf-16-le"),
+        # pywin32 wants text here and stores it as UTF-16-LE itself (passing bytes raises
+        # "Objects of type 'bytes' can not be converted to Unicode"). CredRead returns those bytes.
+        "CredentialBlob": key,
         "Persist": win32cred.CRED_PERSIST_LOCAL_MACHINE,
-    }, 0)
+    }
+    win32cred.CredWrite(cred, 0)
 
 
 def load_key():
