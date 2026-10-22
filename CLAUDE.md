@@ -313,6 +313,7 @@ Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials 
 ## 18a. Feature backlog (approved by the owner, not built yet)
 
 ### v1.4 (owner decisions 2026-10-21)
+- **New logo and startup animation (owner choice 2026-10-21): logo C "Chip" and splash C "Chip scan".** Source: `assets/brand/logo-chip.svg` and the design canvas "RYTWEAKS logo & startup animation". Splash: the chip outline draws, the pins light up in sequence, a scan line sweeps, the R traces in, then the RYTWEAKS wordmark and an honest status line ("Scanning hardware…") appear, then it fades into the main window. It plays while the app really loads (no added waiting, no version number, section 6). The chip becomes the app icon (`assets/icon.ico`: window, taskbar, .exe). The main window header keeps the wordmark only, with no logo beside it (section 5).
 - **Health Check:** one scan of startup apps, temp file size, power plan, disk health, pending updates, etc., each with a "Fix" that uses the existing undoable tweaks.
 - **Background calming:** while a game runs, temporarily lower the CPU priority of **only the apps the user picks**, then restore them.
 - **Real FPS and 1% / 0.1% lows** with Intel PresentMon, plus before/after run comparison in Snapshots.
