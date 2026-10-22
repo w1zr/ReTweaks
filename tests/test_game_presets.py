@@ -179,7 +179,9 @@ def _good(**over):
     (_json.dumps(_good(settings={"k": "x" * 600})), "too long"),
     (_json.dumps(_good(settings={f"k{i}": 1 for i in range(600)})), "too many"),
     ("x" * (gp.MAX_IMPORT_BYTES + 1), "too big"),
-])
+], ids=lambda v: None if len(str(v)) < 40 else "long")
+# ids: pytest puts the test id in an environment variable, and Windows caps those at 32,767
+# characters, so the 256 KB "too big" sample must not become part of the id.
 def test_import_validation_rejects(raw, part):
     ok, msg, name, settings = gp.parse_preset_file(raw, "fortnite")
     assert not ok and part in msg and name is None
