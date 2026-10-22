@@ -73,8 +73,11 @@ def _small_chip(p, size):
 
 
 def render_taskbar(size):
-    """The v1.4 drawing, kept for the running app's window and taskbar icon (owner preference
-    2026-10-21): the chip zoomed to fill the tile, without pins at 24 px and below."""
+    """Window + taskbar icon. 24 px and up: the v1.4 drawing the owner prefers on the taskbar
+    (chip zoomed to fill the tile). 16 and 20 px (the window title bar): the crisp pixel-grid
+    drawing, because the zoomed one cuts the chip outline off at those sizes (owner report)."""
+    if size < 24:
+        return render(size)
     img = QImage(size, size, QImage.Format_ARGB32)
     img.fill(Qt.transparent)
     p = QPainter(img)
