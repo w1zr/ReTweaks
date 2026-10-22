@@ -50,6 +50,10 @@ jobs:
           "$h  RYTWEAKS.exe" | Out-File -Encoding ascii dist/RYTWEAKS.exe.sha256
           Get-Content dist/RYTWEAKS.exe.sha256
 
+      - name: Zip copy (for people who prefer downloading a .zip)
+        shell: pwsh
+        run: Compress-Archive -Path dist/RYTWEAKS.exe -DestinationPath dist/RYTWEAKS.zip -Force
+
       - name: Upload .exe for preview
         uses: actions/upload-artifact@v4
         with:
@@ -70,4 +74,4 @@ jobs:
           $notes = "release-notes/$tag.md"
           if (-not (Test-Path $notes)) { throw "Missing $notes - add release notes before releasing." }
           # --target creates the tag on the exact commit that was just built
-          gh release create $tag dist/RYTWEAKS.exe dist/RYTWEAKS.exe.sha256 --target "${{ github.sha }}" --title "RYTWEAKS $tag" --notes-file $notes --latest
+          gh release create $tag dist/RYTWEAKS.exe dist/RYTWEAKS.zip dist/RYTWEAKS.exe.sha256 --target "${{ github.sha }}" --title "RYTWEAKS $tag" --notes-file $notes --latest
