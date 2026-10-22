@@ -76,7 +76,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{APP_NAME} v{__version__}")
         self.resize(1320, 860)
         self.setMinimumSize(1000, 640)
-        icon = resource_path("assets/icon.ico")
+        # Window + taskbar use the v1.4 drawing (owner preference); the .exe file keeps icon.ico
+        icon = resource_path("assets/taskbar.ico")
+        if not os.path.exists(icon):
+            icon = resource_path("assets/icon.ico")
         if os.path.exists(icon):
             self.setWindowIcon(QIcon(icon))
 
