@@ -6,6 +6,9 @@ user files or changes game files.
 """
 
 from core.optimizer import WindowsOptimizer as W
+from core.tweaks import BY_ID as T
+
+# Steps use core.tweaks so "Undo" / "Undo everything" can put the original settings back.
 
 PROFILES = {
     "Max Performance": {
@@ -13,18 +16,18 @@ PROFILES = {
                        "Performance power plan and stops Xbox Game Bar recording in the background. "
                        "Laptops will use more battery and run warmer.",
         "steps": [
-            ("Turn on Game Mode", lambda: W.set_game_mode(True)),
+            ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
             ("Ultimate Performance power plan", W.enable_ultimate_power_plan),
-            ("Stop Xbox background recording", lambda: W.set_xbox_captures(True)),
+            ("Stop Xbox background recording", lambda: T["xbox_capture"].apply(False)),
         ],
     },
     "Windows Default": {
         "description": "Puts these settings back the way Windows ships them: Game Mode on, "
                        "Balanced power plan, Xbox Game Bar background recording allowed.",
         "steps": [
-            ("Turn on Game Mode", lambda: W.set_game_mode(True)),
+            ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
             ("Balanced power plan", W.set_balanced_power_plan),
-            ("Allow Xbox background recording", lambda: W.set_xbox_captures(False)),
+            ("Allow Xbox background recording", lambda: T["xbox_capture"].apply(True)),
         ],
     },
 }
