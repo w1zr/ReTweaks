@@ -4,8 +4,11 @@
 Commands run without a console window (core.winutil.run), so nothing flashes on screen.
 """
 
+import json
 import os
+import re
 import shutil
+from pathlib import Path
 
 from core.winutil import IS_WINDOWS, run, run_powershell, run_powershell_json, as_list
 
@@ -22,6 +25,39 @@ _CAPTURE_VALUES = [
     (r"HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled"),
     (r"HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR", "HistoricalCaptureEnabled"),
 ]
+
+
+def _state_path():
+    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "tweak_state.json"
+
+
+def _load_state():
+    """Previous values saved before a tweak changed them, so they can be restored."""
+    try:
+        with open(_state_path(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_state(state):
+    try:
+        path = _state_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=4)
+    except Exception:
+        pass
+
+
+def valid_ip(text):
+    import ipaddress
+    try:
+        ipaddress.ip_address(str(text).strip())
+        return True
+    except ValueError:
+        return False
 
 
 def _ps_quote(text):
@@ -68,7 +104,7 @@ class WindowsOptimizer:
         if not IS_WINDOWS:
             return NOT_WINDOWS
         ok, err = _reg_set_dword(r"HKCU\Software\Microsoft\GameBar", "AutoGameModeEnabled", 1 if enable else 0)
-        # Older RyTweaks versions wrote AllowAutoGameMode; keep it in sync
+        # Older RYTWEAKS versions wrote AllowAutoGameMode; keep it in sync
         _reg_set_dword(r"HKCU\Software\Microsoft\GameBar", "AllowAutoGameMode", 1 if enable else 0)
         return (True, f"Game Mode {'enabled' if enable else 'disabled'}.") if ok else (False, err)
 
@@ -120,9 +156,41 @@ class WindowsOptimizer:
             return "Unknown"
 
     @staticmethod
+    def get_active_power_plan_guid():
+        try:
+            out = run(["powercfg", "/getactivescheme"], timeout=10).stdout
+            m = re.search(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", out)
+            return m.group(0).lower() if m else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def has_previous_power_plan():
+        return bool(_load_state().get("previous_power_plan"))
+
+    @staticmethod
+    def restore_previous_power_plan():
+        """Switch back to the plan that was active before Ultimate Performance was turned on."""
+        if not IS_WINDOWS:
+            return NOT_WINDOWS
+        prev = _load_state().get("previous_power_plan")
+        if not prev:
+            return False, "No previous power plan was saved. RYTWEAKS saves it the first time you turn on Ultimate Performance."
+        r = run(["powercfg", "/setactive", prev["guid"]], timeout=15)
+        if r.returncode != 0:
+            return False, (r.stderr or r.stdout).strip() or "powercfg failed (the saved plan may have been deleted)."
+        return True, f"Restored your previous power plan: {prev.get('name') or prev['guid']}."
+
+    @staticmethod
     def enable_ultimate_power_plan():
         if not IS_WINDOWS:
             return NOT_WINDOWS
+        # Remember the current plan first so it can be restored (CLAUDE.md section 8)
+        current = WindowsOptimizer.get_active_power_plan_guid()
+        if current and current != ULTIMATE_COPY_GUID:
+            state = _load_state()
+            state["previous_power_plan"] = {"guid": current, "name": WindowsOptimizer.get_active_power_plan()}
+            _save_state(state)
         # Creates the plan if it doesn't exist yet (fails harmlessly if it already does)
         run(["powercfg", "-duplicatescheme", ULTIMATE_GUID, ULTIMATE_COPY_GUID], timeout=15)
         r = run(["powercfg", "/setactive", ULTIMATE_COPY_GUID], timeout=15)
@@ -161,13 +229,22 @@ class WindowsOptimizer:
     # ------------------------------------------------------------ Network / DNS
     @staticmethod
     def get_network_adapters():
-        """Names of connected network adapters."""
+        """Names of connected network adapters; the one carrying internet traffic comes first."""
         if not IS_WINDOWS:
             return []
         data = run_powershell_json(
-            "Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object Name | ConvertTo-Json -Compress",
-            timeout=20)
-        return [a.get("Name") for a in as_list(data) if a.get("Name")]
+            "$up = @(Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -ExpandProperty Name); "
+            "$def = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | "
+            "Sort-Object RouteMetric | Select-Object -First 1 -ExpandProperty InterfaceAlias; "
+            "[PSCustomObject]@{ Up = $up; Default = $def } | ConvertTo-Json -Compress", timeout=20)
+        if not isinstance(data, dict):
+            return []
+        names = [n for n in as_list(data.get("Up")) if n]
+        default = data.get("Default")
+        if default in names:
+            names.remove(default)
+            names.insert(0, default)
+        return names
 
     @staticmethod
     def get_dns_servers(adapter_name):
@@ -180,16 +257,64 @@ class WindowsOptimizer:
         return [str(x) for x in as_list(data)]
 
     @staticmethod
-    def apply_dns(adapter_name: str, primary_ipv4: str, secondary_ipv4: str):
+    def get_dns_servers_all(adapter_name):
+        """IPv4 + IPv6 DNS servers on an adapter, used to save the previous setting."""
+        if not IS_WINDOWS or not adapter_name:
+            return []
+        data = run_powershell_json(
+            f"@(Get-DnsClientServerAddress -InterfaceAlias {_ps_quote(adapter_name)} | "
+            "ForEach-Object { $_.ServerAddresses }) | ConvertTo-Json -Compress", timeout=20)
+        return [str(x) for x in as_list(data)]
+
+    @staticmethod
+    def has_previous_dns(adapter_name):
+        return adapter_name in _load_state().get("previous_dns", {})
+
+    @staticmethod
+    def apply_dns(adapter_name: str, *servers: str):
+        """Set DNS servers (IPv4 and/or IPv6). Saves the previous servers first."""
         if not IS_WINDOWS:
             return NOT_WINDOWS
+        servers = [s for s in servers if s]
+        bad = [s for s in servers if not valid_ip(s)]
+        if bad or not servers:
+            return False, f"Not a valid IP address: {', '.join(bad) or '(empty)'}"
+        state = _load_state()
+        prev = state.setdefault("previous_dns", {})
+        # Save what was set before RYTWEAKS first changed this adapter ([] = automatic)
+        if adapter_name not in prev:
+            prev[adapter_name] = WindowsOptimizer.get_dns_servers_all(adapter_name)
+            _save_state(state)
+        addr = ", ".join(_ps_quote(s) for s in servers)
         out = run_powershell(
             f"try {{ Set-DnsClientServerAddress -InterfaceAlias {_ps_quote(adapter_name)} "
-            f"-ServerAddresses ({_ps_quote(primary_ipv4)}, {_ps_quote(secondary_ipv4)}) -ErrorAction Stop; "
+            f"-ServerAddresses ({addr}) -ErrorAction Stop; "
             "Clear-DnsClientCache; 'OK' } catch { $_.Exception.Message }", timeout=30).strip()
         if out != "OK":
             return False, out or "Could not change DNS (needs administrator rights)."
-        return True, f"DNS for '{adapter_name}' set to {primary_ipv4} / {secondary_ipv4}."
+        return True, f"DNS for '{adapter_name}' set to {', '.join(servers)}."
+
+    @staticmethod
+    def restore_previous_dns(adapter_name):
+        if not IS_WINDOWS:
+            return NOT_WINDOWS
+        state = _load_state()
+        prev = state.get("previous_dns", {})
+        if adapter_name not in prev:
+            return False, "No previous DNS was saved for this adapter."
+        servers = prev[adapter_name]
+        if servers:
+            addr = ", ".join(_ps_quote(s) for s in servers)
+            cmd = f"Set-DnsClientServerAddress -InterfaceAlias {_ps_quote(adapter_name)} -ServerAddresses ({addr}) -ErrorAction Stop"
+        else:
+            cmd = f"Set-DnsClientServerAddress -InterfaceAlias {_ps_quote(adapter_name)} -ResetServerAddresses -ErrorAction Stop"
+        out = run_powershell(f"try {{ {cmd}; Clear-DnsClientCache; 'OK' }} catch {{ $_.Exception.Message }}",
+                             timeout=30).strip()
+        if out != "OK":
+            return False, out or "Could not restore DNS (needs administrator rights)."
+        del prev[adapter_name]
+        _save_state(state)
+        return True, f"Restored previous DNS for '{adapter_name}': {', '.join(servers) or 'automatic'}."
 
     @staticmethod
     def restore_dhcp_dns(adapter_name: str):

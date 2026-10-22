@@ -1,9 +1,9 @@
 # ui/pages/network.py
 """DNS switcher with the adapter's real current DNS, plus live network speed."""
 
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QMessageBox, QPushButton
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QMessageBox, QPushButton
 
-from core.optimizer import WindowsOptimizer as W
+from core.optimizer import WindowsOptimizer as W, valid_ip
 from ui.widgets.common import Card, Page, fmt_rate, label
 
 DNS_PROVIDERS = [
@@ -49,8 +49,31 @@ class NetworkPage(Page):
         auto.clicked.connect(self.reset)
         btns.addWidget(auto)
         self.buttons.append(auto)
+        self.btn_restore = QPushButton("Restore previous")
+        self.btn_restore.setToolTip("Puts back the DNS this adapter had before RYTWEAKS first changed it.")
+        self.btn_restore.clicked.connect(self.restore_previous)
+        btns.addWidget(self.btn_restore)
+        self.buttons.append(self.btn_restore)
         btns.addStretch()
         card.body.addLayout(btns)
+
+        custom = QHBoxLayout()
+        custom.addWidget(label("Custom:", "muted"))
+        self.custom1 = QLineEdit()
+        self.custom1.setPlaceholderText("Primary (IPv4 or IPv6)")
+        self.custom2 = QLineEdit()
+        self.custom2.setPlaceholderText("Secondary (optional)")
+        b_custom = QPushButton("Apply custom")
+        b_custom.clicked.connect(self.apply_custom)
+        self.buttons.append(b_custom)
+        for w in (self.custom1, self.custom2):
+            w.setMaximumWidth(220)
+            custom.addWidget(w)
+        custom.addWidget(b_custom)
+        custom.addStretch()
+        card.body.addLayout(custom)
+        card.body.addWidget(label("Changing DNS needs administrator rights. RYTWEAKS saves your previous DNS "
+                                  "the first time it changes an adapter.", "muted", wrap=True))
         self.content.addWidget(card)
 
         live = Card("Live traffic")
@@ -116,6 +139,22 @@ class NetworkPage(Page):
         for btn in self.buttons:
             btn.setEnabled(False)
         self._run(W.apply_dns, self.adapter.currentText(), a, b, on_done=self._after_change(f"{provider} {a}/{b}"))
+
+    def apply_custom(self):
+        servers = [w.text().strip() for w in (self.custom1, self.custom2) if w.text().strip()]
+        bad = [s for s in servers if not valid_ip(s)]
+        if not servers or bad:
+            QMessageBox.warning(self, "DNS", f"Enter valid IP addresses. Not valid: {', '.join(bad) or '(empty)'}")
+            return
+        for btn in self.buttons:
+            btn.setEnabled(False)
+        self._run(W.apply_dns, self.adapter.currentText(), *servers,
+                  on_done=self._after_change(f"Custom {' / '.join(servers)}"))
+
+    def restore_previous(self):
+        for btn in self.buttons:
+            btn.setEnabled(False)
+        self._run(W.restore_previous_dns, self.adapter.currentText(), on_done=self._after_change("Restore previous"))
 
     def reset(self):
         for btn in self.buttons:

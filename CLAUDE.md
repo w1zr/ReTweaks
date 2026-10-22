@@ -1,81 +1,357 @@
-# RyTweaks: instructions for AI assistants
+# RYTWEAKS — CLAUDE.md (Master Project Context)
 
-RyTweaks is an open source Windows PC performance and optimization app (Python + PySide6),
-built into a single `RYTWEAKS.exe` with PyInstaller. Owner: Ryder (GitHub: w1zr).
-It's used by people with all kinds of PCs (NVIDIA, AMD and Intel GPUs, desktops and laptops,
-any Windows language), not just the developer's own machine.
+This is the single source of truth for RYTWEAKS. Read the whole file before making any change. The rules in it are hard constraints. If a request conflicts with this file, explain the conflict and ask before doing anything destructive.
 
-## Golden rules
+---
 
-1. **Never show fake or guessed data.** If Windows doesn't report a value, show
-   "Not available" (`None` in code). No placeholder values, no estimates presented as real
-   (the old code once showed "CPU load × 0.4" as GPU load, and a hardcoded "Healthy" for disks).
-2. **No per-model hacks.** Never write `if "4060" in name: vram = 8`. Fix the data source so
-   it's right for every PC.
-3. **Never delete user data.** Tweaks and profiles must not touch documents, downloads, game
-   files or the Recycle Bin. Temp cleanup only touches %TEMP% and Windows\Temp.
-4. **Report real results.** Every action returns `(ok, message)` from what Windows actually did,
-   and is logged with `ctx.log_action(...)`. Never say "Success" unless it succeeded.
-5. **Privacy.** Hardware reports get posted in public GitHub issues: never collect serial
-   numbers, MAC/IP addresses, user names or computer names.
-6. **Keep the UI responsive.** Anything that calls PowerShell, WMI or the registry runs in a
-   worker thread (`ui/workers.py`), never directly in a button handler on the UI thread.
-7. **No console windows.** Run commands through `core/winutil.run()` / `run_powershell()`,
-   which hide the console. Don't use `subprocess` with `shell=True`.
-8. **Ask before big changes.** Show Ryder a plan before restructuring the UI or adding
-   dependencies. All changes go on a branch with a pull request; never push to `main`.
+## 1. Project overview
 
-## Project layout
+- **Name:** RYTWEAKS (always written in all caps). Never show the old name "Galaxy Optimizer".
+- **What it is:** A Windows PC diagnostics and optimization app, shipped as a single-file Windows `.exe`. It shows real hardware information and live readings, applies practical PC and game tweaks, and includes game profiles, storage tools, an audio mixer, an auto clicker and related utilities.
+- **Core goal:** Real functionality only. Every control must perform a real Windows action and report the true result. No mockups, stubs, placeholder data, fake math (for example, never `cpu_pct * 0.4` for GPU load) or hardcoded device hacks.
+- **Owner:** Ryder. GitHub user `w1zr`.
+- **Repo:** `w1zr/rytweaks`, public. All source files stay viewable on GitHub.
+- **License:** None. Do not add a license file unless the owner asks for one.
+- **Local folder:** `C:\pc_optimizer` on Ryder's Windows PC. It is not a Git clone. Ryder sends changes to GitHub from PowerShell.
+- **This file's location:** `C:\pc_optimizer\CLAUDE.md` and the root of the GitHub repo. Both copies must stay identical. When one changes, update the other in the same session.
+- **Language policy:** RYTWEAKS stays mainly Python for now. Changing languages, mixing in other languages, or rewriting modules is allowed in the future, but only under the rewrite protocol in section 4.
 
-```
-main.py                 entry point (splash, then MainWindow)
-build.py                builds dist/RYTWEAKS.exe (PyInstaller --onefile --windowed --uac-admin)
-core/version.py         __version__: the ONLY place the version number lives
-core/winutil.py         run commands/PowerShell without a console window, is_admin()
-core/hardware.py        static hardware scan (one PowerShell call) + parse_static()
-core/gpu_dxgi.py        GPU list via DirectX: any vendor, correct 64-bit VRAM, LUIDs
-core/telemetry.py       live data: Windows performance counters (GPU/CPU), NVML (NVIDIA), psutil
-core/sensors_lhm.py     optional temps/fans from LibreHardwareMonitor's WMI namespace
-core/optimizer.py       tweaks: each get_* reads real state, each set_* returns (ok, msg)
-core/profiles.py        profiles = named lists of optimizer steps
-core/startup_manager.py startup apps (with backups so they can be re-enabled)
-core/storage_manager.py drives, file browsing, temp cleanup
-core/report.py          hardware report export (no personal identifiers)
-core/themes.py          color tokens + Qt stylesheet (all colors come from here)
-ui/main_window.py       shell: sidebar NAV, page stack, workers, settings, log
-ui/workers.py           QThreads: static scan, telemetry loop, one-off tasks
-ui/widgets/             Card, Notice, KeyValueGrid, Page base class, Sparkline, MetricCard
-ui/pages/               one file per page
-tests/                  pytest tests for parsing logic (run on any OS)
-```
+---
 
-To add a page: subclass `Page` in `ui/pages/`, then add it to `NAV` in `ui/main_window.py`.
-Pages get data through hooks: `on_static(data)`, `on_telemetry(sample)`, `on_shown()`,
-`on_theme(theme)`, and optional `on_sources(src)`.
+## 2. Tech stack (verified from the code)
 
-## Where live data comes from (and why)
+- Python. The last build used Python 3.15 (64-bit).
+- GUI: **PySide6** (Qt). Not PyQt, and not customtkinter.
+- Windows integration (v1.2): `winreg`, PowerShell/CIM (run through `core/winutil.py`, no console window), `ctypes` (DXGI GPU list), `psutil`, `pywin32` (`win32pdh` performance counters, `win32com` for WMI), and `nvidia-ml-py` (imported as `pynvml`) for NVIDIA telemetry.
+- Removed in v1.2 because nothing imported them: `wmi`, `py-cpuinfo`, `customtkinter`, `pycaw`, `comtypes`. `pycaw`/`comtypes` come back when the audio mixer is rebuilt (v1.3).
+- Packaging: PyInstaller, run through `build.py`.
 
-- GPU load and VRAM used: Windows "GPU Engine" / "GPU Adapter Memory" performance counters,
-  the same ones Task Manager uses, so they work on every GPU brand. Counters are added with
-  `AddEnglishCounter` so they work on non-English Windows.
-- VRAM size: DXGI `DedicatedVideoMemory` (64-bit). Don't use WMI `AdapterRAM` (capped at 4 GB).
-- CPU clock: `Processor Frequency × % Processor Performance`. Don't use `psutil.cpu_freq()` on
-  Windows; it only returns the base clock.
-- NVIDIA temperature, clocks, power, fan: NVML (`nvidia-ml-py`, imported as `pynvml`).
-- CPU temperature, fans, motherboard sensors: Windows has no API for these without a kernel
-  driver. RyTweaks doesn't ship a driver; it reads LibreHardwareMonitor's WMI namespace when the
-  user runs it. Don't add a bundled driver without asking.
+---
 
-## Testing
+## 3. Architecture and folder layout
 
-- `python -m pytest tests` runs the parsing tests (any OS). Add a test with real sample
-  output whenever a user reports wrong hardware data.
-- The UI can't be fully tested off Windows. Before a release, Ryder runs `python main.py`
-  on his PC and checks every page.
+The real layout is the one in the GitHub repo. Inspect the repo before assuming a path. Layout as of v1.2:
 
-## Release process
+- `main.py` — Entry point. Sets the Windows AppUserModelID (`rytweaks.pcoptimizer.suite.v1`) so the taskbar shows the RYTWEAKS icon. Loads `assets/icon.ico` and shows the splash screen, then the main window. Calls `freeze_support()` for PyInstaller.
+- `core/version.py` — `__version__`, the only place the version number lives.
+- `core/winutil.py` — Runs commands and PowerShell without a console window; `is_admin()`.
+- `core/hardware.py` — Static hardware scan (one PowerShell call): OS, CPU, motherboard/BIOS, RAM sticks, disk health, monitors, audio, network.
+- `core/gpu_dxgi.py` — GPU list via DirectX (DXGI): exact names, 64-bit VRAM, every vendor.
+- `core/telemetry.py` — Live readings: GPU load/VRAM used (Windows GPU counters), live CPU clock, NVML extras, disk/network speed.
+- `core/sensors_lhm.py` — Optional temperatures and fans from LibreHardwareMonitor.
+- `core/optimizer.py` — Windows tweaks: each `get_*` reads the real state, each `set_*` returns `(ok, message)`. Saves previous power plan and DNS so they can be restored.
+- `core/profiles.py` — System profiles (bundles of real tweaks).
+- `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps, Storage Explorer and cleanup, theme tokens, hardware report export.
+- `ui/main_window.py` — App shell: sidebar navigation, page stack, background workers, settings, change log.
+- `ui/pages/` — One file per page (Dashboard, Hardware, Tweaks, Profiles, Startup apps, Network, Storage & cleanup, Snapshots, Logs, Settings).
+- `ui/widgets/` — Shared widgets (cards, live graphs) and the `Page` base class.
+- `ui/workers.py` — Background threads. `ui/splash.py` — The splash screen (`RytweaksSplash`).
+- `tests/` — pytest tests for the parsing logic (run on any OS with `python -m pytest tests`).
+- `create_logo.py` — Logo generation. `build.py` — PyInstaller single-file build. Output: `dist\RYTWEAKS.exe`.
+- `.github/workflows/` — GitHub Actions build and release.
+- `assets/icon.ico` — The app icon.
+- `.gitignore` — Excludes `build/`, `dist/`, `__pycache__/`, `*.spec`, `.vscode/` and `.pytest_cache/`.
 
-1. Bump `__version__` in `core/version.py`.
-2. Branch → pull request → Ryder reviews and merges.
-3. Ryder builds on Windows: `python build.py` (makes `dist/RYTWEAKS.exe`).
-4. Publish a GitHub release with tag `vX.Y`, release notes and `RYTWEAKS.exe` attached.
+---
+
+## 4. Highest-priority rule: never lose existing features or settings
+
+A previous update deleted many settings. Preventing that from happening again comes before convenience or refactoring.
+
+Before every meaningful update:
+1. Inspect the repo: source files, settings models, persistence, screens, feature modules and the build configuration.
+2. Write a complete inventory of the existing screens, controls, settings, tweaks, profiles and features.
+3. Check Git history, branches or backups when you need to understand an earlier regression.
+4. Make the smallest focused change that does the job. Do not rewrite unrelated modules.
+5. Keep setting keys, IDs, defaults, behavior and user data. Never silently reset, rename, delete or simplify them.
+6. If a data-model change cannot be avoided, write a backward-compatible, repeat-safe migration. Back up the old config before migrating.
+7. Never remove a feature because it is inconvenient. Explain why and ask first.
+8. After editing, compare against the inventory and confirm nothing unrelated disappeared.
+9. Test that settings, profiles and preferences persist across restart and upgrade.
+10. If you find an existing regression, restore the real function. Do not hide it behind a placeholder.
+
+### Rewrite protocol (a language change or a large rewrite)
+Rewrites are allowed, but they are the most likely way to lose features. Follow these steps every time:
+1. The owner approves the rewrite and the target language before any work starts.
+2. Write a complete written inventory of every screen, control, setting key, default, tweak, profile and feature. Save it to the repo.
+3. Build the new version against that inventory.
+4. Migrate existing user settings and profiles. Never discard them.
+5. Do not release the new version until every inventoried item works, or until the owner approves each missing item in writing.
+
+---
+
+## 5. Design and branding
+
+- Clean, professional and modern. Mostly black and grey.
+- Moderately rounded corners, consistent spacing, clear hierarchy, restrained borders and shadows. Nothing square or boxy, and no overdone redesign.
+- Smooth, short transitions for navigation, buttons, loading states and dialogs. They must not make the app feel slow.
+- Navigation gets a subtle click or selection animation. Buttons respond to hover and press.
+- Use monochrome icons. No picture emojis (the colorful phone-style ones) anywhere in the app UI. Plain text symbols such as ✔ ✖ → • are fine (owner clarification 2026-10-21).
+- The main header shows the RYTWEAKS wordmark with **no logo beside it**. The splash screen may show the logo.
+- Pop-ups and dialogs match the app's style, with clear confirm and cancel options and real outcomes.
+- No fake progress bars or artificial waits.
+- Accessibility: readable contrast, keyboard navigation where practical, visible focus states and a layout that scales.
+- A targeted UI request gets a targeted change, not a redesign.
+
+### Themes
+- Built-in themes: black/grey (the default), pink and blue. Purple, red, green and cyan are optional extras if they fit cleanly.
+- Custom accent color through a validated HEX input.
+- Use centralized theme tokens. Never hardcode colors across the UI.
+- Apply the theme consistently to buttons, active navigation, switches, sliders, highlights and focus states.
+- Keep the dark foundation unless the user picks a supported light mode.
+- Status, warning and error colors must stay readable under every theme.
+- Save the theme choice and restore it on launch. Adding theme settings must not reset any existing setting.
+
+---
+
+## 6. Splash screen and app icon
+
+- About 600 × 360 px as a starting point, adjusted for DPI scaling.
+- Centered on the active monitor's usable work area, not at fixed coordinates.
+- Black and grey branding with a clean logo reveal.
+- **No version number on the splash screen.**
+- Fades smoothly into the main window. No artificial delay. Show honest status only when it helps.
+- Must close properly if startup fails, and must never stay stuck on top of the main window.
+- The RYTWEAKS `.ico` must be embedded in the `.exe` and used for the window, the taskbar and shortcuts. The taskbar previously showed a random blue icon, which is a known bug to keep fixed.
+
+---
+
+## 7. Hardware detection and live data
+
+- Show CPU, GPU, motherboard and BIOS, RAM, storage, OS, monitors, audio devices and any other reliable system information.
+- Show the **exact** GPU name reported by the driver (for example "NVIDIA GeForce RTX 4060"), never a generic label. Detect multiple GPUs.
+- **VRAM detection (64-bit fix, owner-approved change 2026-10-21):** WMI `Win32_VideoController.AdapterRAM` is a 32-bit value and caps at about 4 GB. Use:
+  1. DirectX (DXGI) `DedicatedVideoMemory`, a 64-bit value that works for every GPU brand. DXGI also gives each GPU's LUID, which links it to the Windows GPU performance counters.
+  2. NVIDIA NVML (`pynvml`) for NVIDIA-only extras: temperature, clocks, power, fan, VRAM in use.
+  3. If DXGI fails: the GPU names from WMI/CIM, with VRAM shown as "Unavailable" (never the capped WMI number).
+- **Live GPU load (every brand):** the Windows "GPU Engine" performance counters, the same source Task Manager uses. Add counters with English names (`AddEnglishCounter`) so non-English Windows works.
+- **Live CPU clock:** `Processor Frequency x % Processor Performance`. `psutil.cpu_freq()` only returns the base clock on Windows.
+- **CPU temperature, fans, motherboard sensors:** Windows has no API for these without a kernel driver, and RYTWEAKS does not ship one. Read them from LibreHardwareMonitor when the user runs it: its Remote Web Server (`http://localhost:8085/data.json`, needed for LHM 0.9.5 and newer, which removed WMI), or WMI `root\LibreHardwareMonitor` for 0.9.4 and older.
+- Motherboard and BIOS: CIM `Win32_BaseBoard` and `Win32_BIOS`.
+- Disk health: `Get-PhysicalDisk` status. Show SMART or health data only when the hardware or driver actually exposes it.
+- Monitors: real names from `WmiMonitorID`, plus resolution and refresh rate from Qt. Audio: `Win32_SoundDevice`.
+- PSU: show it only if the system reliably reports it. Otherwise show "Unavailable".
+- Any metric that isn't supported or available shows **"Unavailable"**. Never show a fake value or a hardcoded zero.
+- Label readings as live, cached, stale or unavailable.
+- Poll hardware in the background, never on the UI thread, and clean up timers and resources.
+- Never hardcode the reference PC's specs (section 17) into the app.
+
+---
+
+## 8. Windows tweaks
+
+Every tweak must:
+- Explain what it does in plain language, including the trade-off or downside.
+- Say whether it needs administrator rights.
+- Detect and show its current state when possible.
+- Use an explicit Apply action and report the real result only after the Windows operation finishes.
+- Record the previous state first and offer undo or restore when practical.
+- Use documented Windows mechanisms. Never invent registry keys or present "FPS boost" folklore as fact.
+- Never claim an FPS or ping gain that wasn't actually measured.
+- Keep safe, reversible tweaks separate from advanced or disruptive ones.
+- Never be applied silently, and never on launch.
+
+Users must be able to apply tweaks **individually**, not only as one bundle. Categories: gaming and responsiveness, startup apps, background apps, power, network, Windows gaming features, visual effects, storage and cleanup.
+
+Known mechanisms:
+- **Game Mode:** `HKCU\Software\Microsoft\GameBar` → `AutoGameModeEnabled` (the value Windows 10/11 Settings uses). v1.2 also writes the older `AllowAutoGameMode`. This is a reversible on/off toggle and must never be forced on, because it can lower FPS on some systems.
+- **Ultimate Performance power plan:** duplicate and activate the hidden scheme GUID `e9a42b02-d5df-448d-aa00-03f14749eb61`. Keep the user's previous plan so it can be restored.
+- **HAGS:** the graphics driver scheduling key `HwSchMode`. A restart is needed for it to take effect.
+- **Temp cleanup:** clean `%TEMP%` and `%SystemRoot%\Temp`, handle errors, and show a preview before deleting anything.
+
+### Startup apps
+- Enumerate entries from HKCU Run, HKLM Run, Startup folders and Scheduled Tasks. Show the name, path, source, scope and publisher.
+- Disabling and re-enabling must really work. Keep the original command and state so the entry can be restored, and never delete unrelated data.
+- Not every entry is safe to disable, so say so. Handle per-user versus machine-wide entries and their permissions.
+- Refresh and verify the state after every action.
+
+### DNS (user's choice)
+- Let the user **choose their own DNS**. Offer presets plus a custom entry with validated IPv4 and IPv6 input.
+- Let the user pick **which network adapter** to change (Wi-Fi or Ethernet). Default to the adapter currently in use.
+- Include an **"Automatic (from router)"** option that returns the adapter to DHCP-provided DNS.
+- Apply with `Set-DnsClientServerAddress`, then flush the cache with `ipconfig /flushdns`. This needs admin rights.
+- Save the previous DNS settings so they can be restored with one click.
+- Never claim one DNS is faster unless it was measured on this PC.
+
+### DNS speed test (requested feature)
+- Measure real DNS lookup times against the presets, the user's custom servers and the current or automatic DNS.
+- Use several lookups per server, and show the average, the best, the worst and any failures. State the method and the number of lookups.
+- Test uncached lookups so the results aren't skewed by caching, and say how this was done.
+- Results are for this PC, on this network, at this moment. Say so in the UI.
+- Never change DNS automatically from the results. The user picks, then applies through the DNS tweak.
+
+### Network and ping tests
+- Ping and latency tests must use **1.1.1.1 or 1.0.0.1** as the target.
+- Keep DNS lookup time, packet latency, packet loss and in-game latency separate.
+- Show real results and errors. Never fabricate values or claim an improvement without before-and-after measurements.
+
+---
+
+## 9. Game profiles
+
+- The user picks a target game. Each game gets its own profiles with **Low, High, Ultra and Ultra Performance** presets where they make sense for that game, plus a Custom option.
+- Profiles can be created, renamed, duplicated, edited, deleted, exported and imported. Each game's settings save independently and persist across restarts.
+- Preview the changes before applying. Back up the game's config files first and support rollback.
+- Validate game paths and config formats. Never overwrite unrelated files.
+- Handle games that aren't installed, configs synced to the cloud, and different config locations. Report honestly when a setting can't be detected or applied.
+- Never modify anti-cheat-protected files or try to bypass anti-cheat.
+- **Fortnite** is the key target: competitive 1080p FPS and responsiveness, no promised FPS numbers, reversible changes only.
+- **Minecraft** is also a target. Only edit settings that can be safely identified for the installed edition and version.
+- New games must be easy to add. Don't build the system around Fortnite and Minecraft only.
+
+### Performance measurement
+Measure real FPS and 1% lows where supported. State the method, duration and limits. Compare under comparable conditions. Never invent benchmark numbers or credit a tweak for an inconclusive result.
+
+---
+
+## 10. Auto clicker
+
+- Settings: left, right or middle button; single or double click; speed in CPS or as an interval (with units and limits); optional click count or run time; optional random interval range; optional start delay.
+- Start and stop controls, configurable hotkeys, and an emergency stop that always works.
+- Show basic session stats and the true running state. Save preferences across launches.
+- Use a proper Windows input API. Run the click loop off the UI thread. Stop cleanly on stop, emergency stop, app close or error. No runaway threads, stuck buttons, or clicking after the app closes.
+- Validate every number so bad values can't freeze the app.
+- No stealth, evasion or anti-cheat bypass features. State in the UI that users are responsible for following the rules of each game or service.
+
+---
+
+## 11. Audio mixer
+
+- Master volume and mute. List output devices and let the user switch between them. Per-app volume and mute where Windows supports it.
+- Stay in sync with changes made outside RYTWEAKS. React when devices or sessions change.
+- Use Windows Core Audio (`IAudioEndpointVolume`, `IAudioSessionManager2`, `ISimpleAudioVolume`) through `pycaw`.
+- No slider that isn't connected to a real device or session. Handle disconnects, default-device changes and COM cleanup. Report unsupported controls honestly.
+
+---
+
+## 12. Storage Explorer
+
+- Browse, breadcrumbs, search, sort, show or hide hidden items, copy path, and open files with the normal Windows app.
+- Folder and file sizes are calculated in the background. Include a disk usage breakdown.
+- Cleanup always shows a preview first. Never delete anything automatically or without an explicit user action.
+- Handle access-denied paths, symlinks and reparse points, disconnected drives and long paths. Never freeze the UI on large folders.
+
+---
+
+## 13. Gemini removal
+
+Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials or dependencies. Do not bring it back unless the owner explicitly asks. If any Gemini-specific code is found, remove only that code and keep everything else.
+
+---
+
+## 14. UI behavior
+
+- Loading indicators only appear for real work.
+- Long tasks run asynchronously and can be cancelled where feasible.
+- Success or error messages appear only after the real result is known.
+- No dead buttons, fake controls, placeholder data, or settings that look functional but aren't.
+
+---
+
+## 15. Settings, migration and persistence
+
+- Settings persist between launches. Keep existing formats and keys.
+- New settings get safe defaults. Old settings are never reset.
+- Validate imported settings and profiles, and handle bad data without wiping good data.
+- Keep app settings separate from game profiles and backups.
+- Reset-to-default must be explicit and limited to the intended settings. Never do a silent global reset.
+- Never store credentials in plain text. **The repo is public, so never commit secrets, API keys, tokens or personal data.**
+
+---
+
+## 16. Packaging, Git and releases
+
+### Build
+- Build a single-file `.exe` with `build.py` (PyInstaller `--onefile --windowed`, with the icon embedded and bundled). Output: `dist\RYTWEAKS.exe`.
+- The `.exe` must be built on Windows. Never claim an `.exe` was built or tested unless that actually happened.
+- **Admin rights (owner decision):** `build.py` keeps `--uac-admin`, so the app always runs as administrator. Several tweaks need admin access. Still tell the user in the UI which tweaks change system-wide settings, and handle a declined UAC prompt gracefully.
+- Test clean startup, shutdown and relaunch. Make sure paths and config work when the app runs from any folder.
+
+### Git
+- Every commit message is exactly: **`RYTWEAKS`**
+- Never commit `build/`, `dist/` or the `.exe` itself. The `.exe` goes in GitHub Releases.
+
+### Releases
+- Only publish a release when the owner says to.
+- Attach the **current single-file `RYTWEAKS.exe`** built from the latest committed code.
+- **Default build: GitHub Actions** on a Windows runner, which runs `build.py` and attaches `dist\RYTWEAKS.exe` to the release.
+- **Alternative:** the owner builds on his PC in `C:\pc_optimizer` and the `.exe` is uploaded from there.
+- Before releasing, confirm the `.exe` was built from the current code and that it launches.
+- The `.exe` is not code-signed, so Windows SmartScreen or antivirus may warn people who download it. Never claim it is signed.
+
+---
+
+## 17. Reference PC (for testing only; never hardcode)
+
+- iBUYPOWER Trace Mesh TMI7N4601, Windows 11 Home
+- Intel Core i7-14700F, Intel B760 Wi-Fi motherboard (the exact vendor and model must be detected)
+- NVIDIA GeForce RTX 4060 8 GB
+- 32 GB DDR5-5600 RAM, 2 TB NVMe SSD
+- Main use: 1080p gaming focused on Fortnite FPS. Minecraft is also played.
+
+---
+
+## 18. Known issues (updated 2026-10-21, v1.2)
+
+- Fixed in v1.2: `requirements.txt` (PySide6, pywin32, nvidia-ml-py added; unused libraries removed), the version number centralized in `core/version.py`, and the GitHub Actions release workflow added.
+- v1.1 game profiles (game picker plus Low/High/Ultra/Ultra Performance) never changed anything. v1.2 replaced them with working system profiles. Real per-game profiles are in the backlog for v1.3 (owner decision 2026-10-21).
+- The auto clicker and audio mixer (sections 10 and 11) are not in the code on GitHub or in `C:\pc_optimizer` as of v1.1. To be rebuilt in v1.3 (owner decision 2026-10-21).
+- Startup-app "Impact" was a guess based on where the entry came from, so v1.2 removed that column.
+- The Windows-only parts of v1.2 were reviewed but can only be fully tested on a Windows PC.
+
+---
+
+## 18a. Feature backlog (approved by the owner, not built yet)
+
+- v1.3: Real game profiles (section 9), starting with Fortnite and Minecraft.
+- v1.3: Auto clicker (section 10) and audio mixer (section 11).
+- DNS speed test (section 8).
+- Other new tools are welcome. Each one must follow every rule in this file: real function, honest results and no lost features. Confirm the scope with the owner before building.
+
+---
+
+## 19. Workflow for every task
+
+**Before you start:**
+1. Read this file.
+2. Inspect the current repo.
+3. Give a short plan that names the files you'll change.
+4. List the risks to existing settings and features.
+5. Make a focused, backward-compatible change.
+
+**After you finish:**
+1. Run the available tests, linting and build.
+2. Manually verify what can be tested in your environment.
+3. Check for controls that aren't connected to real code.
+4. Check that settings persist.
+5. Compare against the original inventory.
+6. Report exactly what changed, what was tested, what passed or failed, and what is still unverified.
+7. Never claim a test passed if you didn't run it. If a Windows-only feature can't be tested in your environment, say so and give the next validation step.
+
+---
+
+## 20. Acceptance checklist
+
+A change is not done until each applicable item is verified:
+
+- [ ] All existing screens, settings, tweaks, profiles and features are still there.
+- [ ] Nothing unrelated was reset, renamed, deleted or simplified.
+- [ ] Existing preferences and profiles still load, and new settings persist.
+- [ ] Any migration is backward-compatible and preserves old data.
+- [ ] The UI fits the black/grey rounded design, with no picture emojis and no "Galaxy Optimizer".
+- [ ] No logo sits beside the RYTWEAKS header wordmark.
+- [ ] The splash is centered and sized correctly, animates smoothly, and shows no version number.
+- [ ] The taskbar and window use the RYTWEAKS icon.
+- [ ] Hardware data, including the exact GPU name, comes from real detection. Unsupported metrics show "Unavailable".
+- [ ] Tweaks make real, reversible changes and report actual results.
+- [ ] Startup-app controls work and can be restored.
+- [ ] DNS lets the user choose a preset, a custom server or Automatic, per adapter, and can be restored.
+- [ ] Ping tests use 1.1.1.1 or 1.0.0.1 and promise nothing unmeasured. The DNS speed test shows only real measurements.
+- [ ] Any rewrite or language change followed the rewrite protocol (section 4).
+- [ ] Game profiles offer Low, High, Ultra and Ultra Performance where they apply, with backups.
+- [ ] The auto clicker starts and stops reliably, including emergency stop and app close.
+- [ ] The theme persists and updates the whole interface.
+- [ ] The audio mixer and Storage Explorer still work.
+- [ ] Gemini is still removed.
+- [ ] No secrets or personal data are in the commit.
+- [ ] The build and tests actually ran, or the untested parts are clearly disclosed.

@@ -1,7 +1,7 @@
 # core/report.py
 """Hardware report export.
 
-Users attach this to a GitHub issue when RyTweaks detects something wrong on their PC.
+Users attach this to a GitHub issue when RYTWEAKS detects something wrong on their PC.
 It deliberately contains no serial numbers, MAC addresses, IP addresses, user names or
 computer names, because GitHub issues are public.
 """
@@ -46,7 +46,7 @@ def report_to_text(report):
     hw = report.get("hardware", {})
 
     def add(label, value):
-        lines.append(f"{label}: {value if value not in (None, '', []) else 'Not available on this PC'}")
+        lines.append(f"{label}: {value if value not in (None, '', []) else 'Unavailable'}")
 
     os_ = hw.get("os", {})
     add("OS", f"{os_.get('name')} (build {os_.get('build')}, {os_.get('arch')})")

@@ -54,7 +54,7 @@ class TweaksPage(Page):
         super().__init__(ctx, parent)
         if not is_admin():
             self.content.addWidget(Notice(
-                "RyTweaks isn't running as administrator, so some tweaks (like HAGS) will fail. "
+                "RYTWEAKS isn't running as administrator, so some tweaks (like HAGS) will fail. "
                 "Right-click RYTWEAKS.exe → Run as administrator."))
 
         card = Card()
@@ -65,9 +65,11 @@ class TweaksPage(Page):
                      [("Turn on", lambda: W.set_game_mode(True)), ("Turn off", lambda: W.set_game_mode(False))]),
             TweakRow(self, "Power plan",
                      "Ultimate Performance stops the CPU from saving power, so it ramps up faster. "
-                     "Uses more electricity; on laptops it drains the battery and runs warmer.",
+                     "Uses more electricity; on laptops it drains the battery and runs warmer. "
+                     "Your current plan is saved first, so “Restore previous” can switch back.",
                      W.get_active_power_plan,
-                     [("Ultimate Performance", W.enable_ultimate_power_plan), ("Balanced", W.set_balanced_power_plan)]),
+                     [("Ultimate Performance", W.enable_ultimate_power_plan), ("Balanced", W.set_balanced_power_plan),
+                      ("Restore previous", W.restore_previous_power_plan)]),
             TweakRow(self, "Hardware-accelerated GPU scheduling (HAGS)",
                      "Lets the GPU manage its own memory. Can lower latency on newer GPUs; "
                      "on some PCs it makes no difference. Needs administrator rights.",

@@ -69,12 +69,38 @@ def browse_directory(path_str):
         print(f"Error browsing directory: {e}")
     return items
 
+def _temp_dirs():
+    dirs = [Path(os.getenv('TEMP', r"C:\Windows\Temp")), Path(r"C:\Windows\Temp")]
+    seen, out = set(), []
+    for d in dirs:
+        key = str(d).lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(d)
+    return out
+
+
+def preview_temp_files():
+    """Count what cleanup would delete, without deleting anything. Returns (items, bytes)."""
+    items, total = 0, 0
+    for d in _temp_dirs():
+        if not d.is_dir():
+            continue
+        for item in d.glob("*"):
+            try:
+                if item.is_file():
+                    total += item.stat().st_size
+                elif item.is_dir():
+                    total += sum(f.stat().st_size for f in item.glob('**/*') if f.is_file())
+                items += 1
+            except Exception:
+                continue
+    return items, total
+
+
 def cleanup_temp_files_safe():
     """Performs safe temporary files cleanup."""
-    temp_dirs = [
-        Path(os.getenv('TEMP', r"C:\Windows\Temp")),
-        Path(r"C:\Windows\Temp")
-    ]
+    temp_dirs = _temp_dirs()
     freed_bytes = 0
     files_cleaned = 0
 

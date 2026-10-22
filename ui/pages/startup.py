@@ -17,7 +17,7 @@ def _list_startup_apps():
 class StartupPage(Page):
     title = "Startup apps"
     subtitle = ("Apps that start with Windows. Disabling them makes boot faster. "
-                "RyTweaks keeps a backup, so you can turn them back on here.")
+                "RYTWEAKS keeps a backup, so you can turn them back on here.")
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)

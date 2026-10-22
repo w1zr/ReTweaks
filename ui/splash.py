@@ -4,8 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QSplashScreen, QLabel, QVBoxLayout, QWidget, QProgressBar
 from PySide6.QtGui import QFont, QGuiApplication, QCursor
 
-from core.version import __version__
-
 class RytweaksSplash(QSplashScreen):
     def __init__(self):
         super().__init__()
@@ -29,7 +27,7 @@ class RytweaksSplash(QSplashScreen):
         title.setStyleSheet("color: #ffffff; letter-spacing: 4px;")
         layout.addWidget(title, alignment=Qt.AlignCenter)
         
-        subtitle = QLabel(f"Windows performance & optimization · v{__version__}")
+        subtitle = QLabel("Windows performance & optimization")
         subtitle.setFont(QFont("Segoe UI", 11))
         subtitle.setStyleSheet("color: #888888; margin-bottom: 30px;")
         layout.addWidget(subtitle, alignment=Qt.AlignCenter)

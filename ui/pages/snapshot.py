@@ -27,7 +27,7 @@ def _max(xs):
 
 
 def _f(v, unit="", digits=0):
-    return "—" if v is None else f"{v:.{digits}f}{unit}"
+    return "Unavailable" if v is None else f"{v:.{digits}f}{unit}"
 
 
 class SnapshotPage(Page):
@@ -115,5 +115,5 @@ class SnapshotPage(Page):
         self.table.insertRow(r)
         for c, v in enumerate(values):
             self.table.setItem(r, c, QTableWidgetItem(v))
-        self.progress.setText(f"Saved “{rec['name']}”. GPU columns use GPU 1. — means not available on this PC.")
+        self.progress.setText(f"Saved “{rec['name']}”. GPU columns use GPU 1.")
         self.name.clear()
