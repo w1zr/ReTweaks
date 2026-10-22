@@ -280,7 +280,7 @@ Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials 
 
 ### Releases
 - Only publish a release when the owner says to.
-- Attach the **current single-file `RYTWEAKS.exe`** built from the latest committed code.
+- Attach the **current single-file `RYTWEAKS.exe`** built from the latest committed code. Each release has three files: `RYTWEAKS.exe`, `RYTWEAKS.zip` (the same .exe zipped, for people who prefer a .zip) and `RYTWEAKS.exe.sha256` (used by the in-app updater). Owner decision 2026-10-21.
 - **Default build: GitHub Actions** on a Windows runner, which runs `build.py` and attaches `dist\RYTWEAKS.exe` to the release.
   - How to release (set up 2026-10-21): add `release-notes/vX.Y.md`, merge to `main`, then either push tag `vX.Y`, or run **Actions → Build RYTWEAKS → Run workflow** with `release_tag` = `vX.Y`. Both build the `.exe` on Windows and publish the release as Latest. Claude can start the manual run after the owner says to release.
 - **Alternative:** the owner builds on his PC in `C:\pc_optimizer` and the `.exe` is uploaded from there.
