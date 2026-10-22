@@ -38,3 +38,13 @@ def test_driver_age_text_and_urls():
     assert "amd" in display.vendor_driver_url("AMD Radeon RX 7800")
     assert "intel" in display.vendor_driver_url("Intel(R) UHD Graphics")
     assert display.vendor_driver_url("Other") is None
+
+
+def test_stretch_mode_status():
+    from core import display as d
+    disp = [{"primary": True, "bpp": 32, "modes": [(1920, 1080, 32, 165), (1720, 1080, 32, 144), (1720, 1080, 32, 60)]}]
+    ok, hz, msg = d.stretch_mode_status(1720, 1080, disp)
+    assert ok and hz == 144 and "144 Hz" in msg
+    ok, hz, msg = d.stretch_mode_status(1440, 1080, disp)
+    assert ok is False and hz is None and "custom resolution" in msg
+    assert d.stretch_mode_status(1720, 1080, [])[0] is None

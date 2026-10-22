@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         self._lock_timer.setInterval(_al.INTERVAL_MS)
         self._lock_timer.timeout.connect(self._lock_tick)
         self.restart_volume_lock()
-        self.apply_tray(bool(self.settings.get("tray_on_close", False)))
+        self.apply_tray(bool(self.settings.get("tray_on_close", True)))
         from core import updater
         result = updater.read_update_status()   # left behind by the in-app updater
         if result == "OK":
@@ -412,7 +412,9 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QMenu, QSystemTrayIcon
         if enabled and QSystemTrayIcon.isSystemTrayAvailable():
             if self.tray is None:
-                self.tray = QSystemTrayIcon(self.windowIcon(), self)
+                tray_icon = resource_path("assets/tray.ico")      # chip with pins, drawn for 16-48 px
+                icon = QIcon(tray_icon) if os.path.exists(tray_icon) else self.windowIcon()
+                self.tray = QSystemTrayIcon(icon, self)
                 self.tray.setToolTip("RYTWEAKS")
                 menu = QMenu(self)
                 menu.addAction("Open RYTWEAKS", self.show_from_tray)
@@ -427,7 +429,7 @@ class MainWindow(QMainWindow):
             self.tray.hide()
 
     def tray_active(self):
-        return bool(self.settings.get("tray_on_close", False) and self.tray is not None and self.tray.isVisible())
+        return bool(self.settings.get("tray_on_close", True) and self.tray is not None and self.tray.isVisible())
 
     def start_hidden(self):
         """Started with Windows (--minimized): go straight to the tray if it's on, else the taskbar."""

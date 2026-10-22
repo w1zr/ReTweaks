@@ -27,6 +27,7 @@ def build_app():
         "--icon=assets/icon.ico",  # Embeds the icon into RYTWEAKS.exe for Windows Explorer
         "--add-data=assets/icon.ico;assets", # Fallback runtime icon
         "--add-data=assets/taskbar.ico;assets",  # Window + taskbar icon (the v1.4 drawing)
+        "--add-data=assets/tray.ico;assets",     # System tray icon (v1.5): chip with pins at 16-48 px
         "--collect-submodules=pycaw",        # Audio mixer: pycaw's COM interface modules
         "--hidden-import=comtypes.stream",
         "--collect-all=pythonnet",           # Browser: .NET bridge (Python.Runtime.dll)
