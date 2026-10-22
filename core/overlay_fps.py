@@ -26,11 +26,12 @@ STALE_S = 2.0                       # no frames for this long -> values show "â€
 
 CORNERS = ("top-left", "top-right", "bottom-left", "bottom-right")
 SIZES = ("small", "medium", "large")
+SOURCES = ("builtin", "presentmon")     # v1.4.3: built-in Windows frame events (default) or PresentMon
 DEFAULTS = {"overlay_position": "top-left", "overlay_size": "medium",
-            "overlay_show_load": True, "overlay_opacity": 85}
+            "overlay_show_load": True, "overlay_opacity": 85, "overlay_source": "builtin"}
 SETTING_NOTE = ("Works over games in windowed fullscreen or borderless mode. Games in exclusive "
                 "fullscreen draw over it. Nothing is injected into the game; frame times come "
-                "from Windows through PresentMon.")
+                "straight from Windows (built-in), or from PresentMon if you choose it.")
 
 
 # ---------------------------------------------------------------- settings
@@ -44,10 +45,12 @@ def clean_settings(settings):
     except (TypeError, ValueError):
         op = DEFAULTS["overlay_opacity"]
     load = s.get("overlay_show_load", DEFAULTS["overlay_show_load"])
+    src = s.get("overlay_source")
     return {"overlay_position": pos if pos in CORNERS else DEFAULTS["overlay_position"],
             "overlay_size": size if size in SIZES else DEFAULTS["overlay_size"],
             "overlay_show_load": bool(load),
-            "overlay_opacity": min(100, max(50, op))}
+            "overlay_opacity": min(100, max(50, op)),
+            "overlay_source": src if src in SOURCES else DEFAULTS["overlay_source"]}
 
 
 # ---------------------------------------------------------------- command line
