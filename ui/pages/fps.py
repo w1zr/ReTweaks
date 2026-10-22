@@ -420,41 +420,58 @@ class FpsPage(Page):
         if self.overlay_win:
             self.overlay_win.apply_settings(vals)
 
+    def _overlay_problem(self, msg, log=None):
+        """Show why the overlay didn't start: in the card AND as a pop-up, so it can't go unnoticed."""
+        self.overlay_status.setText(msg)
+        if log:
+            self.ctx.log_action("FPS overlay", log, "Failed", msg)
+        QMessageBox.warning(self, "In-game overlay", msg)
+
     def start_overlay(self):
         if self.overlay_stream:
             return
         builtin = self.ov_source.currentData() == "builtin"
         if not builtin and self.capture:
-            self.overlay_status.setText("An FPS test is running: only one PresentMon capture runs at a time.")
-            return
+            return self._overlay_problem("An FPS test is running: only one PresentMon capture runs at a time.")
         if not builtin and not self._check_path():
-            self.overlay_status.setText("Select PresentMon.exe first, or switch Frame data to Built-in.")
-            return
+            return self._overlay_problem("Select PresentMon.exe first, or switch Frame data to Built-in.")
         item = self.proc_list.currentItem()
-        if not item:
-            self.overlay_status.setText("Pick the running program in the list above.")
-            return
+        if not item or not item.data(256):
+            return self._overlay_problem("First click the game in the list of running programs above "
+                                         "(start the game, press Refresh list if it isn't listed), then press "
+                                         "Start overlay.")
         name = item.data(256)
-        if builtin:
-            from core.etw_frames import BuiltinOverlayStream
-            stream = BuiltinOverlayStream(name)
-        else:
-            stream = of.OverlayStream(self.path_edit.text().strip(), name)
         what = "the built-in frame counter" if builtin else "PresentMon"
+        stream = None
         try:
+            if builtin:
+                from core.etw_frames import BuiltinOverlayStream
+                stream = BuiltinOverlayStream(name)
+            else:
+                stream = of.OverlayStream(self.path_edit.text().strip(), name)
             stream.start()
         except (OSError, ValueError) as e:
             msg = str(e)
             if getattr(e, "winerror", None) == 740:
                 msg = "Windows needs administrator rights to start PresentMon. " + fps.ADMIN_HINT
-            self.overlay_status.setText(f"Could not start {what}: {msg}")
-            self.ctx.log_action("FPS overlay", f"{what} on {name}", "Failed", msg)
-            return
-        from ui.overlay import OverlayWindow
-        self.overlay_stream, self.overlay_game = stream, name
-        self.overlay_win = OverlayWindow(self.ctx.theme, self._overlay_values(), name)
-        self.overlay_win.set_lines(of.format_lines(None, show_load=self.ov_load.isChecked()))
-        self.overlay_win.show_overlay()
+            return self._overlay_problem(f"Could not start {what}: {msg}", f"{what} on {name}")
+        except Exception as e:      # never fail silently
+            if stream:
+                try:
+                    stream.stop()
+                except Exception:
+                    pass
+            return self._overlay_problem(f"Could not start {what}: {type(e).__name__}: {e}", f"{what} on {name}")
+        try:
+            from ui.overlay import OverlayWindow
+            self.overlay_stream, self.overlay_game = stream, name
+            self.overlay_win = OverlayWindow(self.ctx.theme, self._overlay_values(), name)
+            self.overlay_win.set_lines(of.format_lines(None, show_load=self.ov_load.isChecked()))
+            self.overlay_win.show_overlay()
+        except Exception as e:
+            self.stop_overlay()
+            return self._overlay_problem(f"Couldn't show the overlay window: {type(e).__name__}: {e}",
+                                         f"Overlay window for {name}")
         self.btn_overlay_start.setEnabled(False)
         self.btn_overlay_stop.setEnabled(True)
         self.btn_start.setEnabled(False)
