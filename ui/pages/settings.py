@@ -269,6 +269,7 @@ class SettingsPage(Page):
         self.upd_bar.setValue(0)
         self.upd_bar.show()
         self.upd_msg.setText("Downloading…")
+        self._ctx_progress(f"Downloading {info['version']}…", 0, busy=True)
         self._progress = 0
         self._downloading = True
         # The progress callback runs on the worker thread, so it only stores a number;
@@ -280,6 +281,8 @@ class SettingsPage(Page):
     def _poll_progress(self):
         if self._downloading:
             self.upd_bar.setValue(self._progress)
+            self._ctx_progress(f"Downloading {self.update_info['version']}… {int(self._progress)}%",
+                               self._progress, busy=True)
             QTimer.singleShot(200, self._poll_progress)
 
     def _downloaded(self, result):
@@ -289,16 +292,23 @@ class SettingsPage(Page):
             self.b_install.setEnabled(True)
             self.upd_bar.hide()
             self.upd_msg.setText(value)
+            self._ctx_progress(f"The update couldn't be downloaded: {value}", None)
             self.ctx.log_action("Update", self.update_info["version"], "Failed", value)
             return
         self.upd_bar.setValue(100)
         ok, msg = updater.install_and_restart(value)
         self.upd_msg.setText(msg)
+        self._ctx_progress(msg if not ok else "Installing and restarting RYTWEAKS…", None if not ok else 100,
+                           busy=ok)
         self.ctx.log_action("Update", self.update_info["version"], "Success" if ok else "Failed", "" if ok else msg)
         if ok:
             self.ctx.quit_for_update()
         else:
             self.b_install.setEnabled(True)
+
+    def _ctx_progress(self, text, percent=None, busy=False):
+        if hasattr(self.ctx, "update_progress"):
+            self.ctx.update_progress(text, percent, busy)
 
     def on_sources(self, src):
         lhm = src.get("lhm")

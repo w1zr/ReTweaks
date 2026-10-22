@@ -15,7 +15,7 @@ from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize, Qt, Q
 from PySide6.QtGui import QColor, QIcon, QPalette
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QMainWindow,
-                               QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
+                               QProgressBar, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
 from core.themes import get_stylesheet, get_theme
 from core.version import APP_NAME, __version__
@@ -99,7 +99,13 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages = []
         lay.addWidget(self._build_sidebar())
-        lay.addWidget(self.stack, 1)
+        right = QWidget()
+        rv = QVBoxLayout(right)
+        rv.setContentsMargins(0, 0, 0, 0)
+        rv.setSpacing(0)
+        rv.addWidget(self._build_update_bar())   # shown on every page when a new version exists
+        rv.addWidget(self.stack, 1)
+        lay.addWidget(right, 1)
         self.setCentralWidget(root)
 
         self.logs_page = next(p for p in self.pages if isinstance(p, LogsPage))
@@ -272,9 +278,56 @@ class MainWindow(QMainWindow):
     def page_names(self):
         return [self.nav_group.button(i).text().replace("&&", "&") for i in range(len(self.pages))]
 
+    def _build_update_bar(self):
+        bar = QFrame()
+        bar.setObjectName("updateBar")
+        h = QHBoxLayout(bar)
+        h.setContentsMargins(20, 10, 20, 10)
+        h.setSpacing(10)
+        self.upd_bar_text = label("", "updateBarText", wrap=True)
+        h.addWidget(self.upd_bar_text, 1)
+        self.upd_bar_progress = QProgressBar()
+        self.upd_bar_progress.setRange(0, 100)
+        self.upd_bar_progress.setFixedSize(160, 6)
+        self.upd_bar_progress.setTextVisible(False)
+        self.upd_bar_progress.hide()
+        h.addWidget(self.upd_bar_progress)
+        self.upd_bar_now = set_role(QPushButton("Update now"), "primary")
+        self.upd_bar_now.clicked.connect(lambda: self.settings_page.install_update())
+        h.addWidget(self.upd_bar_now)
+        self.upd_bar_notes = QPushButton("What's new")
+        self.upd_bar_notes.clicked.connect(lambda: self.settings_page.open_release_page())
+        h.addWidget(self.upd_bar_notes)
+        self.upd_bar_later = QPushButton("Later")
+        self.upd_bar_later.setToolTip("Hide this bar until RYTWEAKS restarts")
+        self.upd_bar_later.clicked.connect(bar.hide)
+        h.addWidget(self.upd_bar_later)
+        bar.hide()
+        self.update_bar = bar
+        return bar
+
     def show_update_available(self, version):
+        from core import updater
         self.update_label.setText(f"Update available: {version}")
         self.update_label.show()
+        if updater.can_self_update():
+            self.upd_bar_text.setText(f"RYTWEAKS {version} is available. You're on v{__version__}. "
+                                      "Update now to install it here: your settings are kept.")
+            self.upd_bar_now.show()
+        else:
+            self.upd_bar_text.setText(f"RYTWEAKS {version} is available. You're on v{__version__} "
+                                      "(running from source: use git pull, or download the .exe).")
+            self.upd_bar_now.hide()
+        self.update_bar.show()
+
+    def update_progress(self, text, percent=None, busy=False):
+        """Called by the Settings page while an update downloads, so the top bar shows it too."""
+        self.upd_bar_text.setText(text)
+        self.upd_bar_progress.setVisible(percent is not None)
+        if percent is not None:
+            self.upd_bar_progress.setValue(int(percent))
+        self.upd_bar_now.setEnabled(not busy)
+        self.upd_bar_later.setEnabled(not busy)
 
     def quit_for_update(self):
         """The updater script is waiting for this process to exit."""
