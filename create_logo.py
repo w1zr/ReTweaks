@@ -1,38 +1,80 @@
+# create_logo.py
+"""Builds assets/icon.ico (the chip logo) at every Windows icon size.
+
+Run: python create_logo.py   (works on any OS; only PySide6 is needed)
+
+Each size is drawn separately instead of shrinking one big image, so the small
+sizes stay crisp: at 16-24 px the pins are dropped and the lines get thicker.
+The .ico stores PNG images, which Windows Vista and newer read at every size.
+"""
+
 import os
-from PIL import Image, ImageDraw, ImageFont
+import struct
+import sys
+
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
+from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui.widgets.brand import paint_chip  # noqa: E402
+
+SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
+BACKGROUND = "#0b0d10"
+
+
+def render(size):
+    img = QImage(size, size, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(BACKGROUND))
+    p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
+    if size <= 24:
+        # No pins; zoom so the chip outline fills the tile, and thicken the strokes
+        grow = size * 0.42
+        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), pins=[0] * 12,
+                   stroke_scale=1.15 if size > 16 else 1.05)
+    elif size <= 48:
+        grow = size * 0.12
+        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), stroke_scale=1.2)
+    else:
+        pad = size * 0.04
+        paint_chip(p, QRectF(pad, pad, size - 2 * pad, size - 2 * pad))
+    p.end()
+    return img
+
+
+def png_bytes(img):
+    data = QByteArray()
+    buf = QBuffer(data)
+    buf.open(QIODevice.WriteOnly)
+    img.save(buf, "PNG")
+    buf.close()
+    return bytes(data)
+
+
+def write_ico(path, sizes=SIZES):
+    images = [(s, png_bytes(render(s))) for s in sizes]
+    header = struct.pack("<HHH", 0, 1, len(images))
+    offset = 6 + 16 * len(images)
+    entries, blobs = b"", b""
+    for s, png in images:
+        dim = 0 if s >= 256 else s
+        entries += struct.pack("<BBBBHHII", dim, dim, 0, 0, 1, 32, len(png), offset)
+        offset += len(png)
+        blobs += png
+    with open(path, "wb") as f:
+        f.write(header + entries + blobs)
+    return path
+
 
 def generate_icon():
+    QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
     os.makedirs("assets", exist_ok=True)
-    size = (512, 512)
-    img = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+    out = write_ico(os.path.join("assets", "icon.ico"))
+    print(f"Chip icon saved to {out} ({', '.join(str(s) for s in SIZES)} px)")
 
-    # Clean dark rounded card base
-    draw.rounded_rectangle([32, 32, 480, 480], radius=96, fill=(18, 18, 20, 255), outline=(60, 60, 65, 255), width=8)
-
-    # Load system font for bold 'R'
-    font = None
-    for font_name in ["Segoe UI", "Arial", "Verdana"]:
-        try:
-            font = ImageFont.truetype(f"C:\\Windows\\Fonts\\{font_name.lower().replace(' ', '')}.ttf", 300)
-            break
-        except Exception:
-            continue
-    if font is None:
-        font = ImageFont.load_default()
-
-    text = "R"
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    x = (size[0] - tw) // 2 - bbox[0]
-    y = (size[1] - th) // 2 - bbox[1]
-
-    draw.text((x, y), text, font=font, fill=(240, 240, 245, 255))
-
-    ico_path = os.path.join("assets", "icon.ico")
-    img.save(ico_path, format="ICO", sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])
-    print(f"Proper multi-resolution Windows ICO saved to: {ico_path}")
 
 if __name__ == "__main__":
     generate_icon()

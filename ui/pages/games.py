@@ -5,11 +5,80 @@ plus presets for any settings file the user picks. Always previews, backs up, an
 import os
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QInputDialog,
-                               QMessageBox, QPushButton, QTableWidget, QTableWidgetItem)
+from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QHeaderView,
+                               QInputDialog, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
+                               QVBoxLayout)
 
 from core import game_presets as gp
 from ui.widgets.common import Card, Notice, Page, label, set_role
+
+
+class PresetEditor(QDialog):
+    """Key/value table for one user preset. Keys can only be ones the engine knows for the game
+    (or, for your own file, ones that exist in that file); values are free text."""
+
+    def __init__(self, parent, name, settings, allowed_keys):
+        super().__init__(parent)
+        self.setWindowTitle(f"Edit preset “{name}”")
+        self.resize(520, 480)
+        self.allowed = list(allowed_keys)
+        v = QVBoxLayout(self)
+        v.addWidget(label("Double-click a value to change it. Settings are written only if they already "
+                          "exist in the game's file.", "muted", wrap=True))
+        self.table = QTableWidget(0, 2)
+        self.table.setHorizontalHeaderLabels(["Setting", "Value"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        v.addWidget(self.table)
+        for k, val in settings.items():
+            self._row(k, str(val))
+        row = QHBoxLayout()
+        b_add = QPushButton("Add a setting…")
+        b_add.clicked.connect(self.add_key)
+        b_del = QPushButton("Remove selected")
+        b_del.clicked.connect(self.remove_selected)
+        row.addWidget(b_add)
+        row.addWidget(b_del)
+        row.addStretch()
+        v.addLayout(row)
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        v.addWidget(buttons)
+
+    def _row(self, key, value):
+        r = self.table.rowCount()
+        self.table.insertRow(r)
+        k = QTableWidgetItem(key)
+        k.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+        self.table.setItem(r, 0, k)
+        self.table.setItem(r, 1, QTableWidgetItem(value))
+
+    def keys(self):
+        return [self.table.item(r, 0).text() for r in range(self.table.rowCount())]
+
+    def add_key(self):
+        free = [k for k in self.allowed if k not in self.keys()]
+        if not free:
+            QMessageBox.information(self, "Add a setting", "Every setting RYTWEAKS knows for this game is already in the preset.")
+            return
+        key, ok = QInputDialog.getItem(self, "Add a setting", "Setting:", free, 0, False)
+        if ok and key:
+            self._row(key, "")
+            self.table.editItem(self.table.item(self.table.rowCount() - 1, 1))
+
+    def remove_selected(self):
+        for r in sorted({i.row() for i in self.table.selectedItems()}, reverse=True):
+            self.table.removeRow(r)
+
+    def result_settings(self, original):
+        """Edited values. A value that still equals the old value keeps its original type."""
+        out = {}
+        for r in range(self.table.rowCount()):
+            k, val = self.table.item(r, 0).text(), self.table.item(r, 1).text()
+            old = original.get(k)
+            out[k] = old if old is not None and str(old) == val else val
+        return out
 
 
 class GamesPage(Page):
@@ -84,6 +153,23 @@ class GamesPage(Page):
         b_del_user.clicked.connect(self.delete_user_preset)
         row.addWidget(b_apply_user)
         row.addWidget(b_del_user)
+        row.addStretch()
+        self.preset_card.body.addLayout(row)
+        row = QHBoxLayout()
+        for text, fn, tip in (
+                ("Rename…", self.rename_user_preset, "Rename the selected preset of yours."),
+                ("Duplicate…", self.duplicate_user_preset, "Make a copy of the selected preset of yours."),
+                ("Edit…", self.edit_user_preset, "Change the values in the selected preset."),
+                ("Export…", self.export_user_preset, "Save the selected preset to a .json file you can share."),
+                ("Import…", self.import_user_preset, "Add a preset from a .json file exported by RYTWEAKS."),
+                ("Copy a built-in preset…", self.copy_builtin_preset,
+                 "Built-in presets can't be changed, but you can copy one to edit.")):
+            b = QPushButton(text)
+            b.setToolTip(tip)
+            b.clicked.connect(fn)
+            row.addWidget(b)
+            if text.startswith("Copy"):
+                self.b_copy_builtin = b
         row.addStretch()
         self.preset_card.body.addLayout(row)
         self.content.addWidget(self.preset_card)
@@ -161,6 +247,7 @@ class GamesPage(Page):
             for b in self.tier_buttons:
                 b.show()
             self.tier_help.show()
+            self.b_copy_builtin.show()
         else:
             entry = self._custom_entry(self.entry_id) or {}
             self.path, self.fmt = entry.get("path"), entry.get("fmt")
@@ -171,6 +258,7 @@ class GamesPage(Page):
             for b in self.tier_buttons:
                 b.hide()
             self.tier_help.hide()
+            self.b_copy_builtin.hide()
         self.refresh_file()
 
     def refresh_file(self):
@@ -326,20 +414,169 @@ class GamesPage(Page):
         presets = gp.load_custom()["presets"].get(self.entry_id, {})
         self.user_presets.addItems(sorted(presets))
 
+    def _ask_new_name(self, title, text="", exclude=None):
+        """Ask for a preset name. If it clashes with one of yours, ask: rename or replace.
+        Returns (name, replace) or (None, False)."""
+        while True:
+            name, ok = QInputDialog.getText(self, title, "Preset name:", text=text)
+            if not ok:
+                return None, False
+            good, name = gp.clean_name(name)
+            if not good:
+                QMessageBox.warning(self, title, name)
+                continue
+            if name in gp.user_presets(self.entry_id) and name != exclude:
+                box = QMessageBox(QMessageBox.Question, title,
+                                  f"You already have a preset called “{name}”.", parent=self)
+                b_replace = box.addButton("Replace it", QMessageBox.DestructiveRole)
+                b_rename = box.addButton("Choose another name", QMessageBox.AcceptRole)
+                box.addButton(QMessageBox.Cancel)
+                box.exec()
+                if box.clickedButton() is b_replace:
+                    return name, True
+                if box.clickedButton() is b_rename:
+                    text = name
+                    continue
+                return None, False
+            return name, False
+
+    def _selected_user_preset(self):
+        name = self.user_presets.currentText()
+        if not name:
+            self.msg.setText("Pick one of your presets first.")
+        return name
+
     def save_user_preset(self):
         changes = self._edited_values()
         if not changes:
             self.msg.setText("Change some values in the table first, then save them as a preset.")
             return
-        name, ok = QInputDialog.getText(self, "Save preset", "Preset name:")
-        if not ok or not name.strip():
+        name, replace = self._ask_new_name("Save preset")
+        if not name:
             return
-        data = gp.load_custom()
-        data["presets"].setdefault(self.entry_id, {})[name.strip()] = changes
-        gp.save_custom(data)
+        status, msg = gp.save_user_preset(self.entry_id, name, changes, replace)
         self.load_user_presets()
-        self.user_presets.setCurrentText(name.strip())
-        self.msg.setText(f"Saved preset “{name.strip()}” ({len(changes)} settings). Use Apply to write it to the file.")
+        if status == "ok":
+            self.user_presets.setCurrentText(name)
+            self.msg.setText(f"Saved preset “{name}” ({len(changes)} settings). Use Apply to write it to the file.")
+        else:
+            QMessageBox.warning(self, "Save preset", msg)
+
+    def rename_user_preset(self):
+        old = self._selected_user_preset()
+        if not old:
+            return
+        new, replace = self._ask_new_name("Rename preset", old, exclude=old)
+        if not new:
+            return
+        status, msg = gp.rename_user_preset(self.entry_id, old, new, replace)
+        self.msg.setText(msg)
+        if status == "error":
+            QMessageBox.warning(self, "Rename preset", msg)
+        else:
+            self.ctx.log_action(f"Game presets: {self.combo.currentText()}", f"Rename preset {old} → {new}", "Success")
+        self.load_user_presets()
+        self.user_presets.setCurrentText(new)
+
+    def duplicate_user_preset(self):
+        src = self._selected_user_preset()
+        if not src:
+            return
+        new, replace = self._ask_new_name("Duplicate preset", f"{src} copy")
+        if not new:
+            return
+        status, msg = gp.duplicate_preset(self.entry_id, src, new, replace)
+        self.msg.setText(msg)
+        if status == "error":
+            QMessageBox.warning(self, "Duplicate preset", msg)
+        self.load_user_presets()
+        self.user_presets.setCurrentText(new)
+
+    def copy_builtin_preset(self):
+        game = gp.BY_ID.get(self.entry_id)
+        if not game:
+            self.msg.setText("Your own files have no built-in presets.")
+            return
+        tier, ok = QInputDialog.getItem(self, "Copy a built-in preset", "Built-in preset:", gp.TIERS, 0, False)
+        if not ok:
+            return
+        new, replace = self._ask_new_name("Copy a built-in preset", f"My {tier}")
+        if not new:
+            return
+        status, msg = gp.duplicate_preset(self.entry_id, tier, new, replace)
+        self.msg.setText(msg)
+        if status == "error":
+            QMessageBox.warning(self, "Copy a built-in preset", msg)
+        self.load_user_presets()
+        self.user_presets.setCurrentText(new)
+
+    def _file_keys(self):
+        try:
+            return list(gp.read_settings(self.path, self.fmt)) if self.path and os.path.isfile(self.path) else []
+        except Exception:
+            return []
+
+    def edit_user_preset(self):
+        name = self._selected_user_preset()
+        if not name:
+            return
+        original = gp.user_presets(self.entry_id).get(name, {})
+        dlg = PresetEditor(self, name, original, gp.known_keys(self.entry_id, self._file_keys()))
+        if dlg.exec() != QDialog.Accepted:
+            return
+        ok, msg = gp.update_user_preset(self.entry_id, name, dlg.result_settings(original), self._file_keys())
+        self.msg.setText(msg)
+        if ok:
+            self.ctx.log_action(f"Game presets: {self.combo.currentText()}", f"Edit preset {name}", "Success")
+        else:
+            QMessageBox.warning(self, "Edit preset", msg)
+
+    def export_user_preset(self):
+        name = self._selected_user_preset()
+        if not name:
+            return
+        safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip() or "preset"
+        path, _ = QFileDialog.getSaveFileName(self, "Export preset", os.path.join(os.path.expanduser("~"), f"{safe}.json"),
+                                              "RYTWEAKS preset (*.json)")
+        if not path:
+            return
+        ok, msg = gp.export_preset(self.entry_id, name, path)
+        self.msg.setText(msg)
+        self.ctx.log_action(f"Game presets: {self.combo.currentText()}", f"Export preset {name}",
+                            "Success" if ok else "Failed", "" if ok else msg)
+        if not ok:
+            QMessageBox.warning(self, "Export preset", msg)
+
+    def import_user_preset(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Import preset", os.path.expanduser("~"),
+                                              "RYTWEAKS preset (*.json);;All files (*)")
+        if not path:
+            return
+        status, msg, name = gp.import_preset(self.entry_id, path)
+        while status == "clash":
+            box = QMessageBox(QMessageBox.Question, "Import preset", msg, parent=self)
+            b_replace = box.addButton("Replace it", QMessageBox.DestructiveRole)
+            b_rename = box.addButton("Import under another name", QMessageBox.AcceptRole)
+            box.addButton(QMessageBox.Cancel)
+            box.exec()
+            if box.clickedButton() is b_replace:
+                status, msg, name = gp.import_preset(self.entry_id, path, name, replace=True)
+            elif box.clickedButton() is b_rename:
+                new, ok = QInputDialog.getText(self, "Import preset", "New name:", text=f"{name} (imported)")
+                if not ok:
+                    return
+                status, msg, name = gp.import_preset(self.entry_id, path, new.strip())
+            else:
+                self.msg.setText("Import cancelled. Nothing was changed.")
+                return
+        if status != "ok":
+            QMessageBox.warning(self, "Import preset", msg)
+            self.msg.setText(msg)
+            return
+        self.load_user_presets()
+        self.user_presets.setCurrentText(name)
+        self.msg.setText(msg)
+        self.ctx.log_action(f"Game presets: {self.combo.currentText()}", f"Import preset {name}", "Success")
 
     def apply_user_preset(self):
         name = self.user_presets.currentText()
@@ -351,9 +588,7 @@ class GamesPage(Page):
         name = self.user_presets.currentText()
         if not name or QMessageBox.question(self, "Delete preset", f"Delete your preset “{name}”?") != QMessageBox.Yes:
             return
-        data = gp.load_custom()
-        data["presets"].get(self.entry_id, {}).pop(name, None)
-        gp.save_custom(data)
+        gp.delete_user_preset(self.entry_id, name)
         self.load_user_presets()
 
     # ------------------------------------------------------------ backups

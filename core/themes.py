@@ -64,10 +64,11 @@ def get_stylesheet(theme_name="Midnight", custom_accent=None):
     QLabel#navSection {{ font-size: 10px; font-weight: 700; letter-spacing: 1px; color: {t['muted']};
                           padding: 14px 10px 4px 10px; }}
     QPushButton[role="nav"] {{ background: transparent; color: {t['subtext']}; border: none;
-        border-radius: 8px; padding: 8px 12px; text-align: left; font-size: 13px; }}
+        border-radius: 8px; padding: 7px 12px; text-align: left; font-size: 13px; }}
     QPushButton[role="nav"]:hover {{ background-color: {t['card_hover']}; color: {t['text']}; }}
-    QPushButton[role="nav"]:checked {{ background-color: {t['card']}; color: {t['text']}; font-weight: 600;
-        border-left: 3px solid {t['accent']}; padding-left: 9px; }}
+    QPushButton[role="nav"]:checked {{ background-color: {t['card']}; color: {t['text']}; font-weight: 600; }}
+    QFrame#sidebar QFrame#navIndicator {{ background-color: {t['accent']}; border-radius: 2px; }}
+    QScrollArea#navScroll {{ background: transparent; border: none; }}
     QLabel#sidebarFooter {{ color: {t['muted']}; font-size: 11px; }}
 
     /* Page headers */

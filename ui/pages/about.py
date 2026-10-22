@@ -1,0 +1,83 @@
+# ui/pages/about.py
+"""About RYTWEAKS and what's new in this version."""
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout
+
+from core.version import APP_NAME, __version__
+from ui.widgets.brand import ChipLogo
+from ui.widgets.common import Card, Page, label
+
+REPO_URL = "https://github.com/w1zr/rytweaks"
+
+# Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
+WHATS_NEW = [
+    ("New look", "Chip logo and startup animation, new app icon, line icons in the sidebar, "
+                 "a sliding accent bar and smooth page fades."),
+    ("Health Check", "One scan of startup apps, temp files, power plan, disk health, free space, "
+                     "pending restarts, Windows Update, Game Mode, refresh rate and RAM, with a Fix "
+                     "button where RYTWEAKS can help."),
+    ("FPS test", "Real average FPS and 1% / 0.1% lows measured with Intel PresentMon, with saved runs "
+                 "you can compare."),
+    ("In-game FPS overlay", "Live FPS, 1% low and frame time over games in borderless or windowed "
+                            "fullscreen. Nothing is injected into the game."),
+    ("Display & drivers", "Shows whether each monitor runs at its highest refresh rate, and your "
+                          "GPU driver version and age."),
+    ("Audio mixer", "Master volume, output devices and per-app volume."),
+    ("Auto clicker", "Configurable clicks with hotkeys and an emergency stop."),
+    ("AI Assistant", "Ask Gemini about your PC with your own free API key (18+, Google's terms apply)."),
+    ("Fun tools", "Mouse polling-rate test, clicks-per-second test and reaction-time test."),
+    ("More", "Background calming while you game, sensor logging to CSV, a disk space analyzer, "
+             "Storage Explorer upgrades, scheduled tasks in Startup apps, and renaming, duplicating, "
+             "exporting and importing game presets."),
+]
+
+
+class AboutPage(Page):
+    title = "About"
+    subtitle = ""
+
+    def __init__(self, ctx, parent=None):
+        super().__init__(ctx, parent)
+        head = Card()
+        row = QHBoxLayout()
+        row.setSpacing(20)
+        row.addWidget(ChipLogo(88), 0, Qt.AlignTop)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        name = label(APP_NAME, "brand")
+        col.addWidget(name)
+        col.addWidget(label(f"Version {__version__}", "muted"))
+        col.addWidget(label("Windows PC diagnostics and optimization. Real readings, reversible tweaks, "
+                            "honest results.", "cardLine", wrap=True))
+        links = QHBoxLayout()
+        gh = QPushButton("Open on GitHub")
+        gh.clicked.connect(lambda: self._open(REPO_URL))
+        rel = QPushButton("All release notes")
+        rel.clicked.connect(lambda: self._open(REPO_URL + "/releases"))
+        links.addWidget(gh)
+        links.addWidget(rel)
+        links.addStretch(1)
+        col.addSpacing(6)
+        col.addLayout(links)
+        row.addLayout(col, 1)
+        head.body.addLayout(row)
+        self.content.addWidget(head)
+
+        news = Card(f"What's new in {__version__}")
+        for title, text in WHATS_NEW:
+            news.body.addWidget(label(title, "sectionTitle"))
+            news.body.addWidget(label(text, "cardLine", wrap=True))
+        self.content.addWidget(news)
+
+        note = Card("Good to know")
+        note.body.addWidget(label("RYTWEAKS isn't code-signed, so Windows SmartScreen or antivirus may warn "
+                                  "when you download it. Temperatures and fans need LibreHardwareMonitor "
+                                  "running (see Settings).", "cardLine", wrap=True))
+        self.content.addWidget(note)
+        self.finish()
+
+    def _open(self, url):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(url))

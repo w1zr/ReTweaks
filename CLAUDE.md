@@ -23,7 +23,8 @@ This is the single source of truth for RYTWEAKS. Read the whole file before maki
 - Python. The last build used Python 3.15 (64-bit).
 - GUI: **PySide6** (Qt). Not PyQt, and not customtkinter.
 - Windows integration (v1.2): `winreg`, PowerShell/CIM (run through `core/winutil.py`, no console window), `ctypes` (DXGI GPU list), `psutil`, `pywin32` (`win32pdh` performance counters, `win32com` for WMI), and `nvidia-ml-py` (imported as `pynvml`) for NVIDIA telemetry.
-- Removed in v1.2 because nothing imported them: `wmi`, `py-cpuinfo`, `customtkinter`, `pycaw`, `comtypes`. `pycaw`/`comtypes` come back when the audio mixer is rebuilt (v1.3).
+- Removed in v1.2 because nothing imported them: `wmi`, `py-cpuinfo`, `customtkinter`. `pycaw` + `comtypes` came back in v1.4 for the audio mixer.
+- AI Assistant (v1.4): Gemini REST API through `urllib` (no SDK); the user's key is kept in Windows Credential Manager via `win32cred`.
 - Packaging: PyInstaller, run through `build.py`.
 
 ---
@@ -47,14 +48,16 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/nettest.py` — DNS speed test and ping test (1.1.1.1 / 1.0.0.1).
 - `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
 - `core/profiles.py` — System profiles (bundles of real tweaks).
-- `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps, Storage Explorer and cleanup, theme tokens, hardware report export.
+- `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps (including scheduled tasks), Storage Explorer, disk space analyzer and cleanup, theme tokens, hardware report export.
+- v1.4 modules: `core/healthcheck.py` (Health Check), `core/fps.py` (PresentMon FPS runs), `core/sensorlog.py` (sensor CSV logging), `core/display.py` (refresh rate + GPU driver info), `core/audio.py` (audio mixer), `core/autoclicker.py`, `core/funtools.py` (polling-rate / CPS / reaction tests), `core/ai_assistant.py` (Gemini AI Assistant), `core/overlay_fps.py` + `ui/overlay.py` (in-game FPS overlay: a separate click-through topmost window fed by PresentMon; never inject into a game process). Background calming lives in `core/app_rules.py`.
 - `ui/main_window.py` — App shell: sidebar navigation, page stack, background workers, settings, change log.
-- `ui/pages/` — One file per page (Dashboard, Hardware, Tweaks, Profiles, Game presets, Program rules, Startup apps, Network, Storage & cleanup, Snapshots, Logs, Settings).
+- `ui/pages/` — One file per page (Dashboard, Hardware, Health Check, FPS test, Display & drivers, Tweaks, Profiles, Game presets, Program rules, Startup apps, Network, Storage & cleanup, Audio mixer, Auto clicker, AI Assistant, Snapshots, Fun tools, Logs, About, Settings).
+- `ui/widgets/brand.py` — The chip logo drawn with QPainter, `ChipLoader` (mini scanning loader, only during real work), `EmptyState`, and the thin-line sidebar icons. `ui/widgets/chip_pins.py` — Health Check chip.
 - `ui/widgets/` — Shared widgets (cards, live graphs) and the `Page` base class.
 - `ui/workers.py` — Background threads. `ui/splash.py` — The splash screen (`RytweaksSplash`).
 - `tests/` — pytest tests (parsing, tweaks undo, game presets, program rules, updater, network tests); run on any OS with `python -m pytest tests`.
 - `release-notes/vX.Y.md` — The text of each GitHub release.
-- `create_logo.py` — Logo generation. `build.py` — PyInstaller single-file build. Output: `dist\RYTWEAKS.exe`.
+- `create_logo.py` — Builds `assets/icon.ico` (the chip) at 16–256 px, each size drawn separately. `build.py` — PyInstaller single-file build. Output: `dist\RYTWEAKS.exe`.
 - `.github/workflows/` — GitHub Actions build and release.
 - `assets/icon.ico` — The app icon.
 - `.gitignore` — Excludes `build/`, `dist/`, `__pycache__/`, `*.spec`, `.vscode/` and `.pytest_cache/`.
@@ -240,11 +243,14 @@ Measure real FPS and 1% lows where supported. State the method, duration and lim
 
 ---
 
-## 13. Gemini removal
+## 13. AI Assistant (Gemini)
 
-Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials or dependencies. Do not bring it back unless the owner explicitly asks. If any Gemini-specific code is found, remove only that code and keep everything else.
-
----
+Gemini was removed in v1.2 and brought back in v1.4 as the **AI Assistant** tab, approved on 2026-10-21 by Chris, the adult account owner, who confirmed that only he uses the API key.
+- Google's Gemini API terms require users to be 18+ and forbid apps "likely to be accessed by individuals under the age of 18" (ai.google.dev/terms). The setup card makes the key owner confirm 18+ and accept Google's terms.
+- Bring your own key. No key in the code or the repo. The key is stored only in Windows Credential Manager (`RYTWEAKS/GeminiAPIKey`), never in config.json or logs.
+- Only whitelisted PC specs are sent (never serials, names, addresses or paths), and only when "Include my PC specs" is on. "See what's shared" shows the exact text.
+- The assistant gives advice only. It never runs commands or changes settings.
+- Default model: `gemini-3.8-flash` (stable and free tier per Google's docs, checked 2026-10-21). It's a setting, so it can change without a code change.
 
 ## 14. UI behavior
 
@@ -299,20 +305,20 @@ Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials 
 
 ---
 
-## 18. Known issues (updated 2026-10-21, v1.3)
+## 18. Known issues (updated 2026-10-21, v1.4)
 
-- v1.3 game presets cover Fortnite, Minecraft Java, Minecraft Bedrock, Apex Legends and Rocket League. CS2 has no built-in preset because its settings file contents couldn't be confirmed from sources; CS2 players use "Choose your own file".
+- Game presets cover Fortnite, Minecraft Java, Minecraft Bedrock, Apex Legends and Rocket League. CS2 has no built-in preset because its settings file contents couldn't be confirmed from sources; CS2 players use "Choose your own file".
 - Some preset keys could not be confirmed for every game version (for example the Fortnite rendering-mode key, Bedrock graphics mode). The engine only changes keys already present in the user's file, so wrong names are skipped, never added.
-- Section 9 asks for renaming, duplicating, exporting and importing game profiles. v1.3 supports creating, applying and deleting user presets; the rest is for v1.4.
-- The auto clicker and audio mixer (sections 10 and 11) are not built yet (planned for v1.4).
 - Startup-app "Impact" was a guess based on where the entry came from, so v1.2 removed that column.
-- The Windows-only parts are reviewed but can only be fully tested on a Windows PC.
-
----
+- v1.4 was written and unit-tested on Linux. Everything that touches Windows (audio, clicks, display mode changes, PresentMon, Credential Manager, scheduled tasks, priorities, raw mouse input) still needs testing on a real Windows PC before release.
+- The FPS overlay only shows over borderless/windowed-fullscreen games; exclusive fullscreen draws over it. It must never be changed to inject into game processes (anti-cheat).
+- The FPS test needs the user to download Intel PresentMon (2.x console app); RYTWEAKS doesn't bundle it.
+- Audio output switching uses pycaw's SetDefaultDevice (the undocumented IPolicyConfig interface), so it's labelled as such and falls back to Windows Sound settings.
+- The sidebar header is wordmark-only; the owner hasn't picked between the two header options on the design canvas yet.
 
 ## 18a. Feature backlog (approved by the owner, not built yet)
 
-### v1.4 (owner decisions 2026-10-21)
+### v1.4 (owner decisions 2026-10-21; everything below is built on the v1.4 branch except RYTWEAKS Pro)
 - **New logo and startup animation (owner choice 2026-10-21): logo C "Chip" and splash C "Chip scan".** Source: `assets/brand/logo-chip.svg` and the design canvas "RYTWEAKS logo & startup animation". Splash: the chip outline draws, the pins light up in sequence, a scan line sweeps, the R traces in, then the RYTWEAKS wordmark and an honest status line ("Scanning hardware…") appear, then it fades into the main window. It plays while the app really loads (no added waiting, no version number, section 6). The chip becomes the app icon (`assets/icon.ico`: window, taskbar, .exe). The main window header keeps the wordmark only, with no logo beside it (section 5), unless the owner approves the header comparison on the design canvas.
 - **Chip design across the app (owner choices 2026-10-21):** the chip as the app icon at every Windows size (16–256 px); a matching monochrome thin-line icon set for the sidebar pages; a mini chip "scanning" loader shown only while real work runs; Health Check results shown as chip pins lighting up per real check result (✔ / amber / ✖); an About / "What's new" screen with the chip and version; a 150 ms fade between pages and a sliding accent bar in the sidebar; empty states with a faint chip outline and one helpful line.
 - **Splash timing (owner choice):** if loading finishes in under about 1 second, play a sped-up version of the animation (about 1 s) so it never looks cut off; if loading takes longer, the animation keeps going (scan line repeats) until loading really finishes. Never add waiting beyond that.
@@ -373,6 +379,6 @@ A change is not done until each applicable item is verified:
 - [ ] The auto clicker starts and stops reliably, including emergency stop and app close.
 - [ ] The theme persists and updates the whole interface.
 - [ ] The audio mixer and Storage Explorer still work.
-- [ ] Gemini is still removed.
+- [ ] The AI Assistant follows section 13 (own key in Credential Manager, whitelisted specs, advice only).
 - [ ] No secrets or personal data are in the commit.
 - [ ] The build and tests actually ran, or the untested parts are clearly disclosed.

@@ -97,3 +97,98 @@ def test_quoted_values_stay_quoted():
     new, applied, _ = gp.FORMATS["colon"].write('renderClouds:"true"\nmaxFps:120\n',
                                                 {"renderClouds": "false", "maxFps": 260})
     assert 'renderClouds:"false"' in new and "maxFps:260" in new
+
+
+# ---------------------------------------------------------------- v1.4 preset management
+import json as _json
+
+import pytest as _pytest
+
+
+@_pytest.fixture
+def store(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    return tmp_path
+
+
+def test_old_presets_still_load(store):
+    (store / "RYTWEAKS").mkdir()
+    (store / "RYTWEAKS" / "custom_presets.json").write_text(
+        _json.dumps({"files": [], "presets": {"fortnite": {"Mine": {"bUseVSync": "False"}}}}))
+    assert gp.user_presets("fortnite") == {"Mine": {"bUseVSync": "False"}}
+
+
+def test_rename_duplicate_delete_and_clash(store):
+    assert gp.save_user_preset("fortnite", "A", {"bUseVSync": "False"})[0] == "ok"
+    assert gp.save_user_preset("fortnite", "A", {"bUseVSync": "True"})[0] == "clash"
+    assert gp.user_presets("fortnite")["A"] == {"bUseVSync": "False"}      # not overwritten
+    assert gp.duplicate_preset("fortnite", "A", "B")[0] == "ok"
+    assert gp.rename_user_preset("fortnite", "B", "A")[0] == "clash"
+    assert gp.rename_user_preset("fortnite", "B", "C")[0] == "ok"
+    assert set(gp.user_presets("fortnite")) == {"A", "C"}
+    assert gp.save_user_preset("fortnite", "A", {"bUseVSync": "True"}, replace=True)[0] == "ok"
+    assert gp.delete_user_preset("fortnite", "C") and not gp.delete_user_preset("fortnite", "C")
+
+
+def test_duplicate_builtin_is_a_copy(store):
+    assert gp.duplicate_preset("fortnite", "Ultra", "My ultra")[0] == "ok"
+    copy = gp.user_presets("fortnite")["My ultra"]
+    assert copy == gp.BY_ID["fortnite"].presets["Ultra"]
+    copy["sg.ShadowQuality"] = 0
+    assert gp.BY_ID["fortnite"].presets["Ultra"]["sg.ShadowQuality"] == 3  # built-in untouched
+
+
+def test_edit_limited_to_known_keys(store):
+    gp.save_user_preset("fortnite", "A", {"bUseVSync": "False"})
+    assert gp.update_user_preset("fortnite", "A", {"bUseVSync": "True", "sg.ShadowQuality": "1"})[0]
+    ok, msg = gp.update_user_preset("fortnite", "A", {"bUseVSync": "True", "Evil.Key": "1"})
+    assert not ok and "Evil.Key" in msg
+    assert gp.user_presets("fortnite")["A"]["sg.ShadowQuality"] == "1"
+    assert "sg.ShadowQuality" in gp.known_keys("fortnite")
+
+
+def test_export_import_roundtrip_and_clash(store, tmp_path):
+    gp.save_user_preset("fortnite", "A", {"bUseVSync": "False", "sg.ShadowQuality": 2})
+    f = tmp_path / "a.json"
+    assert gp.export_preset("fortnite", "A", f)[0]
+    data = _json.loads(f.read_text())
+    assert data["format"] == gp.PRESET_FORMAT and data["version"] == 1 and data["game"] == "fortnite"
+    assert gp.import_preset("fortnite", f)[0] == "clash"                   # never silently overwrites
+    assert gp.import_preset("fortnite", f, "A2")[0] == "ok"
+    assert gp.user_presets("fortnite")["A2"] == {"bUseVSync": "False", "sg.ShadowQuality": 2}
+    assert gp.import_preset("fortnite", f, "A", replace=True)[0] == "ok"
+
+
+def _good(**over):
+    d = {"format": gp.PRESET_FORMAT, "version": 1, "game": "fortnite", "name": "X", "settings": {"k": "v"}}
+    d.update(over)
+    return d
+
+
+@_pytest.mark.parametrize("raw,part", [
+    ("not json", "valid"),
+    (_json.dumps([1]), "isn't a RYTWEAKS"),
+    (_json.dumps(_good(format="other")), "isn't a RYTWEAKS"),
+    (_json.dumps(_good(game="apex")), "apex"),
+    (_json.dumps(_good(version=99)), "newer"),
+    (_json.dumps(_good(version="1")), "version"),
+    (_json.dumps(_good(name="")), "name"),
+    (_json.dumps(_good(settings={})), "no settings"),
+    (_json.dumps(_good(settings={"k": [1]})), "unsupported"),
+    (_json.dumps(_good(settings={"k": None})), "unsupported"),
+    (_json.dumps(_good(settings={"k": "x" * 600})), "too long"),
+    (_json.dumps(_good(settings={f"k{i}": 1 for i in range(600)})), "too many"),
+    ("x" * (gp.MAX_IMPORT_BYTES + 1), "too big"),
+])
+def test_import_validation_rejects(raw, part):
+    ok, msg, name, settings = gp.parse_preset_file(raw, "fortnite")
+    assert not ok and part in msg and name is None
+
+
+def test_import_validation_accepts_and_writes_nothing_on_reject(store, tmp_path):
+    ok, _, name, settings = gp.parse_preset_file(_json.dumps(_good(settings={"a": 1, "b": 1.5, "c": True, "d": "x"})), "fortnite")
+    assert ok and name == "X" and settings["c"] is True
+    bad = tmp_path / "bad.json"
+    bad.write_text(_json.dumps(_good(game="apex")))
+    assert gp.import_preset("fortnite", bad)[0] == "error"
+    assert gp.user_presets("fortnite") == {}
