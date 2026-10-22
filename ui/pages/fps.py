@@ -6,12 +6,13 @@ import subprocess
 import sys
 from datetime import datetime
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFileDialog, QHBoxLayout, QHeaderView,
-                               QLineEdit, QListWidget, QMessageBox, QPushButton, QTableWidget,
-                               QTableWidgetItem)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QHBoxLayout,
+                               QHeaderView, QLineEdit, QListWidget, QMessageBox, QPushButton,
+                               QSlider, QTableWidget, QTableWidgetItem)
 
 from core import fps
+from core import overlay_fps as of
 from ui.widgets.common import Card, KeyValueGrid, Notice, Page, label, set_role
 
 SETTING_PATH = "fps_presentmon_path"
@@ -29,6 +30,9 @@ class FpsPage(Page):
         self.capture_game = None
         self.current_runs = []
         self._loaded = False
+        self.overlay_stream = None
+        self.overlay_win = None
+        self.overlay_game = None
 
         # ---- PresentMon location
         c = Card("PresentMon")
@@ -88,6 +92,9 @@ class FpsPage(Page):
         self.status = label("", "cardLine", wrap=True, selectable=True)
         r.body.addWidget(self.status)
         self.content.addWidget(r)
+
+        # ---- in-game overlay
+        self._build_overlay_card()
 
         # ---- result
         self.result_card = Card("Result")
@@ -154,6 +161,9 @@ class FpsPage(Page):
         self.timer = QTimer(self)
         self.timer.setInterval(250)
         self.timer.timeout.connect(self._tick)
+        self.overlay_timer = QTimer(self)
+        self.overlay_timer.setInterval(400)
+        self.overlay_timer.timeout.connect(self._overlay_tick)
         self.finish()
 
         if not self.path_edit.text():
@@ -173,6 +183,7 @@ class FpsPage(Page):
 
     def wait_for_tasks(self):
         self.timer.stop()
+        self.stop_overlay()
         if self.capture:
             self.capture.cancel()
             self.capture.cleanup()
@@ -233,6 +244,7 @@ class FpsPage(Page):
 
     # ---------------------------------------------------------------- running
     def _set_busy(self, busy):
+        self.btn_overlay_start.setEnabled(not busy and not self.overlay_stream)
         self.btn_start.setEnabled(not busy)
         self.btn_cancel.setEnabled(busy)
         self.duration.setEnabled(not busy)
@@ -240,6 +252,9 @@ class FpsPage(Page):
 
     def start(self):
         if self.capture:
+            return
+        if self.overlay_stream:
+            self.status.setText("Stop the in-game overlay first: only one PresentMon capture runs at a time.")
             return
         if not self._check_path():
             self.status.setText("Select PresentMon.exe first.")
@@ -324,6 +339,159 @@ class FpsPage(Page):
             [("Program", run["game"])] +
             [(lbl, fps.format_metric(key, run.get(key))) for key, lbl, _u in fps.METRIC_ROWS])
         self.result_card.setVisible(True)
+
+    # ---------------------------------------------------------------- in-game overlay
+    def _build_overlay_card(self):
+        cfg = of.clean_settings(self.ctx.settings)
+        o = Card("In-game overlay")
+        o.body.addWidget(label(
+            "Shows FPS, 1% low and frame time over the game while you play. Pick the running "
+            "program in the list above, then press Start overlay. The capture uses the PresentMon "
+            "path set above and needs administrator rights.", "muted", wrap=True))
+        o.body.addWidget(label(of.SETTING_NOTE, "muted", wrap=True))
+        row = QHBoxLayout()
+        self.ov_pos = QComboBox()
+        for c in of.CORNERS:
+            self.ov_pos.addItem(c.replace("-", " ").capitalize(), c)
+        self.ov_pos.setCurrentIndex(of.CORNERS.index(cfg["overlay_position"]))
+        self.ov_size = QComboBox()
+        for z in of.SIZES:
+            self.ov_size.addItem(z.capitalize(), z)
+        self.ov_size.setCurrentIndex(of.SIZES.index(cfg["overlay_size"]))
+        self.ov_load = QCheckBox("Show CPU / GPU load")
+        self.ov_load.setChecked(cfg["overlay_show_load"])
+        row.addWidget(label("Position"))
+        row.addWidget(self.ov_pos)
+        row.addWidget(label("Size"))
+        row.addWidget(self.ov_size)
+        row.addWidget(self.ov_load)
+        row.addStretch(1)
+        o.body.addLayout(row)
+        orow = QHBoxLayout()
+        self.ov_opacity = QSlider(Qt.Horizontal)
+        self.ov_opacity.setRange(50, 100)
+        self.ov_opacity.setValue(cfg["overlay_opacity"])
+        self.ov_opacity_lbl = label(f"{cfg['overlay_opacity']}%")
+        orow.addWidget(label("Opacity"))
+        orow.addWidget(self.ov_opacity, 1)
+        orow.addWidget(self.ov_opacity_lbl)
+        o.body.addLayout(orow)
+        brow = QHBoxLayout()
+        self.btn_overlay_start = set_role(QPushButton("Start overlay"), "primary")
+        self.btn_overlay_start.clicked.connect(self.start_overlay)
+        self.btn_overlay_stop = QPushButton("Stop overlay")
+        self.btn_overlay_stop.setEnabled(False)
+        self.btn_overlay_stop.clicked.connect(lambda: self.stop_overlay())
+        brow.addWidget(self.btn_overlay_start)
+        brow.addWidget(self.btn_overlay_stop)
+        brow.addStretch(1)
+        o.body.addLayout(brow)
+        self.overlay_status = label("", "cardLine", wrap=True, selectable=True)
+        o.body.addWidget(self.overlay_status)
+        self.ov_pos.currentIndexChanged.connect(self._overlay_setting_changed)
+        self.ov_size.currentIndexChanged.connect(self._overlay_setting_changed)
+        self.ov_load.toggled.connect(self._overlay_setting_changed)
+        self.ov_opacity.valueChanged.connect(self._overlay_setting_changed)
+        self.content.addWidget(o)
+
+    def _overlay_values(self):
+        return {"overlay_position": self.ov_pos.currentData(), "overlay_size": self.ov_size.currentData(),
+                "overlay_show_load": self.ov_load.isChecked(), "overlay_opacity": self.ov_opacity.value()}
+
+    def _overlay_setting_changed(self, *_):
+        vals = self._overlay_values()
+        self.ov_opacity_lbl.setText(f"{vals['overlay_opacity']}%")
+        for k, v in vals.items():
+            self.ctx.set_setting(k, v)
+        if self.overlay_win:
+            self.overlay_win.apply_settings(vals)
+
+    def start_overlay(self):
+        if self.overlay_stream:
+            return
+        if self.capture:
+            self.overlay_status.setText("An FPS test is running: only one PresentMon capture runs at a time.")
+            return
+        if not self._check_path():
+            self.overlay_status.setText("Select PresentMon.exe first.")
+            return
+        item = self.proc_list.currentItem()
+        if not item:
+            self.overlay_status.setText("Pick the running program in the list above.")
+            return
+        name = item.data(256)
+        stream = of.OverlayStream(self.path_edit.text().strip(), name)
+        try:
+            stream.start()
+        except (OSError, ValueError) as e:
+            msg = str(e)
+            if getattr(e, "winerror", None) == 740:
+                msg = "Windows needs administrator rights to start PresentMon. " + fps.ADMIN_HINT
+            self.overlay_status.setText(f"Could not start PresentMon: {msg}")
+            self.ctx.log_action("FPS overlay", f"PresentMon on {name}", "Failed", msg)
+            return
+        from ui.overlay import OverlayWindow
+        self.overlay_stream, self.overlay_game = stream, name
+        self.overlay_win = OverlayWindow(self.ctx.theme, self._overlay_values(), name)
+        self.overlay_win.set_lines(of.format_lines(None, show_load=self.ov_load.isChecked()))
+        self.overlay_win.show_overlay()
+        self.btn_overlay_start.setEnabled(False)
+        self.btn_overlay_stop.setEnabled(True)
+        self.btn_start.setEnabled(False)
+        self.overlay_status.setText(f"Overlay running for {name}. Waiting for frames…")
+        self.ctx.log_action("FPS overlay", f"Start overlay on {name}", "Started")
+        self.overlay_timer.start()
+
+    def stop_overlay(self, message=None):
+        self.overlay_timer.stop()
+        stream, win = self.overlay_stream, self.overlay_win
+        self.overlay_stream = self.overlay_win = None
+        if win:
+            win.hide_overlay()
+            win.deleteLater()
+        if stream:
+            stream.stop()
+        self.btn_overlay_stop.setEnabled(False)
+        self.btn_overlay_start.setEnabled(not self.capture)
+        self.btn_start.setEnabled(not self.capture)
+        if stream:
+            self.overlay_status.setText(message or "Overlay stopped.")
+
+    def on_theme(self, theme):
+        if self.overlay_win:
+            self.overlay_win.set_theme(theme)
+
+    def _overlay_tick(self):
+        stream, win = self.overlay_stream, self.overlay_win
+        if not stream or not win:
+            self.overlay_timer.stop()
+            return
+        snap, state = stream.snapshot()
+        if state == "closed":
+            win.set_lines(of.format_lines(None, state="closed"))
+            name = self.overlay_game
+            self.ctx.log_action("FPS overlay", f"Overlay on {name}", "Stopped: game closed")
+            self._stop_overlay_later(f"{name} closed. The overlay stopped.")
+            return
+        if state == "error":
+            msg = stream.error or "PresentMon stopped."
+            self.ctx.log_action("FPS overlay", f"Overlay on {self.overlay_game}", "Failed", msg)
+            self.stop_overlay(msg)
+            return
+        cpu, gpu = of.loads_from_sample(self.ctx.last_sample)
+        win.set_lines(of.format_lines(snap, cpu, gpu, self.ov_load.isChecked()))
+        if not stream.has_frames():
+            self.overlay_status.setText(f"Overlay running for {self.overlay_game}. Waiting for frames: the "
+                                        "program must be presenting (not minimized).")
+        else:
+            self.overlay_status.setText(f"Overlay running for {self.overlay_game}.")
+
+    def _stop_overlay_later(self, message):
+        """Show 'Game closed' for 3 s, then stop and tidy up."""
+        self.overlay_timer.stop()
+        QTimer.singleShot(3000, lambda s=self.overlay_stream: self.stop_overlay(message)
+                          if self.overlay_stream is s else None)
+        self.overlay_status.setText(message)
 
     # ---------------------------------------------------------------- saved runs
     def reload_runs(self):
