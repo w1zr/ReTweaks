@@ -12,6 +12,9 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("Browser", "A browser with RYTWEAKS's own design on Microsoft's Edge engine: tabs, private tabs, "
+                "bookmarks, history, downloads, and your choice of search engine."),
+    ("Microphone", "The Audio mixer now controls your microphone too: volume, mute and default input device."),
     ("Built-in FPS overlay", "The in-game overlay reads Windows' own frame events, so it no longer needs "
                              "PresentMon. Nothing is injected into the game."),
     ("44 new tweaks and search", "Now 53 individual tweaks in five groups (Gaming, Privacy, Interface, "

@@ -47,3 +47,68 @@ def test_unavailable_off_windows():
     if sys.platform != "win32":
         assert audio.AVAILABLE is False
         assert audio.UNAVAILABLE_REASON
+
+
+class FakeBackend:
+    """Stands in for Windows Core Audio so the page logic runs on any OS."""
+
+    def __init__(self):
+        self.out = [audio.DeviceInfo("o1", "Speakers", True), audio.DeviceInfo("o2", "Headset", False)]
+        self.inp = [audio.DeviceInfo("i1", "USB Mic", True), audio.DeviceInfo("i2", "Webcam Mic", False)]
+        self.master, self.mic = [50, False], [70, False]
+        self.calls = []
+
+    def devices(self): return self.out
+    def master_state(self): return tuple(self.master)
+    def input_devices(self): return self.inp
+    def input_state(self): return tuple(self.mic) if any(d.is_default for d in self.inp) else None
+    def sessions(self): return []
+    def set_master_volume(self, p): self.master[0] = p
+    def set_master_mute(self, m): self.master[1] = m
+    def set_input_volume(self, p): self.calls.append(("in_vol", p)); self.mic[0] = p
+    def set_input_mute(self, m): self.calls.append(("in_mute", m)); self.mic[1] = m
+
+    def set_default_input(self, dev_id):
+        self.calls.append(("default_in", dev_id))
+        for d in self.inp:
+            d.is_default = d.id == dev_id
+        return True, "Default input device changed."
+
+    def set_default_device(self, dev_id, flow=0):
+        self.calls.append(("default_out", dev_id))
+        return True, "Default output device changed."
+
+
+def test_microphone_card(monkeypatch):
+    import pytest
+    pytest.importorskip("PySide6")
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QMessageBox
+    app = QApplication.instance() or QApplication([])
+    from ui.pages import audio as page_mod
+    monkeypatch.setattr(page_mod.audio, "AVAILABLE", True)
+    fake = FakeBackend()
+    monkeypatch.setattr(page_mod.AudioPage, "_make_backend", lambda self: fake)
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+
+    class Ctx:
+        settings = {}
+        logs = []
+        def log_action(self, *a): self.logs.append(a)
+
+    ctx = Ctx()
+    p = page_mod.AudioPage(ctx)
+    p.refresh()
+    assert p._input_row is not None and p._input_row.slider.value() == 70
+    p._input_row.slider.setValue(35)                      # user drags the mic slider
+    assert ("in_vol", 35) in fake.calls
+    p._set_input_mute(True)
+    assert ("in_mute", True) in fake.calls and ctx.logs[-1][1] == "Microphone mute"
+    p._switch_device(fake.inp[1], inp=True)
+    assert ("default_in", "i2") in fake.calls and fake.inp[1].is_default
+    assert ctx.logs[-1][1] == "Set default input to Webcam Mic"
+    fake.inp = []                                          # mic unplugged
+    p.refresh()
+    assert p._input_row is None
+    app.processEvents()

@@ -1,5 +1,6 @@
 # ui/pages/audio.py
-"""Audio mixer: master volume, output devices, per-app volume (Windows Core Audio)."""
+"""Audio mixer: master volume, output devices, microphone (input) volume and devices,
+per-app volume (Windows Core Audio)."""
 
 import os
 
@@ -62,7 +63,7 @@ class VolumeRow(QWidget):
 
 class AudioPage(Page):
     title = "Audio mixer"
-    subtitle = ("Master volume, output device and per-app volume, read live from Windows "
+    subtitle = ("Master volume, output device, microphone and per-app volume, read live from Windows "
                 "Core Audio. Changes made in Windows or in other apps show up here within "
                 "a second.")
 
@@ -74,6 +75,8 @@ class AudioPage(Page):
         self._session_key = None
         self._sessions = []
         self._master_row = None
+        self._input_row = None
+        self._input_key = None
         self._session_rows = []
         self._error_shown = False
 
@@ -115,6 +118,19 @@ class AudioPage(Page):
         row.addStretch(1)
         self.dev_card.body.addLayout(row)
         self.content.addWidget(self.dev_card)
+
+        # input (microphones), v1.5
+        self.in_card = Card("Microphone (default input)")
+        self.in_master_holder = QVBoxLayout()
+        self.in_card.body.addLayout(self.in_master_holder)
+        self.in_card.body.addWidget(label("Input devices", "sectionTitle"))
+        self.in_holder = QVBoxLayout()
+        self.in_card.body.addLayout(self.in_holder)
+        self.in_card.body.addWidget(label(
+            "Volume and mute here are the same switches as Windows Sound settings → Input, so they "
+            "affect every app that uses the microphone (Discord, games, OBS). Switching the default "
+            "input uses the same undocumented interface as output switching.", "muted", wrap=True))
+        self.content.addWidget(self.in_card)
 
         # sessions
         self.app_card = Card("App volume")
@@ -159,12 +175,14 @@ class AudioPage(Page):
         try:
             self._refresh_devices()
             self._refresh_master()
+            self._refresh_input()
             self._refresh_sessions()
             self.status.setText("")
             self._error_shown = False
         except Exception as exc:
             # Device unplugged mid-read, audio service restarting, stale COM object...
             self._device_key = None
+            self._input_key = None
             self._session_key = None
             if not self._error_shown:
                 self._error_shown = True
@@ -221,6 +239,55 @@ class AudioPage(Page):
             self.master_holder.addWidget(self._master_row)
         self._master_row.show_state(*state)
 
+    def _refresh_input(self):
+        devices = self.backend.input_devices()
+        key = tuple((d.id, d.name, d.is_default) for d in devices)
+        if key != self._input_key:
+            self._input_key = key
+            self._clear(self.in_holder)
+            if not devices:
+                self.in_holder.addWidget(label(
+                    "No active microphone found. Plug one in or enable it in Windows Sound settings.",
+                    "warn", wrap=True))
+            for d in devices:
+                row = QHBoxLayout()
+                row.addWidget(label(d.name, "cardLine"), 1)
+                if d.is_default:
+                    row.addWidget(label("Default", "good"))
+                else:
+                    b = QPushButton("Set as default")
+                    b.clicked.connect(lambda _=False, dev=d: self._switch_device(dev, inp=True))
+                    row.addWidget(b)
+                self.in_holder.addLayout(row)
+        state = self.backend.input_state()
+        if state is None:
+            if self._input_row is not None or self.in_master_holder.count() == 0:
+                self._input_row = None
+                self._clear(self.in_master_holder)
+                self.in_master_holder.addWidget(label(
+                    "No default microphone, so there is no input volume to control.", "warn", wrap=True))
+            return
+        if self._input_row is None:
+            self._clear(self.in_master_holder)
+            self._input_row = VolumeRow("Microphone", self._set_input_volume, self._set_input_mute)
+            self.in_master_holder.addWidget(self._input_row)
+        self._input_row.show_state(*state)
+
+    def _set_input_volume(self, percent):
+        try:
+            self.backend.set_input_volume(percent)
+        except Exception as exc:
+            self._fail("Setting the microphone volume", exc)
+
+    def _set_input_mute(self, muted):
+        what = "Microphone " + ("mute" if muted else "unmute")
+        try:
+            self.backend.set_input_mute(muted)
+            self.ctx.log_action("Audio mixer", what, "OK")
+        except Exception as exc:
+            self.ctx.log_action("Audio mixer", what, "Failed", str(exc))
+            self._fail("Changing microphone mute", exc)
+
     def _refresh_sessions(self):
         sessions = self.backend.sessions()
         key = audio.sessions_key(sessions)
@@ -251,6 +318,7 @@ class AudioPage(Page):
     def _fail(self, what, exc):
         self.status.setText(f"{what} failed: {exc}")
         self._device_key = None
+        self._input_key = None
         self._session_key = None
 
     def _set_master_volume(self, percent):
@@ -291,23 +359,26 @@ class AudioPage(Page):
             self.ctx.log_action("Audio mixer", what, "Failed", str(exc))
             self._fail(f"Changing mute for {info.name}", exc)
 
-    def _switch_device(self, dev):
+    def _switch_device(self, dev, inp=False):
+        kind = "input" if inp else "output"
         ok = QMessageBox.question(
-            self, "Switch default output",
-            f"Make \"{dev.name}\" the default output device?\n\n"
+            self, f"Switch default {kind}",
+            f"Make \"{dev.name}\" the default {kind} device?\n\n"
             "This uses an undocumented Windows interface (IPolicyConfig). If it fails, "
             "use Windows Sound settings.")
         if ok != QMessageBox.Yes:
             return
-        requested = f"Set default output to {dev.name}"
+        requested = f"Set default {kind} to {dev.name}"
         try:
-            success, msg = self.backend.set_default_device(dev.id)
+            success, msg = (self.backend.set_default_input(dev.id) if inp
+                            else self.backend.set_default_device(dev.id))
         except Exception as exc:
             success, msg = False, str(exc)
         self.ctx.log_action("Audio mixer", requested, "OK" if success else "Failed",
                             "" if success else msg)
         self.status.setText(msg)
         self._device_key = None
+        self._input_key = None
         self.refresh()
         if not success:
             self.status.setText(msg + " Switch the default device in Windows Sound settings.")

@@ -10,10 +10,20 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 
+GH = bool(os.environ.get("GITHUB_ACTIONS"))
+
+
+def report(msg, error=False):
+    """Prints, and on GitHub Actions also posts it as a build annotation (readable through the API)."""
+    print(msg, flush=True)
+    if GH:
+        print(f"::{'error' if error else 'notice'} title=Browser check::{msg}", flush=True)
+
+
 def main():
     from core import browser_engine as be
     eng = be.load()
-    print("Edge WebView2 runtime:", eng.version)
+    report(f"Edge engine loaded. WebView2 runtime {eng.version}")
     if "--load-only" in sys.argv:
         return 0
     app = QApplication(sys.argv)
@@ -32,13 +42,13 @@ def main():
             v.wv.NavigateToString("<html><head><title>RYTWEAKS OK</title></head><body>ok</body></html>")
 
         def title(t):
-            print(("private" if private else "normal"), "tab title:", t)
+            report(f"{'Private' if private else 'Normal'} tab works: page title read back as '{t}'")
             if t == "RYTWEAKS OK":
                 done(private)
 
         v.ready.connect(ready)
         v.titleChanged.connect(title)
-        v.failed.connect(lambda m: (print("FAILED:", m), app.exit(1)))
+        v.failed.connect(lambda m: (report(f"Tab failed to start: {m}", True), app.exit(1)))
         v.start()
 
     seen = set()
@@ -51,7 +61,7 @@ def main():
 
     check(False)
     check(True)
-    QTimer.singleShot(60000, lambda: (print("TIMEOUT"), app.exit(2)))
+    QTimer.singleShot(60000, lambda: (report("Timed out after 60 s waiting for the tabs", True), app.exit(2)))
     code = app.exec()
     for v in views:
         v.close_engine()
@@ -59,4 +69,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:
+        report(f"{type(e).__name__}: {e}", True)
+        sys.exit(1)

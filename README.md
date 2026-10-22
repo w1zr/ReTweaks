@@ -33,7 +33,8 @@
 
 **Tools**
 - **Storage and cleanup:** disk space analyzer, file explorer, and temp cleanup that always shows a preview first.
-- **Audio mixer, auto clicker and Fun tools:** mouse polling rate test, clicks-per-second test and reaction time test.
+- **Browser:** RYTWEAKS's own browser on Microsoft's Edge engine, with tabs, private tabs, bookmarks, history, downloads and your choice of search engine (Google, DuckDuckGo, Brave Search, Bing, Startpage or your own).
+- **Audio mixer** (speakers, microphone and per-app volume), **auto clicker and Fun tools:** mouse polling rate test, clicks-per-second test and reaction time test.
 - **AI Assistant:** ask Google Gemini about your PC with your own free API key. The key is stored in Windows Credential Manager and never in a file. You must be 18+ under Google's terms.
 - **Snapshots and Logs:** sensor logging to CSV, and a log of every change RYTWEAKS made.
 
