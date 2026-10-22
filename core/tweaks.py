@@ -59,6 +59,17 @@ class _WinReg:
         except FileNotFoundError:
             pass
 
+    def delete_key(self, path):
+        """Delete one EMPTY key (no subkeys). Missing keys are fine; non-empty keys are left alone."""
+        import winreg
+        root, sub = self._split(path)
+        try:
+            winreg.DeleteKey(root, sub)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass   # not empty: never delete anything else
+
 
 REG = _WinReg()
 
@@ -385,6 +396,13 @@ TWEAKS = [
                  (r"HKLM\SYSTEM\CurrentControlSet\Control\Power", "HibernateEnabled"),
                  ["powercfg", "/hibernate", "on"], ["powercfg", "/hibernate", "off"]),
 ]
+
+# v1.4.3: more tweaks, grouped by category (see core/tweaks_catalog.py)
+from core.tweaks_catalog import CATEGORY_ORDER, EXISTING_CATEGORY, more_tweaks  # noqa: E402
+
+for _t in TWEAKS:
+    _t.category = EXISTING_CATEGORY.get(_t.id, "Gaming")
+TWEAKS += more_tweaks()
 
 BY_ID = {t.id: t for t in TWEAKS}
 
