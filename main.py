@@ -42,7 +42,11 @@ def main():
     
     # Smooth Transition from Splash to Main Window
     splash.finish(window)
-    window.show()
+    # Started by "Start with Windows" with "Start minimized" on
+    if "--minimized" in sys.argv:
+        window.showMinimized()
+    else:
+        window.show()
     
     sys.exit(app.exec())
 

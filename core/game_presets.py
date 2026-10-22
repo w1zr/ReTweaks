@@ -1,0 +1,468 @@
+# core/game_presets.py
+"""Game settings presets: edit a game's own settings file safely.
+
+Safety rules (CLAUDE.md section 9):
+- Only settings files, never game executables or anti-cheat files.
+- Only keys that ALREADY EXIST in the user's file are changed. Nothing is added, so a key
+  name that's wrong for some game version is simply skipped (and shown as skipped).
+- The game must be closed (games rewrite these files when they exit).
+- The file is backed up before every change; any backup can be restored.
+- Everything else in the file (other keys, comments, spacing, encoding, line endings) is kept.
+
+Preset tiers:
+  Low               - lowest settings for weaker PCs
+  High              - balanced quality and FPS
+  Ultra             - best visual quality
+  Ultra Performance - competitive: low effects but full resolution and clear visibility
+FPS caps are never changed by presets; set them yourself with Custom.
+
+Key names and file locations come from PCGamingWiki and the Minecraft Wiki. Keys that
+couldn't be confirmed for a game are not used (CS2 has no built-in preset for that reason).
+"""
+
+import glob
+import json
+import os
+import re
+import shutil
+import stat
+import time
+from pathlib import Path
+
+import psutil
+
+TIERS = ["Low", "High", "Ultra", "Ultra Performance"]
+MAX_BACKUPS = 10
+
+
+# ================================================================ file formats
+# Each format: parse(text) -> {key: value}; write(text, changes) -> (new_text, applied, skipped)
+
+def _style_value(old, new):
+    """Write the new value in the same style as the old one (True vs true, 60.000000 vs 60)."""
+    new = str(new)
+    if old.lower() in ("true", "false") and new.lower() in ("true", "false"):
+        if old.isupper():
+            return new.upper()
+        if old[0].isupper():
+            return new.capitalize()
+        return new.lower()
+    m = re.fullmatch(r"-?\d+\.(\d+)", old)
+    if m and re.fullmatch(r"-?\d+(\.\d+)?", new):
+        return f"{float(new):.{len(m.group(1))}f}"
+    return new
+
+
+class _LineFormat:
+    """Shared logic: line-by-line regex editing that keeps everything else untouched."""
+    line_re = None   # must have groups: prefix, key, sep, value, suffix
+
+    def parse(self, text):
+        out = {}
+        for line in text.splitlines():
+            m = self.line_re.match(line)
+            if m and m.group("key") not in out:
+                out[m.group("key")] = m.group("value")
+        return out
+
+    def write(self, text, changes):
+        lines = text.splitlines(keepends=True)
+        applied, done = {}, set()
+        for i, line in enumerate(lines):
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            m = self.line_re.match(body)
+            if not m:
+                continue
+            key = m.group("key")
+            if key in changes and key not in done:
+                new_val = _style_value(m.group("value"), changes[key])
+                lines[i] = (m.group("prefix") + key + m.group("sep") + self.quote(m, new_val)
+                            + m.group("suffix") + ending)
+                applied[key] = (m.group("value"), new_val)
+                done.add(key)
+        skipped = [k for k in changes if k not in done]
+        return "".join(lines), applied, skipped
+
+    def quote(self, m, value):
+        return value
+
+
+class IniFormat(_LineFormat):
+    name = "ini"
+    line_re = re.compile(r"^(?P<prefix>\s*)(?P<key>[^;#\[\s=][^=]*?)(?P<sep>\s*=\s*)(?P<value>[^\r\n]*?)(?P<suffix>\s*)$")
+
+
+class ColonFormat(_LineFormat):
+    """Minecraft options.txt: key:value"""
+    name = "colon"
+    line_re = re.compile(r"^(?P<prefix>)(?P<key>[A-Za-z0-9_.\-]+)(?P<sep>:)(?P<value>[^\r\n]*?)(?P<suffix>)$")
+
+
+class KeyValuesFormat(_LineFormat):
+    """Valve KeyValues: "key"<tabs>"value" """
+    name = "kv"
+    line_re = re.compile(r'^(?P<prefix>\s*)"(?P<key>[^"]+)"(?P<sep>\s+)"(?P<value>[^"]*)"(?P<suffix>\s*)$')
+
+    def quote(self, m, value):
+        return f'"{value}"'
+
+    def write(self, text, changes):
+        # keys are matched without their quotes, so rebuild with the key quoted
+        lines = text.splitlines(keepends=True)
+        applied, done = {}, set()
+        for i, line in enumerate(lines):
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            m = self.line_re.match(body)
+            if m and m.group("key") in changes and m.group("key") not in done:
+                key = m.group("key")
+                new_val = _style_value(m.group("value"), changes[key])
+                lines[i] = f'{m.group("prefix")}"{key}"{m.group("sep")}"{new_val}"{m.group("suffix")}{ending}'
+                applied[key] = (m.group("value"), new_val)
+                done.add(key)
+        return "".join(lines), applied, [k for k in changes if k not in done]
+
+
+FORMATS = {f.name: f for f in (IniFormat(), ColonFormat(), KeyValuesFormat())}
+
+
+def detect_format(text):
+    """Guess the format of a file the user picked."""
+    counts = {name: len(fmt.parse(text)) for name, fmt in FORMATS.items()}
+    if counts["kv"] >= 2:
+        return "kv"
+    return max(("ini", "colon"), key=lambda n: counts[n])
+
+
+# ================================================================ reading/writing files safely
+
+def read_text(path):
+    """Returns (text, encoding). Handles UTF-16 (common for Unreal .ini files) and UTF-8 BOM."""
+    raw = Path(path).read_bytes()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16"), "utf-16"
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw.decode("utf-8-sig"), "utf-8-sig"
+    try:
+        return raw.decode("utf-8"), "utf-8"
+    except UnicodeDecodeError:
+        return raw.decode("cp1252"), "cp1252"
+
+
+def write_text(path, text, encoding):
+    tmp = str(path) + ".rytweaks.tmp"
+    with open(tmp, "w", encoding=encoding, newline="") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def is_read_only(path):
+    try:
+        return not (os.stat(path).st_mode & stat.S_IWRITE)
+    except OSError:
+        return False
+
+
+def set_read_only(path, locked):
+    mode = os.stat(path).st_mode
+    os.chmod(path, (mode & ~stat.S_IWRITE) if locked else (mode | stat.S_IWRITE))
+
+
+# ================================================================ backups
+
+def backup_dir(game_id):
+    base = Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "game_backups" / game_id
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def make_backup(game_id, path):
+    stamp = time.strftime('%Y-%m-%d_%H-%M-%S')
+    dest = backup_dir(game_id) / f"{stamp}__{Path(path).name}"
+    n = 2
+    while dest.exists():  # two backups in the same second must not overwrite each other
+        dest = backup_dir(game_id) / f"{stamp}-{n}__{Path(path).name}"
+        n += 1
+    shutil.copyfile(path, dest)  # copyfile: the backup gets its own timestamp (used for sorting)
+    meta = dest.with_suffix(dest.suffix + ".json")
+    meta.write_text(json.dumps({"original": str(path)}), encoding="utf-8")
+    backups = list_backups(game_id)
+    for old in backups[MAX_BACKUPS:]:  # keep the newest 10
+        for p in (old["file"], old["file"].with_suffix(old["file"].suffix + ".json")):
+            try:
+                p.unlink()
+            except OSError:
+                pass
+    return dest
+
+
+def list_backups(game_id):
+    out = []
+    files = [f for f in backup_dir(game_id).glob("*__*") if f.suffix != ".json"]
+    for f in sorted(files, key=lambda f: f.stat().st_mtime_ns, reverse=True):
+        meta = f.with_suffix(f.suffix + ".json")
+        try:
+            original = json.loads(meta.read_text(encoding="utf-8"))["original"]
+        except Exception:
+            continue
+        out.append({"file": f, "original": original, "when": f.name.split("__")[0].replace("_", " ")})
+    return out
+
+
+def restore_backup(game_id, backup):
+    """Put a backup back (making a backup of the current file first)."""
+    target = backup["original"]
+    if game_running(game_id):
+        return False, "Close the game first."
+    try:
+        was_locked = os.path.exists(target) and is_read_only(target)
+        if was_locked:
+            set_read_only(target, False)
+        data = Path(backup["file"]).read_bytes()  # read it before making a new backup
+        if os.path.exists(target):
+            make_backup(game_id, target)
+        tmp = str(target) + ".rytweaks.tmp"
+        Path(tmp).write_bytes(data)
+        os.replace(tmp, target)
+        if was_locked:
+            set_read_only(target, True)
+        return True, f"Restored the settings file from {backup['when']}."
+    except Exception as e:
+        return False, str(e)
+
+
+# ================================================================ games
+
+def _env(path):
+    return os.path.expandvars(path)
+
+
+class Game:
+    def __init__(self, gid, name, fmt, candidates, processes, presets, note="", lockable=False):
+        self.id, self.name, self.fmt = gid, name, fmt
+        self.candidates = candidates       # path patterns, %VARS% and * allowed
+        self.processes = processes         # lowercase exe names
+        self.presets = presets             # {tier: {key: value}}
+        self.note = note
+        self.lockable = lockable           # game overwrites the file unless it's read-only
+
+    def find_files(self):
+        found = []
+        for pattern in self.candidates:
+            for p in glob.glob(_env(pattern)):
+                if os.path.isfile(p) and p not in found:
+                    found.append(p)
+        # newest first: the one the game used most recently
+        return sorted(found, key=lambda p: os.path.getmtime(p), reverse=True)
+
+
+FALSE, TRUE = "False", "True"
+
+GAMES = [
+    Game("fortnite", "Fortnite", "ini",
+         [r"%LOCALAPPDATA%\FortniteGame\Saved\Config\WindowsClient\GameUserSettings.ini"],
+         ["fortniteclient-win64-shipping.exe", "fortnitelauncher.exe"],
+         {
+             "Low": {"sg.ResolutionQuality": 75, "sg.ViewDistanceQuality": 0, "sg.ShadowQuality": 0,
+                     "sg.AntiAliasingQuality": 0, "sg.TextureQuality": 0, "sg.EffectsQuality": 0,
+                     "sg.PostProcessQuality": 0, "sg.FoliageQuality": 0, "bUseVSync": FALSE, "bMotionBlur": FALSE},
+             "High": {"sg.ResolutionQuality": 100, "sg.ViewDistanceQuality": 2, "sg.ShadowQuality": 2,
+                      "sg.AntiAliasingQuality": 2, "sg.TextureQuality": 2, "sg.EffectsQuality": 2,
+                      "sg.PostProcessQuality": 2, "sg.FoliageQuality": 2, "bUseVSync": FALSE, "bMotionBlur": FALSE},
+             "Ultra": {"sg.ResolutionQuality": 100, "sg.ViewDistanceQuality": 3, "sg.ShadowQuality": 3,
+                       "sg.AntiAliasingQuality": 3, "sg.TextureQuality": 3, "sg.EffectsQuality": 3,
+                       "sg.PostProcessQuality": 3, "sg.FoliageQuality": 3, "bUseVSync": FALSE, "bMotionBlur": FALSE},
+             "Ultra Performance": {"sg.ResolutionQuality": 100, "sg.ViewDistanceQuality": 1, "sg.ShadowQuality": 0,
+                                   "sg.AntiAliasingQuality": 0, "sg.TextureQuality": 1, "sg.EffectsQuality": 0,
+                                   "sg.PostProcessQuality": 0, "sg.FoliageQuality": 0, "bUseVSync": FALSE,
+                                   "bMotionBlur": FALSE},
+         },
+         note="Rendering mode (Performance / DirectX 11 / DirectX 12) is set in-game: Settings → Video → "
+              "Rendering Mode, then restart Fortnite. Fortnite may also restore settings from your Epic "
+              "account; if a preset doesn't stick, apply it again after the game has started once."),
+    Game("minecraft_java", "Minecraft: Java Edition", "colon",
+         [r"%APPDATA%\.minecraft\options.txt"],
+         [],  # runs inside javaw.exe; checked by window title below
+         {
+             "Low": {"renderDistance": 6, "simulationDistance": 5, "enableVsync": "false", "entityShadows": "false",
+                     "particles": 2, "biomeBlendRadius": 0, "mipmapLevels": 0, "ao": "false",
+                     "renderClouds": "false", "graphicsPreset": "fast", "graphicsMode": 0, "fancyGraphics": "false"},
+             "High": {"renderDistance": 12, "simulationDistance": 8, "enableVsync": "false", "entityShadows": "true",
+                      "particles": 1, "biomeBlendRadius": 2, "mipmapLevels": 4, "ao": "true",
+                      "renderClouds": "fast", "graphicsPreset": "fancy", "graphicsMode": 1, "fancyGraphics": "true"},
+             "Ultra": {"renderDistance": 24, "simulationDistance": 12, "enableVsync": "false", "entityShadows": "true",
+                       "particles": 0, "biomeBlendRadius": 5, "mipmapLevels": 4, "ao": "true",
+                       "renderClouds": "true", "graphicsPreset": "fancy", "graphicsMode": 1, "fancyGraphics": "true"},
+             "Ultra Performance": {"renderDistance": 10, "simulationDistance": 6, "enableVsync": "false",
+                                   "entityShadows": "false", "particles": 2, "biomeBlendRadius": 0,
+                                   "mipmapLevels": 4, "ao": "false", "renderClouds": "false",
+                                   "graphicsPreset": "fast", "graphicsMode": 0, "fancyGraphics": "false"},
+         },
+         note="Uses the default .minecraft folder. Using CurseForge, Prism or another launcher? Use "
+              "“Choose your own file” and pick that instance's options.txt. Mods like Sodium have their own settings."),
+    Game("minecraft_bedrock", "Minecraft: Bedrock Edition", "colon",
+         [r"%APPDATA%\Minecraft Bedrock\users\*\games\com.mojang\minecraftpe\options.txt",
+          r"%APPDATA%\Minecraft Bedrock Preview\users\*\games\com.mojang\minecraftpe\options.txt",
+          r"%LOCALAPPDATA%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftpe\options.txt"],
+         ["minecraft.windows.exe"],
+         {
+             "Low": {"gfx_viewdistance": 96, "gfx_vsync": 0, "gfx_msaa": 1, "gfx_smoothlighting": 0,
+                     "gfx_fancyskies": 0, "gfx_transparentleaves": 0},
+             "High": {"gfx_viewdistance": 160, "gfx_vsync": 0, "gfx_msaa": 2, "gfx_smoothlighting": 1,
+                      "gfx_fancyskies": 1, "gfx_transparentleaves": 1},
+             "Ultra": {"gfx_viewdistance": 320, "gfx_vsync": 0, "gfx_msaa": 4, "gfx_smoothlighting": 1,
+                       "gfx_fancyskies": 1, "gfx_transparentleaves": 1},
+             "Ultra Performance": {"gfx_viewdistance": 128, "gfx_vsync": 0, "gfx_msaa": 1, "gfx_smoothlighting": 0,
+                                   "gfx_fancyskies": 0, "gfx_transparentleaves": 0},
+         },
+         note="View distance is stored in blocks (16 blocks = 1 chunk). Vibrant Visuals and ray tracing are "
+              "set in-game."),
+    Game("apex", "Apex Legends", "kv",
+         [r"%USERPROFILE%\Saved Games\Respawn\Apex\local\videoconfig.txt"],
+         ["r5apex.exe", "r5apex_dx12.exe"],
+         {
+             "Low": {"setting.mat_vsync_mode": 0, "setting.csm_enabled": 0, "setting.volumetric_lighting": 0,
+                     "setting.ssao_enabled": 0, "setting.dvs_enable": 0, "setting.r_lod_switch_scale": 0.6,
+                     "setting.mat_picmip": 2},
+             "High": {"setting.mat_vsync_mode": 0, "setting.csm_enabled": 1, "setting.volumetric_lighting": 1,
+                      "setting.ssao_enabled": 1, "setting.dvs_enable": 0, "setting.r_lod_switch_scale": 0.8,
+                      "setting.mat_picmip": 1},
+             "Ultra": {"setting.mat_vsync_mode": 0, "setting.csm_enabled": 1, "setting.volumetric_lighting": 1,
+                       "setting.ssao_enabled": 1, "setting.dvs_enable": 0, "setting.r_lod_switch_scale": 1.0,
+                       "setting.mat_picmip": 0},
+             "Ultra Performance": {"setting.mat_vsync_mode": 0, "setting.csm_enabled": 0,
+                                   "setting.volumetric_lighting": 0, "setting.ssao_enabled": 0,
+                                   "setting.dvs_enable": 0, "setting.r_lod_switch_scale": 0.8,
+                                   "setting.mat_picmip": 1},
+         },
+         note="Apex rewrites this file when it starts unless the file is locked (read-only). "
+              "While locked, changes you make in Apex's video menu won't save. The FPS cap is a launch "
+              "option (+fps_max), not in this file.",
+         lockable=True),
+    Game("rocket_league", "Rocket League", "ini",
+         [r"%USERPROFILE%\Documents\My Games\Rocket League\TAGame\Config\TASystemSettings.ini",
+          r"%USERPROFILE%\OneDrive\Documents\My Games\Rocket League\TAGame\Config\TASystemSettings.ini"],
+         ["rocketleague.exe"],
+         {
+             "Low": {"MaxAnisotropy": 0, "DynamicShadows": FALSE, "AmbientOcclusion": FALSE, "Bloom": FALSE,
+                     "DepthOfField": FALSE, "MotionBlur": FALSE, "LensFlares": FALSE},
+             "High": {"MaxAnisotropy": 8, "DynamicShadows": TRUE, "AmbientOcclusion": TRUE, "Bloom": TRUE,
+                      "DepthOfField": FALSE, "MotionBlur": FALSE, "LensFlares": FALSE},
+             "Ultra": {"MaxAnisotropy": 16, "DynamicShadows": TRUE, "AmbientOcclusion": TRUE, "Bloom": TRUE,
+                       "DepthOfField": TRUE, "MotionBlur": FALSE, "LensFlares": TRUE},
+             "Ultra Performance": {"MaxAnisotropy": 4, "DynamicShadows": FALSE, "AmbientOcclusion": FALSE,
+                                   "Bloom": FALSE, "DepthOfField": FALSE, "MotionBlur": FALSE, "LensFlares": FALSE},
+         },
+         note="Set resolution and window mode in-game first. Rocket League rewrites this file unless it's "
+              "locked (read-only); while locked, in-game video changes won't save. "
+              "Unlocking above 250 FPS (AllowPerFrameSleep=False) is available in Custom.",
+         lockable=True),
+]
+
+BY_ID = {g.id: g for g in GAMES}
+
+
+def game_running(game_id):
+    """True if the game is running (it would overwrite the file when it closes)."""
+    g = BY_ID.get(game_id)
+    if not g:
+        return False
+    try:
+        for p in psutil.process_iter(["name", "cmdline"]):
+            name = (p.info.get("name") or "").lower()
+            if name in g.processes:
+                return True
+            if game_id == "minecraft_java" and name in ("javaw.exe", "java.exe"):
+                cmd = " ".join(p.info.get("cmdline") or []).lower()
+                if "minecraft" in cmd:
+                    return True
+    except Exception:
+        return False
+    return False
+
+
+# ================================================================ preview / apply
+
+def read_settings(path, fmt):
+    text, _ = read_text(path)
+    return FORMATS[fmt].parse(text)
+
+
+def preview(path, fmt, changes):
+    """[(key, current, new)] for keys present in the file, and a list of keys not in the file."""
+    current = read_settings(path, fmt)
+    rows, missing = [], []
+    for k, v in changes.items():
+        if k in current:
+            rows.append((k, current[k], _style_value(current[k], v)))
+        else:
+            missing.append(k)
+    return rows, missing
+
+
+def apply_changes(game_id, path, fmt, changes):
+    """Back up, then write only existing keys. Returns (ok, message, applied, skipped)."""
+    if game_running(game_id):
+        return False, "Close the game first: it rewrites this file when it exits.", {}, []
+    try:
+        text, enc = read_text(path)
+        new_text, applied, skipped = FORMATS[fmt].write(text, changes)
+        if not applied:
+            return False, "None of these settings exist in your file, so nothing was changed.", {}, skipped
+        locked = is_read_only(path)
+        make_backup(game_id, path)
+        if locked:
+            set_read_only(path, False)
+        write_text(path, new_text, enc)
+        if locked:
+            set_read_only(path, True)  # keep the user's lock
+        changed = sum(1 for old, new in applied.values() if old != new)
+        return True, f"Changed {changed} setting(s). A backup was saved first.", applied, skipped
+    except PermissionError:
+        return False, "Windows blocked writing the file (is it open in another program?).", {}, []
+    except Exception as e:
+        return False, str(e), {}, []
+
+
+# ================================================================ user's own files and presets
+
+def _user_store():
+    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "custom_presets.json"
+
+
+def load_custom():
+    """{"files": [{"id", "name", "path", "fmt"}], "presets": {file_or_game_id: {preset_name: {key: value}}}}"""
+    try:
+        data = json.loads(_user_store().read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data.setdefault("files", [])
+            data.setdefault("presets", {})
+            return data
+    except Exception:
+        pass
+    return {"files": [], "presets": {}}
+
+
+def save_custom(data):
+    path = _user_store()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def add_custom_file(path, name=None):
+    text, _ = read_text(path)
+    fmt = detect_format(text)
+    if not FORMATS[fmt].parse(text):
+        return None, "RYTWEAKS couldn't find any settings in that file (it supports key=value, key:value and \"key\" \"value\" files)."
+    data = load_custom()
+    fid = "custom_" + re.sub(r"[^a-z0-9]+", "_", (name or Path(path).stem).lower()).strip("_")
+    base, n = fid, 2
+    while any(f["id"] == fid for f in data["files"]):
+        fid, n = f"{base}_{n}", n + 1
+    entry = {"id": fid, "name": name or Path(path).name, "path": str(path), "fmt": fmt}
+    data["files"].append(entry)
+    save_custom(data)
+    return entry, f"Added {entry['name']} ({fmt} format, {len(FORMATS[fmt].parse(text))} settings)."

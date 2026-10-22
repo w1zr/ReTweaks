@@ -23,6 +23,19 @@ def fmt(value, unit="", digits=0, na=NA):
     return f"{text} {unit}".strip() if unit else text
 
 
+# Temperature unit chosen in Settings ("C" or "F"); set by MainWindow
+TEMP_UNIT = {"unit": "C"}
+
+
+def temp_text(celsius, digits=0):
+    """45.0 -> '45 °C' or '113 °F' depending on Settings. None -> None."""
+    if celsius is None:
+        return None
+    if TEMP_UNIT["unit"] == "F":
+        return f"{celsius * 9 / 5 + 32:.{digits}f} °F"
+    return f"{celsius:.{digits}f} °C"
+
+
 def fmt_rate(bps):
     """Bytes per second -> '12.3 MB/s'."""
     if bps is None:

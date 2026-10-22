@@ -4,7 +4,7 @@
 from PySide6.QtWidgets import QGridLayout
 
 from ui.widgets.charts import MetricCard
-from ui.widgets.common import Card, Notice, Page, fmt, fmt_rate, join, label, NA
+from ui.widgets.common import Card, Notice, Page, fmt, fmt_rate, join, label, temp_text, NA
 
 
 def _ghz(mhz):
@@ -12,7 +12,7 @@ def _ghz(mhz):
 
 
 def _temp(c):
-    return f"{c:.0f} °C" if c is not None else None
+    return temp_text(c)
 
 
 class DashboardPage(Page):

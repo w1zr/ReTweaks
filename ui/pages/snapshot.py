@@ -10,7 +10,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QPushButton,
                                QTableWidget, QTableWidgetItem)
 
-from ui.widgets.common import Card, Page, label, set_role
+from ui.widgets.common import Card, Page, label, set_role, temp_text
 
 COLUMNS = ["Name", "Time", "Length", "CPU load avg / max", "CPU clock avg", "CPU temp max",
            "GPU load avg / max", "GPU temp max", "RAM avg"]
@@ -104,9 +104,9 @@ class SnapshotPage(Page):
             rec["name"], rec["start"].strftime("%H:%M:%S"), f"{len(samples)} s",
             f"{_f(_avg(cpu_load), '%')} / {_f(_max(cpu_load), '%')}",
             _f(_avg([x["cpu"]["mhz"] for x in samples]), " MHz"),
-            _f(_max([x["cpu"]["temp_c"] for x in samples]), " °C"),
+            temp_text(_max([x["cpu"]["temp_c"] for x in samples])) or "Unavailable",
             f"{_f(_avg(gpu_load), '%')} / {_f(_max(gpu_load), '%')}",
-            _f(_max(gpu_temp), " °C"),
+            temp_text(_max(gpu_temp)) or "Unavailable",
             _f(_avg([x["ram"]["percent"] for x in samples]), "%"),
         ]
         length = int((datetime.now() - rec["start"]).total_seconds())
