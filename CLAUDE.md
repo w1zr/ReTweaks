@@ -40,13 +40,20 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/telemetry.py` — Live readings: GPU load/VRAM used (Windows GPU counters), live CPU clock, NVML extras, disk/network speed.
 - `core/sensors_lhm.py` — Optional temperatures and fans from LibreHardwareMonitor.
 - `core/optimizer.py` — Windows tweaks: each `get_*` reads the real state, each `set_*` returns `(ok, message)`. Saves previous power plan and DNS so they can be restored.
+- `core/tweaks.py` — Individual tweaks (Standard/Advanced): real state, original values saved before the first change, Undo and Undo everything, restore point.
+- `core/game_presets.py` — Game settings presets: parsers for ini / key:value / Valve KeyValues files, backups, only changes keys that already exist, refuses while the game runs.
+- `core/app_rules.py` — Per-program rules (GPU preference, fullscreen optimizations, CPU priority) and auto game mode.
+- `core/updater.py` — Update check and in-app updates (SHA-256 verified, keeps RYTWEAKS.old.exe).
+- `core/nettest.py` — DNS speed test and ping test (1.1.1.1 / 1.0.0.1).
+- `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
 - `core/profiles.py` — System profiles (bundles of real tweaks).
 - `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps, Storage Explorer and cleanup, theme tokens, hardware report export.
 - `ui/main_window.py` — App shell: sidebar navigation, page stack, background workers, settings, change log.
-- `ui/pages/` — One file per page (Dashboard, Hardware, Tweaks, Profiles, Startup apps, Network, Storage & cleanup, Snapshots, Logs, Settings).
+- `ui/pages/` — One file per page (Dashboard, Hardware, Tweaks, Profiles, Game presets, Program rules, Startup apps, Network, Storage & cleanup, Snapshots, Logs, Settings).
 - `ui/widgets/` — Shared widgets (cards, live graphs) and the `Page` base class.
 - `ui/workers.py` — Background threads. `ui/splash.py` — The splash screen (`RytweaksSplash`).
-- `tests/` — pytest tests for the parsing logic (run on any OS with `python -m pytest tests`).
+- `tests/` — pytest tests (parsing, tweaks undo, game presets, program rules, updater, network tests); run on any OS with `python -m pytest tests`.
+- `release-notes/vX.Y.md` — The text of each GitHub release.
 - `create_logo.py` — Logo generation. `build.py` — PyInstaller single-file build. Output: `dist\RYTWEAKS.exe`.
 - `.github/workflows/` — GitHub Actions build and release.
 - `assets/icon.ico` — The app icon.
@@ -292,13 +299,14 @@ Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials 
 
 ---
 
-## 18. Known issues (updated 2026-10-21, v1.2)
+## 18. Known issues (updated 2026-10-21, v1.3)
 
-- Fixed in v1.2: `requirements.txt` (PySide6, pywin32, nvidia-ml-py added; unused libraries removed), the version number centralized in `core/version.py`, and the GitHub Actions release workflow added.
-- v1.1 game profiles (game picker plus Low/High/Ultra/Ultra Performance) never changed anything. v1.2 replaced them with working system profiles. Real per-game profiles are in the backlog for v1.3 (owner decision 2026-10-21).
-- The auto clicker and audio mixer (sections 10 and 11) are not in the code on GitHub or in `C:\pc_optimizer` as of v1.1. To be rebuilt in v1.3 (owner decision 2026-10-21).
+- v1.3 game presets cover Fortnite, Minecraft Java, Minecraft Bedrock, Apex Legends and Rocket League. CS2 has no built-in preset because its settings file contents couldn't be confirmed from sources; CS2 players use "Choose your own file".
+- Some preset keys could not be confirmed for every game version (for example the Fortnite rendering-mode key, Bedrock graphics mode). The engine only changes keys already present in the user's file, so wrong names are skipped, never added.
+- Section 9 asks for renaming, duplicating, exporting and importing game profiles. v1.3 supports creating, applying and deleting user presets; the rest is for v1.4.
+- The auto clicker and audio mixer (sections 10 and 11) are not built yet (planned for v1.4).
 - Startup-app "Impact" was a guess based on where the entry came from, so v1.2 removed that column.
-- The Windows-only parts of v1.2 were reviewed but can only be fully tested on a Windows PC.
+- The Windows-only parts are reviewed but can only be fully tested on a Windows PC.
 
 ---
 
