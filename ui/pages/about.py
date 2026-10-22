@@ -12,6 +12,8 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("Built-in FPS overlay", "The in-game overlay reads Windows' own frame events, so it no longer needs "
+                             "PresentMon. Nothing is injected into the game."),
     ("44 new tweaks and search", "Now 53 individual tweaks in five groups (Gaming, Privacy, Interface, "
                                  "Services, Maintenance) with a search box. Each one explains what it does and "
                                  "its trade-off, and has its own Undo."),
