@@ -103,6 +103,8 @@ def test_corner_position_and_settings():
     assert of.corner_position(area, size, "bottom-right") == (3624, 964)
     c = of.clean_settings({"overlay_position": "bad", "overlay_opacity": "200", "overlay_size": "huge"})
     assert c == {"overlay_position": "top-left", "overlay_size": "medium",
-                 "overlay_show_load": True, "overlay_opacity": 100}
+                 "overlay_show_load": True, "overlay_opacity": 100, "overlay_source": "builtin"}
+    assert of.clean_settings({"overlay_source": "presentmon"})["overlay_source"] == "presentmon"
+    assert of.clean_settings({"overlay_source": "evil"})["overlay_source"] == "builtin"
     assert of.clean_settings({"overlay_opacity": 10})["overlay_opacity"] == 50
     assert of.clean_settings({"overlay_opacity": "x"})["overlay_opacity"] == 85

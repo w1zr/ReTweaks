@@ -346,8 +346,8 @@ class FpsPage(Page):
         o = Card("In-game overlay")
         o.body.addWidget(label(
             "Shows FPS, 1% low and frame time over the game while you play. Pick the running "
-            "program in the list above, then press Start overlay. The capture uses the PresentMon "
-            "path set above and needs administrator rights.", "muted", wrap=True))
+            "program in the list above, then press Start overlay. Needs administrator rights.",
+            "muted", wrap=True))
         o.body.addWidget(label(of.SETTING_NOTE, "muted", wrap=True))
         row = QHBoxLayout()
         self.ov_pos = QComboBox()
@@ -367,6 +367,18 @@ class FpsPage(Page):
         row.addWidget(self.ov_load)
         row.addStretch(1)
         o.body.addLayout(row)
+        srow = QHBoxLayout()
+        self.ov_source = QComboBox()
+        self.ov_source.addItem("Built-in (no download needed)", "builtin")
+        self.ov_source.addItem("PresentMon (uses the path above)", "presentmon")
+        self.ov_source.setCurrentIndex(of.SOURCES.index(cfg["overlay_source"]))
+        self.ov_source.setToolTip("Built-in: RYTWEAKS reads Windows' own frame events, the same data "
+                                  "PresentMon uses. It measures the time between frames the game sends "
+                                  "to Windows.")
+        srow.addWidget(label("Frame data"))
+        srow.addWidget(self.ov_source)
+        srow.addStretch(1)
+        o.body.addLayout(srow)
         orow = QHBoxLayout()
         self.ov_opacity = QSlider(Qt.Horizontal)
         self.ov_opacity.setRange(50, 100)
@@ -392,11 +404,13 @@ class FpsPage(Page):
         self.ov_size.currentIndexChanged.connect(self._overlay_setting_changed)
         self.ov_load.toggled.connect(self._overlay_setting_changed)
         self.ov_opacity.valueChanged.connect(self._overlay_setting_changed)
+        self.ov_source.currentIndexChanged.connect(self._overlay_setting_changed)
         self.content.addWidget(o)
 
     def _overlay_values(self):
         return {"overlay_position": self.ov_pos.currentData(), "overlay_size": self.ov_size.currentData(),
-                "overlay_show_load": self.ov_load.isChecked(), "overlay_opacity": self.ov_opacity.value()}
+                "overlay_show_load": self.ov_load.isChecked(), "overlay_opacity": self.ov_opacity.value(),
+                "overlay_source": self.ov_source.currentData()}
 
     def _overlay_setting_changed(self, *_):
         vals = self._overlay_values()
@@ -409,26 +423,32 @@ class FpsPage(Page):
     def start_overlay(self):
         if self.overlay_stream:
             return
-        if self.capture:
+        builtin = self.ov_source.currentData() == "builtin"
+        if not builtin and self.capture:
             self.overlay_status.setText("An FPS test is running: only one PresentMon capture runs at a time.")
             return
-        if not self._check_path():
-            self.overlay_status.setText("Select PresentMon.exe first.")
+        if not builtin and not self._check_path():
+            self.overlay_status.setText("Select PresentMon.exe first, or switch Frame data to Built-in.")
             return
         item = self.proc_list.currentItem()
         if not item:
             self.overlay_status.setText("Pick the running program in the list above.")
             return
         name = item.data(256)
-        stream = of.OverlayStream(self.path_edit.text().strip(), name)
+        if builtin:
+            from core.etw_frames import BuiltinOverlayStream
+            stream = BuiltinOverlayStream(name)
+        else:
+            stream = of.OverlayStream(self.path_edit.text().strip(), name)
+        what = "the built-in frame counter" if builtin else "PresentMon"
         try:
             stream.start()
         except (OSError, ValueError) as e:
             msg = str(e)
             if getattr(e, "winerror", None) == 740:
                 msg = "Windows needs administrator rights to start PresentMon. " + fps.ADMIN_HINT
-            self.overlay_status.setText(f"Could not start PresentMon: {msg}")
-            self.ctx.log_action("FPS overlay", f"PresentMon on {name}", "Failed", msg)
+            self.overlay_status.setText(f"Could not start {what}: {msg}")
+            self.ctx.log_action("FPS overlay", f"{what} on {name}", "Failed", msg)
             return
         from ui.overlay import OverlayWindow
         self.overlay_stream, self.overlay_game = stream, name
@@ -474,7 +494,7 @@ class FpsPage(Page):
             self._stop_overlay_later(f"{name} closed. The overlay stopped.")
             return
         if state == "error":
-            msg = stream.error or "PresentMon stopped."
+            msg = stream.error or "The frame capture stopped."
             self.ctx.log_action("FPS overlay", f"Overlay on {self.overlay_game}", "Failed", msg)
             self.stop_overlay(msg)
             return
@@ -484,7 +504,11 @@ class FpsPage(Page):
             self.overlay_status.setText(f"Overlay running for {self.overlay_game}. Waiting for frames: the "
                                         "program must be presenting (not minimized).")
         else:
-            self.overlay_status.setText(f"Overlay running for {self.overlay_game}.")
+            src = getattr(stream, "source", None)
+            how = {"api": " Frame data: DirectX presents (built-in).",
+                   "kernel": " Frame data: Windows graphics kernel presents (built-in; used for OpenGL "
+                             "and some Vulkan games)."}.get(src, "")
+            self.overlay_status.setText(f"Overlay running for {self.overlay_game}.{how}")
 
     def _stop_overlay_later(self, message):
         """Show 'Game closed' for 3 s, then stop and tidy up."""
