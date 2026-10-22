@@ -148,7 +148,7 @@ class SettingsPage(Page):
         self.tray.setToolTip("Closing the window hides RYTWEAKS next to the clock instead of quitting, so the "
                              "volume lock and auto game mode keep working. Right-click the tray icon → Quit RYTWEAKS "
                              "to close it fully.")
-        self.tray.setChecked(bool(s.get("tray_on_close", False)))
+        self.tray.setChecked(bool(s.get("tray_on_close", True)))
         self.tray.toggled.connect(self.toggle_tray)
         beh.body.addWidget(self.tray)
         self.beh_msg = label("", "muted")

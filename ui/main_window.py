@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         self._lock_timer.setInterval(_al.INTERVAL_MS)
         self._lock_timer.timeout.connect(self._lock_tick)
         self.restart_volume_lock()
-        self.apply_tray(bool(self.settings.get("tray_on_close", False)))
+        self.apply_tray(bool(self.settings.get("tray_on_close", True)))
         from core import updater
         result = updater.read_update_status()   # left behind by the in-app updater
         if result == "OK":
@@ -412,11 +412,18 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QMenu, QSystemTrayIcon
         if enabled and QSystemTrayIcon.isSystemTrayAvailable():
             if self.tray is None:
-                self.tray = QSystemTrayIcon(self.windowIcon(), self)
+                tray_icon = resource_path("assets/icon.ico")      # the .exe icon (owner's pick for the tray)
+                icon = QIcon(tray_icon) if os.path.exists(tray_icon) else self.windowIcon()
+                self.tray = QSystemTrayIcon(icon, self)
                 self.tray.setToolTip("RYTWEAKS")
                 menu = QMenu(self)
-                menu.addAction("Open RYTWEAKS", self.show_from_tray)
+                # Rounded, themed menu (v1.5): frameless + translucent so the rounded corners show
+                menu.setWindowFlags(menu.windowFlags() | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+                menu.setAttribute(Qt.WA_TranslucentBackground, True)
+                head = menu.addAction(icon, "RYTWEAKS")
+                head.setEnabled(False)
                 menu.addSeparator()
+                menu.addAction("Open RYTWEAKS", self.show_from_tray)
                 menu.addAction("Quit RYTWEAKS", self.quit_from_tray)
                 self.tray.setContextMenu(menu)
                 self.tray.activated.connect(
@@ -427,7 +434,7 @@ class MainWindow(QMainWindow):
             self.tray.hide()
 
     def tray_active(self):
-        return bool(self.settings.get("tray_on_close", False) and self.tray is not None and self.tray.isVisible())
+        return bool(self.settings.get("tray_on_close", True) and self.tray is not None and self.tray.isVisible())
 
     def start_hidden(self):
         """Started with Windows (--minimized): go straight to the tray if it's on, else the taskbar."""

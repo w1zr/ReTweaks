@@ -242,8 +242,25 @@ def list_displays():
             "monitor": mon_name, "primary": bool(flags & 0x4),
             "width": w, "height": h, "bpp": b, "hz": hz if hz > 1 else None,
             "max_hz": max_refresh_at(modes, w, h, b),
+            "modes": modes,        # every mode the driver offers (v1.5: stretched-resolution check)
         })
     return out
+
+
+def stretch_mode_status(width, height, displays=None):
+    """Whether the primary display offers width x height (needed for Fortnite's stretched resolution).
+    Returns (available: bool|None, max_hz|None, message). None = couldn't check (not Windows)."""
+    displays = list_displays() if displays is None else displays
+    if not displays:
+        return None, None, "Couldn't read your display's modes."
+    d = next((x for x in displays if x.get("primary")), displays[0])
+    hz = max_refresh_at(d.get("modes") or [], width, height, d.get("bpp"))
+    if hz:
+        return True, hz, (f"✔ Your display offers {width}×{height} (up to {hz} Hz), so Fortnite can list it "
+                          "in Fullscreen mode.")
+    return False, None, (f"✖ Your display doesn't offer {width}×{height} yet, so Fortnite can't use it. Add it "
+                         "as a custom resolution in your graphics card's control panel (steps below), then "
+                         "press Check again.")
 
 
 def set_refresh_rate(device, hz):

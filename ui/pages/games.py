@@ -199,14 +199,29 @@ class GamesPage(Page):
         self.stretch_card.body.addWidget(self.stretch_lock)
         self.stretch_now = label("", "cardLine")
         self.stretch_card.body.addWidget(self.stretch_now)
+        crow = QHBoxLayout()
+        self.stretch_check = label("", "cardLine", wrap=True)
+        self.b_check_mode = QPushButton("Check again")
+        self.b_check_mode.setToolTip("Reads the list of resolutions your graphics driver offers for your main display.")
+        self.b_check_mode.clicked.connect(self.check_stretch_mode)
+        crow.addWidget(self.stretch_check, 1)
+        crow.addWidget(self.b_check_mode, 0, Qt.AlignTop)
+        self.stretch_card.body.addLayout(crow)
+        self.stretch_size.currentIndexChanged.connect(lambda _i: self.check_stretch_mode())
         self.stretch_card.body.addWidget(label(
-            "To fill the screen instead of showing black bars, your graphics card must stretch:\n"
-            "• NVIDIA Control Panel → Change resolution → Customize → Create Custom Resolution (same width × "
-            "height, your refresh rate). Then Adjust desktop size and position → Scaling: Full-screen, "
-            "Perform scaling on: GPU, tick Override.\n"
-            "• AMD Software → Display → turn on GPU Scaling, Scaling Mode: Full panel; add the resolution under "
-            "Custom Resolutions.\n"
-            "• Intel Graphics Command Center → Display → Scale: Stretch.\n"
+            "<b>All three steps are needed:</b><br>"
+            "<b>1.</b> Apply stretched here (with Fortnite closed).<br>"
+            "<b>2.</b> Your graphics card must offer the resolution and stretch it (once):<br>"
+            "&nbsp;&nbsp;• <b>NVIDIA Control Panel</b> → Display → Change resolution → Customize → tick “Enable "
+            "resolutions not exposed by the display” → Create Custom Resolution: same width × height and your "
+            "refresh rate → Test → Yes. Then Adjust desktop size and position → Scaling: <b>Full-screen</b>, "
+            "Perform scaling on: <b>GPU</b>, tick <b>Override the scaling mode set by games and programs</b> → Apply.<br>"
+            "&nbsp;&nbsp;• <b>AMD Software</b> → Display → GPU Scaling: On, Scaling Mode: <b>Full panel</b>; add the "
+            "resolution under Custom Resolutions.<br>"
+            "&nbsp;&nbsp;• <b>Intel Graphics Command Center</b> → Display → Scale: <b>Stretch</b>.<br>"
+            "<b>3.</b> In Fortnite: Settings → Video → Window Mode: <b>Fullscreen</b>. “Windowed Fullscreen” "
+            "always uses your desktop resolution, so stretched can't work there. If the file is locked, Fortnite "
+            "can't save menu changes: unlock it, set Fullscreen and the resolution in Fortnite, then lock it again.<br>"
             "Epic locks competitive modes (Arena and tournaments) to 16:9 since April 2019, so stretched only "
             "applies in regular matches. Back to native, or Restore under Backups, undoes it.", "muted", wrap=True))
         self.content.addWidget(self.stretch_card)
@@ -282,6 +297,8 @@ class GamesPage(Page):
             self.b_remove.hide()
             self.b_lock.setVisible(game.lockable)
             self.stretch_card.setVisible(game.id == "fortnite")
+            if game.id == "fortnite":
+                self.check_stretch_mode()
             for b in self.tier_buttons:
                 b.show()
             self.tier_help.show()
@@ -427,6 +444,20 @@ class GamesPage(Page):
         r = scr.devicePixelRatio()
         return int(round(scr.size().width() * r)), int(round(scr.size().height() * r))
 
+    def check_stretch_mode(self):
+        """Is the chosen resolution in the display driver's mode list? (Fortnite only lists those.)"""
+        from core import display
+        w, h = self.stretch_size.currentData()
+        self.stretch_check.setText("Checking your display's resolutions…")
+
+        def done(res):
+            if isinstance(res, tuple) and len(res) == 3:
+                self.stretch_check.setText(res[2])
+            else:
+                self.stretch_check.setText("Couldn't read your display's modes.")
+
+        self.run_task(display.stretch_mode_status, w, h, on_done=done)
+
     def _lock_after(self):
         if self.stretch_lock.isChecked() and self.path and not gp.is_read_only(self.path):
             try:
@@ -439,7 +470,14 @@ class GamesPage(Page):
 
     def apply_stretch(self):
         w, h = self.stretch_size.currentData()
-        self._confirm_and_apply(f"Stretched resolution {w}×{h}", gp.resolution_changes(w, h), self._lock_after)
+
+        def after():
+            self._lock_after()
+            self.msg.setText(self.msg.text() + f" Next: make sure your graphics card offers {w}×{h} (step 2), then "
+                             "set Window Mode to Fullscreen in Fortnite (step 3).")
+            self.check_stretch_mode()
+
+        self._confirm_and_apply(f"Stretched resolution {w}×{h}", gp.resolution_changes(w, h), after)
 
     def apply_native(self):
         nat = self._native_size()
