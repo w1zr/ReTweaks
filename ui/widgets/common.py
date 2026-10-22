@@ -172,8 +172,18 @@ class Page(QWidget):
         self.content = QVBoxLayout(inner)
         self.content.setContentsMargins(32, 28, 32, 28)
         self.content.setSpacing(16)
+        self.loader = None
         if self.title:
-            self.content.addWidget(label(self.title, "pageTitle"))
+            # Title row with the mini chip loader, shown only while run_task work is running
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            row.addWidget(label(self.title, "pageTitle"))
+            from ui.widgets.brand import ChipLoader
+            self.loader = ChipLoader(20)
+            self.loader.setToolTip("Working…")
+            row.addWidget(self.loader, 0, Qt.AlignVCenter)
+            row.addStretch(1)
+            self.content.addLayout(row)
         if self.subtitle:
             sub = label(self.subtitle, "pageSubtitle", wrap=True)
             self.content.addWidget(sub)
@@ -187,9 +197,17 @@ class Page(QWidget):
         if on_done:
             w.done.connect(on_done)
         self._tasks.append(w)
-        w.finished.connect(lambda: self._tasks.remove(w) if w in self._tasks else None)
+        w.finished.connect(lambda: self._task_finished(w))
+        if self.loader and not self.loader.is_running():
+            self.loader.start()
         w.start()
         return w
+
+    def _task_finished(self, w):
+        if w in self._tasks:
+            self._tasks.remove(w)
+        if self.loader and not any(t.isRunning() for t in self._tasks):
+            self.loader.stop()
 
     def busy(self):
         return any(w.isRunning() for w in self._tasks)
