@@ -304,9 +304,17 @@ Gemini was removed from RYTWEAKS: no Gemini chat UI, API, settings, credentials 
 
 ## 18a. Feature backlog (approved by the owner, not built yet)
 
-- v1.3: Real game profiles (section 9), starting with Fortnite and Minecraft.
-- v1.3: Auto clicker (section 10) and audio mixer (section 11).
-- DNS speed test (section 8).
+### v1.4 (owner decisions 2026-10-21)
+- **Health Check:** one scan of startup apps, temp file size, power plan, disk health, pending updates, etc., each with a "Fix" that uses the existing undoable tweaks.
+- **Background calming:** while a game runs, temporarily lower the CPU priority of **only the apps the user picks**, then restore them.
+- **Real FPS and 1% / 0.1% lows** with Intel PresentMon, plus before/after run comparison in Snapshots.
+- **Sensor logging to CSV** (temps, loads, clocks) during a session.
+- **Audio mixer** (section 11) and **auto clicker** (section 10).
+- **Disk space analyzer**, Storage Explorer upgrade (section 12), Scheduled Tasks in Startup apps, smooth animations (section 5).
+- **RYTWEAKS Pro, $8 one-time.** Core stays free (monitoring, tweaks, game presets). Pro: extras such as auto game mode, FPS compare, Health Check fixes and sensor logging (final list to be confirmed with the owner). Payment and license accounts go through the account owner (adult). Decide how Pro features stay protected while the repo is public (for example open core: Pro code in a private repo).
+
+### Later
+- DNS speed test, if it isn't finished in v1.3 (section 8).
 - Other new tools are welcome. Each one must follow every rule in this file: real function, honest results and no lost features. Confirm the scope with the owner before building.
 
 ---
