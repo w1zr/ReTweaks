@@ -40,7 +40,7 @@ class Bubble(QFrame):
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.viewport().setAutoFillBackground(False)
-        self.view.setStyleSheet("background: transparent; border: none;")
+        self.view.setStyleSheet("background: transparent; border: none;")   # color set in apply_theme
         if role == "model":
             self.view.setMarkdown(text)
         else:
@@ -56,7 +56,10 @@ class Bubble(QFrame):
         self.setObjectName("chatBubble")
         self.setStyleSheet(
             f"QFrame#chatBubble {{ background: {bg}; border: 1px solid {t['border']}; "
-            f"border-radius: 12px; }} QTextBrowser {{ color: {fg}; }}")
+            f"border-radius: 12px; }}")
+        # Set on the text view itself: the app-wide text color would otherwise win (white on the
+        # light grey accent was hard to read)
+        self.view.setStyleSheet(f"background: transparent; border: none; color: {fg};")
 
     def _fit(self):
         doc = self.view.document()
@@ -374,7 +377,11 @@ class AssistantPage(Page):
 
         def work():
             try:
-                return (rid, "ok", AI.generate(key, model, history, specs))
+                text, used = AI.generate_with_retry(key, model, history, specs,
+                                                    cancelled=lambda: rid != self._req)
+                if used != model:
+                    text = (f"*Answered by {used}, because {model} was busy.*\n\n" + text)
+                return (rid, "ok", text)
             except AI.AIError as e:
                 return (rid, "err", str(e))
             except Exception:

@@ -130,7 +130,7 @@ def test_parse_error_messages():
                                    "message": "User location is not supported for the API use."}})
     assert "region" in AI.parse_error(400, region)
     assert "region" in AI.parse_error(403, "{}")
-    assert "busy or down" in AI.parse_error(503, "")
+    assert "busy right now" in AI.parse_error(503, "")
     assert "model" in AI.parse_error(404, "")
     assert "400" in AI.parse_error(400, json.dumps({"error": {"message": "bad field"}}))
     # snake_case code format from the docs
@@ -199,3 +199,58 @@ def test_save_key_detects_a_changed_value(monkeypatch):
     import pytest
     with pytest.raises(AI.AIError, match="different"):
         AI.save_key("k")
+
+
+def _fake_generate(script):
+    """script: {model: [result-or-status, ...]} consumed in order."""
+    calls = []
+
+    def gen(key, model, history, specs_text=None, timeout=None):
+        calls.append(model)
+        r = script[model].pop(0)
+        if isinstance(r, int):
+            raise AI.AIError(f"error {r}", status=r)
+        return r
+    return gen, calls
+
+
+def test_retry_rides_out_a_503(monkeypatch):
+    gen, calls = _fake_generate({"gemini-3.8-flash": [503, 503, "hi"]})
+    monkeypatch.setattr(AI, "generate", gen)
+    waits = []
+    assert AI.generate_with_retry("k", "gemini-3.8-flash", [], sleep=waits.append) == ("hi", "gemini-3.8-flash")
+    assert waits == [1.5, 4.0] and calls == ["gemini-3.8-flash"] * 3
+
+
+def test_retry_falls_back_to_another_model(monkeypatch):
+    gen, calls = _fake_generate({"gemini-3.8-flash": [503, 503, 503], "gemini-3.6-flash": ["ok"]})
+    monkeypatch.setattr(AI, "generate", gen)
+    text, used = AI.generate_with_retry("k", "gemini-3.8-flash", [], sleep=lambda s: None)
+    assert (text, used) == ("ok", "gemini-3.6-flash")
+
+
+def test_rate_limit_waits_once_then_moves_on(monkeypatch):
+    gen, calls = _fake_generate({"gemini-3.8-flash": [429, 429], "gemini-3.6-flash": ["ok"]})
+    monkeypatch.setattr(AI, "generate", gen)
+    waits = []
+    assert AI.generate_with_retry("k", "gemini-3.8-flash", [], sleep=waits.append)[1] == "gemini-3.6-flash"
+    assert waits == [4.0]
+
+
+def test_bad_key_is_not_retried(monkeypatch):
+    gen, calls = _fake_generate({"gemini-3.8-flash": [400]})
+    monkeypatch.setattr(AI, "generate", gen)
+    import pytest
+    with pytest.raises(AI.AIError):
+        AI.generate_with_retry("k", "gemini-3.8-flash", [], sleep=lambda s: None)
+    assert calls == ["gemini-3.8-flash"]
+
+
+def test_gives_up_with_last_error_when_everything_is_busy(monkeypatch):
+    busy = {m: [503] * 5 for m in AI.FALLBACK_MODELS}
+    gen, calls = _fake_generate(busy)
+    monkeypatch.setattr(AI, "generate", gen)
+    import pytest
+    with pytest.raises(AI.AIError) as e:
+        AI.generate_with_retry("k", "gemini-3.8-flash", [], sleep=lambda s: None)
+    assert e.value.busy
