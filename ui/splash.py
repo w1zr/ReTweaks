@@ -15,7 +15,7 @@ between steps. Frames are drawn from real elapsed time, so the animation stays c
 if a step takes a moment.
 """
 
-from PySide6.QtCore import QElapsedTimer, QRectF, Qt, QTimer
+from PySide6.QtCore import QElapsedTimer, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -47,6 +47,8 @@ def _phase(t, span):
 
 
 class RytweaksSplash(QWidget):
+    done = Signal()      # the fade into the window finished (or the splash was aborted)
+
     def __init__(self):
         super().__init__(None, Qt.SplashScreen | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -90,6 +92,7 @@ class RytweaksSplash(QWidget):
         self._timer.stop()
         self._done = True
         self.close()
+        self.done.emit()
 
     def center_on_screen(self):
         screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
@@ -139,6 +142,7 @@ class RytweaksSplash(QWidget):
                     window.raise_()
                     window.activateWindow()
                     self.close()
+                    self.done.emit()
                     return
         self.update()
 

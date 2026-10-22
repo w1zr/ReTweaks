@@ -130,5 +130,35 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
     while Win.shown == 0 and time.time() < end:
         QCoreApplication.processEvents()
         time.sleep(0.01)
-    assert Win.shown == 1 and w._reopen_splash is None
+    assert Win.shown == 1
+    end = time.time() + 4                             # the fade must run to the end, not stop halfway
+    while w._reopen_splash is not None and time.time() < end:
+        QCoreApplication.processEvents()
+        import gc
+        gc.collect()                                  # the bug: the splash was collected mid-fade
+        time.sleep(0.01)
+    assert w._reopen_splash is None and w.windowOpacity() == 1.0
     server.close()
+
+
+def test_reopen_failsafe_makes_window_visible(monkeypatch):
+    import os
+    import pytest
+    pytest.importorskip("PySide6")
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QWidget
+    app = QApplication.instance() or QApplication([])
+    import main
+    timers = []
+    monkeypatch.setattr(main.QTimer, "singleShot", staticmethod(lambda ms, fn: timers.append(fn)))
+
+    class Win(QWidget):
+        def show_from_tray(self):
+            self.showNormal()
+
+    w = Win()
+    main._reopen(w)
+    w.setWindowOpacity(0.0)                           # stuck halfway, as in the reported bug
+    timers[0]()                                       # 8 s later
+    assert w.isVisible() and w.windowOpacity() == 1.0 and w._reopen_splash is None
+    app.processEvents()
