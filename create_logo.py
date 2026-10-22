@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui.widgets.brand import paint_chip  # noqa: E402
 
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
-BACKGROUND = "#0b0d10"
+BACKGROUND = None   # transparent chip, no tile behind it (owner choice 2026-10-21); was "#0b0d10"
 
 
 def render(size):
@@ -27,17 +27,18 @@ def render(size):
     img.fill(Qt.transparent)
     p = QPainter(img)
     p.setRenderHint(QPainter.Antialiasing, True)
-    p.setPen(Qt.NoPen)
-    p.setBrush(QColor(BACKGROUND))
-    p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
+    if BACKGROUND:
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(BACKGROUND))
+        p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
     if size <= 24:
-        # No pins; zoom so the chip outline fills the tile, and thicken the strokes
+        # No pins; zoom so the chip outline fills the icon, and thicken the strokes
         grow = size * 0.42
         paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), pins=[0] * 12,
-                   stroke_scale=1.15 if size > 16 else 1.05)
+                   stroke_scale=1.3 if size > 16 else 1.2)
     elif size <= 48:
         grow = size * 0.12
-        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), stroke_scale=1.2)
+        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), stroke_scale=1.3)
     else:
         pad = size * 0.04
         paint_chip(p, QRectF(pad, pad, size - 2 * pad, size - 2 * pad))
