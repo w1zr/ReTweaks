@@ -1,6 +1,5 @@
 # create_logo.py
-"""Builds assets/icon.ico (the chip logo) at every Windows icon size, plus assets/taskbar.ico and
-(v1.5) assets/tray.ico, the system tray icon that keeps the chip pins at 16-48 px.
+"""Builds assets/icon.ico (the chip logo) at every Windows icon size.
 
 Run: python create_logo.py   (works on any OS; only PySide6 is needed)
 
@@ -117,58 +116,6 @@ def render(size):
     return img
 
 
-def render_tray(size):
-    """System tray icon (v1.5): the full chip WITH its pins at every small size (16-48 px), drawn on
-    the pixel grid. The other icons drop the pins below 32 px; the tray needs them to read as the
-    RYTWEAKS chip (owner report: the tray logo was cut short, without the CPU pins)."""
-    from PySide6.QtGui import QPen
-    from ui.widgets.brand import LOGO_COLOR, r_path
-    if size > 48:
-        return render(size)
-    img = QImage(size, size, QImage.Format_ARGB32)
-    img.fill(Qt.transparent)
-    p = QPainter(img)
-    p.setRenderHint(QPainter.Antialiasing, True)
-    p.setPen(Qt.NoPen)
-    p.setBrush(QColor(BACKGROUND))
-    p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
-    color = QColor(LOGO_COLOR)
-    lw = 1.0 if size <= 20 else (1.5 if size <= 32 else 2.0)
-    m = max(3, round(size * 0.22))                     # room for the pins on every side
-    if (size - 2 * m) % 2 == 0:                        # odd box width so the middle pin is centered
-        m += 0 if size - 2 * m - 1 > 4 else 0
-    box = QRectF(m + 0.5, m + 0.5, size - 2 * m - 1, size - 2 * m - 1)
-    pen = QPen(color, lw)
-    pen.setCapStyle(Qt.FlatCap)
-    pen.setJoinStyle(Qt.RoundJoin)
-    p.setPen(pen)
-    p.setBrush(Qt.NoBrush)
-    p.drawRoundedRect(box, box.width() * 0.18, box.width() * 0.18)
-    pin = QPen(QColor(color), max(1.0, lw - 0.25 if size > 20 else 1.0))
-    pin.setCapStyle(Qt.FlatCap)
-    p.setPen(pin)
-    start = 1.0 if size <= 24 else size * 0.06
-    for k in (0.25, 0.5, 0.75):
-        c = round(box.left() + box.width() * k - 0.5) + 0.5     # centre of a whole pixel
-        for a, b in ((start, box.top() - lw / 2), (box.bottom() + lw / 2, size - start)):
-            p.drawLine(QPointF(c, a), QPointF(c, b))
-            p.drawLine(QPointF(a, c), QPointF(b, c))
-    r = r_path()
-    rb = QRectF(48, 42, 25, 36)
-    pad = lw + (0.8 if size <= 20 else 1.4)
-    room = box.adjusted(pad, pad, -pad, -pad)
-    scale = min(room.width() / rb.width(), room.height() / rb.height())
-    p.translate(room.center().x() - rb.center().x() * scale, room.center().y() - rb.center().y() * scale)
-    p.scale(scale, scale)
-    rp = QPen(color, (1.0 if size <= 20 else lw) / scale)
-    rp.setCapStyle(Qt.RoundCap)
-    rp.setJoinStyle(Qt.RoundJoin)
-    p.setPen(rp)
-    p.drawPath(r)
-    p.end()
-    return img
-
-
 def png_bytes(img):
     data = QByteArray()
     buf = QBuffer(data)
@@ -201,8 +148,6 @@ def generate_icon():
     print(f"Chip icon (.exe, Explorer, shortcuts) saved to {out} ({', '.join(str(s) for s in SIZES)} px)")
     out = write_ico(os.path.join("assets", "taskbar.ico"), renderer=render_taskbar)
     print(f"Taskbar/window icon saved to {out}")
-    out = write_ico(os.path.join("assets", "tray.ico"), renderer=render_tray)
-    print(f"System tray icon saved to {out}")
 
 
 if __name__ == "__main__":

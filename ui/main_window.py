@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QMenu, QSystemTrayIcon
         if enabled and QSystemTrayIcon.isSystemTrayAvailable():
             if self.tray is None:
-                tray_icon = resource_path("assets/tray.ico")      # chip with pins, drawn for 16-48 px
+                tray_icon = resource_path("assets/icon.ico")      # the .exe icon (owner's pick for the tray)
                 icon = QIcon(tray_icon) if os.path.exists(tray_icon) else self.windowIcon()
                 self.tray = QSystemTrayIcon(icon, self)
                 self.tray.setToolTip("RYTWEAKS")
