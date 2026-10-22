@@ -125,6 +125,7 @@ Rewrites are allowed, but they are the most likely way to lose features. Follow 
 - Black and grey branding with a clean logo reveal.
 - **No version number on the splash screen.**
 - Fades smoothly into the main window. No artificial delay. Show honest status only when it helps.
+- Reopening while RYTWEAKS is already running hidden in the tray (or minimized) plays the same animation and fades into the window (owner choice 2026-10-22, `main._reopen`). A window already on screen is just brought to the front.
 - Must close properly if startup fails, and must never stay stuck on top of the main window.
 - The RYTWEAKS `.ico` must be embedded in the `.exe` and used for the window, the taskbar and shortcuts. The taskbar previously showed a random blue icon, which is a known bug to keep fixed.
 

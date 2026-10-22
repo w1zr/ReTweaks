@@ -47,6 +47,25 @@ def _ask_running_copy_to_show():
     return ok
 
 
+def _reopen(window):
+    """Opened again while running (owner choice 2026-10-22): if the window is hidden in the tray or
+    minimized, play the chip startup animation and fade into it, like a fresh start. A window that's
+    already on screen is just brought to the front."""
+    if getattr(window, "_reopen_splash", None) is not None:
+        return                                   # the animation is already playing
+    if window.isVisible() and not window.isMinimized():
+        window.show_from_tray()
+        return
+    splash = RytweaksSplash()
+    window._reopen_splash = splash
+
+    def show():
+        window.show_from_tray()
+        window._reopen_splash = None
+    splash.start()
+    splash.finish(window, show=show)
+
+
 def _listen_for_show(window):
     """The running copy: show the window when another launch asks for it."""
     from PySide6.QtNetwork import QLocalServer
@@ -63,7 +82,7 @@ def _listen_for_show(window):
             conn = server.nextPendingConnection()
             def read(c=conn):
                 if b"show" in bytes(c.readAll()):
-                    window.show_from_tray()
+                    _reopen(window)
                     c.write(b"ok\n")
                     c.flush()
                 c.disconnectFromServer()
