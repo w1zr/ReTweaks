@@ -24,7 +24,7 @@ This is the single source of truth for RYTWEAKS. Read the whole file before maki
 - GUI: **PySide6** (Qt). Not PyQt, and not customtkinter.
 - Windows integration (v1.2): `winreg`, PowerShell/CIM (run through `core/winutil.py`, no console window), `ctypes` (DXGI GPU list), `psutil`, `pywin32` (`win32pdh` performance counters, `win32com` for WMI), and `nvidia-ml-py` (imported as `pynvml`) for NVIDIA telemetry.
 - Removed in v1.2 because nothing imported them: `wmi`, `py-cpuinfo`, `customtkinter`. `pycaw` + `comtypes` came back in v1.4 for the audio mixer.
-- AI Assistant (v1.4): Gemini REST API through `urllib` (no SDK); the user's key is kept in Windows Credential Manager via `win32cred`.
+- AI Assistant (v1.4): Gemini REST API through `urllib` (no SDK); the user's key is kept in Windows Credential Manager via advapi32 `CredWriteW`/`CredReadW` (ctypes; pywin32's win32cred blob handling failed on a real PC).
 - Packaging: PyInstaller, run through `build.py`.
 
 ---
