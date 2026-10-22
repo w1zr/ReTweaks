@@ -1,7 +1,7 @@
 # ui/pages/profiles.py
 """Performance profiles: apply several real tweaks at once and show each step's result."""
 
-from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton
+from PySide6.QtWidgets import QGridLayout, QMessageBox, QPushButton
 
 from core.profiles import PROFILES, apply_profile
 from ui.widgets.common import Card, Page, label, set_role
@@ -15,9 +15,9 @@ class ProfilesPage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         self.buttons = []
-        row = QHBoxLayout()
-        row.setSpacing(16)
-        for name, prof in PROFILES.items():
+        grid = QGridLayout()
+        grid.setSpacing(16)
+        for i, (name, prof) in enumerate(PROFILES.items()):
             card = Card(name)
             card.body.addWidget(label(prof["description"], "cardLine", wrap=True))
             card.body.addWidget(label("Changes:", "muted"))
@@ -28,8 +28,10 @@ class ProfilesPage(Page):
             b.clicked.connect(lambda _=False, n=name: self.apply(n))
             card.body.addWidget(b)
             self.buttons.append(b)
-            row.addWidget(card, 1)
-        self.content.addLayout(row)
+            grid.addWidget(card, *divmod(i, 3))
+        for c in range(3):
+            grid.setColumnStretch(c, 1)
+        self.content.addLayout(grid)
 
         self.result_card = Card("Last result")
         self.result = label("No profile applied yet.", "cardLine", wrap=True)

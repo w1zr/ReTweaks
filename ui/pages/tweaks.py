@@ -1,5 +1,6 @@
 # ui/pages/tweaks.py
-"""Individual tweaks, split into Standard and Advanced. Each row shows the setting's REAL
+"""Individual tweaks, grouped by category (Gaming, Privacy, Interface, Services, Maintenance),
+with safe (Standard) ones first and Advanced ones marked. Each row shows the setting's REAL
 current state, its trade-off, and has its own Undo. Plus restore point and Undo everything."""
 
 from PySide6.QtCore import Qt
@@ -87,12 +88,19 @@ class TweaksPage(Page):
         self.content.addWidget(self.top_msg)
 
         self.rows = []
-        for level, intro in ((T.STANDARD, "Safe, everyday settings. Easy to switch back."),
-                             (T.ADVANCED, "Change how Windows starts or uses hardware. Read the trade-off first.")):
-            card = Card(level)
-            card.body.addWidget(label(intro, "muted"))
+        intros = {
+            "Gaming": "Responsiveness and gaming features. None of these promise more FPS; test with the FPS test.",
+            "Privacy": "What Windows collects and sends, and the ads and suggestions it shows.",
+            "Interface": "How Windows looks and behaves on the desktop.",
+            "Services": "Windows background services. Turning one off sets it to Disabled after a restart; "
+                        "Undo puts back its exact original start type. Only turn off what you don't use.",
+            "Maintenance": "Updates, storage and power features.",
+        }
+        for cat in T.CATEGORY_ORDER:
+            card = Card(cat)
+            card.body.addWidget(label(intros.get(cat, ""), "muted", wrap=True))
             first = True
-            if level == T.STANDARD:
+            if cat == "Gaming":
                 row = TweakRow(self, "Power plan",
                                "Ultimate Performance stops the CPU from saving power, so it ramps up faster.",
                                "Uses more electricity; laptops drain faster and run warmer. Your current plan "
@@ -104,11 +112,14 @@ class TweaksPage(Page):
                 card.body.addWidget(row)
                 self.rows.append(row)
                 first = False
-            for t in [t for t in T.TWEAKS if t.level == level]:
+            items = [t for t in T.TWEAKS if getattr(t, "category", "Gaming") == cat]
+            items.sort(key=lambda t: 0 if t.level == T.STANDARD else 1)   # safe ones first
+            for t in items:
                 if not first:
                     card.body.addWidget(_sep())
                 first = False
-                badges = (["Admin"] if t.admin else []) + \
+                badges = (["Advanced"] if t.level == T.ADVANCED else []) + \
+                         (["Admin"] if t.admin else []) + \
                          (["Restart needed"] if t.restart == "restart" else []) + \
                          (["Sign out needed"] if t.restart == "signout" else [])
                 row = TweakRow(self, t.name, t.description, t.tradeoff, t.get_state,
@@ -117,7 +128,86 @@ class TweaksPage(Page):
                 card.body.addWidget(row)
                 self.rows.append(row)
             self.content.addWidget(card)
+
+        # ---- Essentials: one-click actions with real results
+        ess = Card("Essentials")
+        ess.body.addWidget(label("Quick maintenance actions. Each one shows its real result when it finishes.",
+                                 "muted", wrap=True))
+        self.quick_msg = label("", "cardLine", wrap=True)
+        for n, (name, desc, fn) in enumerate((
+                ("Clear DNS cache", "Forgets saved website addresses so they're looked up fresh. Can fix "
+                 "“site can't be reached” after a DNS change. Harmless.", self.flush_dns),
+                ("Clear Windows Update download cache", "Deletes downloaded update files Windows keeps. Can "
+                 "fix stuck updates and free space. Shows the size first; Windows re-downloads what it "
+                 "still needs. Admin.", self.clear_wu),
+                ("Check and repair system files (SFC)", "Runs Windows' System File Checker, which finds and "
+                 "repairs damaged Windows files. Takes 5–20 minutes; you can keep using the PC. Admin.",
+                 self.run_sfc))):
+            if n:
+                ess.body.addWidget(_sep())
+            r = QHBoxLayout()
+            r.setContentsMargins(0, 6, 0, 6)
+            col = QVBoxLayout()
+            col.addWidget(label(name, "sectionTitle"))
+            col.addWidget(label(desc, "cardLine", wrap=True))
+            r.addLayout(col, 1)
+            b = QPushButton("Run")
+            b.clicked.connect(lambda _=False, f=fn, btn=b: f(btn))
+            r.addWidget(b, 0, Qt.AlignVCenter)
+            ess.body.addLayout(r)
+        ess.body.addWidget(self.quick_msg)
+        self.content.addWidget(ess)
         self.finish()
+
+    # ------------------------------------------------------------ Essentials
+
+    def _quick(self, btn, title, fn):
+        btn.setEnabled(False)
+        self.quick_msg.setText(f"{title}…")
+
+        def done(result):
+            btn.setEnabled(True)
+            ok, msg = result if isinstance(result, tuple) and len(result) == 2 else (False, str(result))
+            self.quick_msg.setText(f"{'✔' if ok else '✖'} {title}: {msg}")
+            self.ctx.log_action("Essentials", title, "Success" if ok else "Failed", "" if ok else msg)
+
+        self.run_task(fn, on_done=done)
+
+    def flush_dns(self, btn):
+        from core import quick_actions as Q
+        self._quick(btn, "Clear DNS cache", Q.flush_dns)
+
+    def clear_wu(self, btn):
+        from core import quick_actions as Q
+        btn.setEnabled(False)
+        self.quick_msg.setText("Measuring the Windows Update download cache…")
+
+        def previewed(res):
+            btn.setEnabled(True)
+            if not (isinstance(res, tuple) and len(res) == 4):
+                self.quick_msg.setText(f"✖ Couldn't read the cache: {res}")
+                return
+            _ok, size, count, text = res
+            if count == 0:
+                self.quick_msg.setText("Nothing to clear: " + text)
+                return
+            if QMessageBox.question(self, "Clear Windows Update download cache",
+                                    f"Delete these downloaded update files?\n\n{text}\n\n"
+                                    "Windows Update is paused while this runs and started again after. "
+                                    "Files in use are skipped.") != QMessageBox.Yes:
+                self.quick_msg.setText("Cancelled. Nothing was deleted.")
+                return
+            self._quick(btn, "Clear Windows Update download cache", Q.clear_wu_cache)
+
+        self.run_task(Q.wu_cache_preview, on_done=previewed)
+
+    def run_sfc(self, btn):
+        from core import quick_actions as Q
+        if QMessageBox.question(self, "System File Checker",
+                                "Run sfc /scannow now? It takes 5–20 minutes and uses some CPU and disk.") \
+                != QMessageBox.Yes:
+            return
+        self._quick(btn, "System File Checker (running, 5–20 min)", Q.sfc_scan)
 
     def on_shown(self):
         for row in self.rows:

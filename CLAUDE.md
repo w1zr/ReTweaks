@@ -41,13 +41,13 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/telemetry.py` — Live readings: GPU load/VRAM used (Windows GPU counters), live CPU clock, NVML extras, disk/network speed.
 - `core/sensors_lhm.py` — Optional temperatures and fans from LibreHardwareMonitor.
 - `core/optimizer.py` — Windows tweaks: each `get_*` reads the real state, each `set_*` returns `(ok, message)`. Saves previous power plan and DNS so they can be restored.
-- `core/tweaks.py` — Individual tweaks (Standard/Advanced): real state, original values saved before the first change, Undo and Undo everything, restore point.
+- `core/tweaks.py` — Individual tweaks (Standard/Advanced): real state, original values saved before the first change, Undo and Undo everything, restore point. v1.4.3: `core/tweaks_catalog.py` adds 35 more (44 total) in categories Gaming, Privacy, Interface, Services, Maintenance (`CATEGORY_ORDER`); `core/quick_actions.py` holds the Essentials actions (flush DNS, Windows Update cache with preview, SFC).
 - `core/game_presets.py` — Game settings presets: parsers for ini / key:value / Valve KeyValues files, backups, only changes keys that already exist, refuses while the game runs.
 - `core/app_rules.py` — Per-program rules (GPU preference, fullscreen optimizations, CPU priority) and auto game mode.
 - `core/updater.py` — Update check and in-app updates (SHA-256 verified, keeps RYTWEAKS.old.exe); since v1.4 an update bar at the top of every page offers **Update now** (owner request 2026-10-21).
 - `core/nettest.py` — DNS speed test and ping test (1.1.1.1 / 1.0.0.1).
 - `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
-- `core/profiles.py` — System profiles (bundles of real tweaks).
+- `core/profiles.py` — System profiles (bundles of real tweaks): Max Performance, Esports, Max FPS, Balanced, Privacy, Windows Default (v1.4.3).
 - `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps (including scheduled tasks), Storage Explorer, disk space analyzer and cleanup, theme tokens, hardware report export.
 - v1.4 modules: `core/healthcheck.py` (Health Check), `core/fps.py` (PresentMon FPS runs), `core/sensorlog.py` (sensor CSV logging), `core/display.py` (refresh rate + GPU driver info), `core/audio.py` (audio mixer), `core/autoclicker.py`, `core/funtools.py` (polling-rate / CPS / reaction tests), `core/ai_assistant.py` (Gemini AI Assistant), `core/overlay_fps.py` + `ui/overlay.py` (in-game FPS overlay: a separate click-through topmost window fed by PresentMon; never inject into a game process). Background calming lives in `core/app_rules.py`.
 - `ui/main_window.py` — App shell: sidebar navigation, page stack, background workers, settings, change log.
@@ -170,6 +170,8 @@ Known mechanisms:
 - **Game Mode:** `HKCU\Software\Microsoft\GameBar` → `AutoGameModeEnabled` (the value Windows 10/11 Settings uses). v1.2 also writes the older `AllowAutoGameMode`. This is a reversible on/off toggle and must never be forced on, because it can lower FPS on some systems.
 - **Ultimate Performance power plan:** duplicate and activate the hidden scheme GUID `e9a42b02-d5df-448d-aa00-03f14749eb61`. Keep the user's previous plan so it can be restored.
 - **HAGS:** the graphics driver scheduling key `HwSchMode`. A restart is needed for it to take effect.
+- **Services (v1.4.3):** only the `Start` value under `HKLM\SYSTEM\CurrentControlSet\Services\<name>` (4 = Disabled), applied after a restart; RYTWEAKS never force-stops a service. Undo restores the exact original start type. Always Advanced.
+- **Privacy and Interface tweaks (v1.4.3):** only values the Settings app or official Group Policy write. "On" always means what the tweak's name says.
 - **Temp cleanup:** clean `%TEMP%` and `%SystemRoot%\Temp`, handle errors, and show a preview before deleting anything.
 
 ### Startup apps
