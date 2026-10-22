@@ -4,11 +4,11 @@
 The chip outline draws, the pins light up in sequence, a scan line sweeps, the R traces in,
 then the RYTWEAKS wordmark and an honest status line appear.
 
-Timing rules (CLAUDE.md section 18a):
-- If loading finishes in under ~1 s, the rest of the animation is sped up so the whole thing
-  takes about 1 s and never looks cut off.
+Timing rules (CLAUDE.md section 18a, owner update 2026-10-21):
+- The reveal always plays at normal speed (about 1.4 s), so it never looks rushed or cut off.
 - If loading takes longer, the scan line keeps sweeping until loading really finishes.
-- Nothing ever waits longer than that. No version number is shown.
+- Then a short pause on the finished logo and a slow cross-fade: the main window opens centered
+  behind the splash and fades in while the splash fades out. No version number is shown.
 
 The UI thread is busy while the main window is being built, so MainWindow calls pump()
 between steps. Frames are drawn from real elapsed time, so the animation stays correct even
@@ -32,9 +32,8 @@ R_TRACE = (0.80, 1.22)
 WORD = (1.10, 1.40)
 REVEAL_END = 1.40
 SCAN_LOOP = 0.9           # one sweep while waiting for loading to finish
-QUICK_TOTAL = 1.0         # the "about 1 s" quick version
-LATE_FINISH = 0.30        # if loading was slow, finish the reveal this fast
-FADE = 0.18
+HOLD = 0.30               # pause on the finished logo before fading
+FADE = 0.55               # cross-fade into the main window
 
 
 def _phase(t, span):
@@ -59,6 +58,7 @@ class RytweaksSplash(QWidget):
         self._virtual = 0.0          # animation time
         self._speed = 1.0
         self._finishing = None       # window to show once the reveal completes
+        self._ready_at = None
         self._fade_start = None
         self._done = False
         self._timer = QTimer(self)
@@ -80,18 +80,9 @@ class RytweaksSplash(QWidget):
         QApplication.processEvents()
 
     def finish(self, window, show=None):
-        """Loading is really done: complete the reveal quickly, then fade into `window`."""
+        """Loading is really done: let the reveal finish at normal speed, then fade into `window`."""
         self._finishing = (window, show or window.show)
-        self._advance()
-        now = self._clock.elapsed() / 1000.0
-        remaining = max(0.0, REVEAL_END - self._virtual)
-        if remaining <= 0:
-            self._speed = 1.0
-        elif now < QUICK_TOTAL:
-            self._speed = remaining / max(0.05, QUICK_TOTAL - now)
-        else:
-            self._speed = remaining / LATE_FINISH
-        self._speed = max(1.0, self._speed)
+        self._ready_at = None
         self.status = "Ready"
 
     def abort(self):
@@ -114,24 +105,41 @@ class RytweaksSplash(QWidget):
         self._virtual += dt * self._speed
         return real
 
+    def _center_window(self, window):
+        """Open the main window centered on the same screen as the splash, so it fades in behind it."""
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        g = screen.availableGeometry()
+        size = window.frameGeometry().size() if window.frameGeometry().isValid() else window.size()
+        window.move(g.x() + max(0, (g.width() - size.width()) // 2), g.y() + max(0, (g.height() - size.height()) // 2))
+
     def _tick(self):
         if self._done:
             return
         real = self._advance()
         if self._finishing and self._virtual >= REVEAL_END:
-            if self._fade_start is None:
-                self._fade_start = real
-                window, show = self._finishing
+            window, show = self._finishing
+            if self._ready_at is None:
+                self._ready_at = real
+            elif self._fade_start is None and real - self._ready_at >= HOLD:
+                # Show the window invisibly first, so its first (slow) paint happens before the fade
+                self._center_window(window)
                 window.setWindowOpacity(0.0)
                 show()
-            f = min(1.0, (real - self._fade_start) / FADE)
-            self.setWindowOpacity(1.0 - f)
-            self._finishing[0].setWindowOpacity(f)
-            if f >= 1.0:
-                self._done = True
-                self._timer.stop()
-                self.close()
-                return
+                self.raise_()
+                self._fade_start = real + 0.05
+            if self._fade_start is not None and real >= self._fade_start:
+                x = min(1.0, (real - self._fade_start) / FADE)
+                f = x * x * (3 - 2 * x)          # ease in and out
+                self.setWindowOpacity(1.0 - f)
+                window.setWindowOpacity(f)
+                if x >= 1.0:
+                    self._done = True
+                    self._timer.stop()
+                    window.setWindowOpacity(1.0)
+                    window.raise_()
+                    window.activateWindow()
+                    self.close()
+                    return
         self.update()
 
     def paintEvent(self, _):
