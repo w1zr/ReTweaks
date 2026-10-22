@@ -54,7 +54,23 @@ SYSTEM_INSTRUCTION = (
 
 
 class AIError(Exception):
-    """An error whose message is already friendly and safe to show."""
+    """An error whose message is already friendly and safe to show.
+
+    status: the HTTP status from Google, if there was one (used to decide whether to retry).
+    """
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
+
+    @property
+    def busy(self):
+        """Google is overloaded or down for a moment (500-504): worth retrying."""
+        return self.status in (500, 502, 503, 504)
+
+    @property
+    def rate_limited(self):
+        return self.status == 429
 
 
 # ---------------------------------------------------------------- API key storage
@@ -416,7 +432,8 @@ def parse_error(http_status, body_text="", key=None):
         return ("You've hit the free-tier limit for now (requests per minute or per day). "
                 "Wait a bit and try again, or pick another model in the list.")
     if http_status in (500, 502, 503, 504) or "unavailable" in low:
-        return "Google's service is busy or down right now (" + str(http_status) + "). Try again in a minute."
+        return ("Google's free Gemini service is busy right now (" + str(http_status) + "). RYTWEAKS "
+                "already retried and tried the other free models. Try again in a minute.")
     if http_status == 404:
         return ("Google doesn't know this model name. Press Refresh models and pick one from "
                 "the list.")
@@ -458,7 +475,7 @@ def _request(method, url, key, body=None, timeout=TIMEOUT_S):
             text = e.read().decode("utf-8", errors="replace")
         except Exception:
             text = ""
-        raise AIError(parse_error(e.code, text, key))
+        raise AIError(parse_error(e.code, text, key), status=e.code)
     except (socket.timeout, TimeoutError):
         raise AIError("Google didn't answer within 60 seconds. Try again.")
     except urllib.error.URLError as e:
@@ -473,6 +490,50 @@ def generate(key, model, history, specs_text=None, timeout=TIMEOUT_S):
     """Send the conversation and return the assistant's text. Raises AIError."""
     url = f"{API_ROOT}/models/{model}:generateContent"
     return parse_response(_request("POST", url, key, build_request_body(history, specs_text), timeout))
+
+
+RETRY_DELAYS = (1.5, 4.0)       # waits before retrying the same model when Google is busy
+MAX_TOTAL_S = 45                # never keep the user waiting longer than this in total
+
+
+def generate_with_retry(key, model, history, specs_text=None, fallbacks=FALLBACK_MODELS,
+                        sleep=None, clock=None, cancelled=lambda: False):
+    """generate(), but rides out Google's short outages.
+
+    - 500-504 ("busy"): retry the same model after 1.5 s and 4 s.
+    - 429 (rate limit): wait 4 s and retry once. Free-tier limits are per model, so it then
+      moves on to the next model.
+    - Still failing: try the other free models in FALLBACK_MODELS once each.
+    Returns (text, model_used). Raises the last AIError if nothing worked.
+    """
+    import time
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
+    start = clock()
+    order = [model] + [m for m in fallbacks if m != model]
+    last = None
+    for i, m in enumerate(order):
+        delays = RETRY_DELAYS if i == 0 else RETRY_DELAYS[:1]
+        attempt = 0
+        while True:
+            if cancelled():
+                raise AIError("Stopped.")
+            try:
+                return generate(key, m, history, specs_text), m
+            except AIError as e:
+                last = e
+                if not (e.busy or e.rate_limited):
+                    if e.status == 404 and i == 0:
+                        break           # this model name doesn't exist (any more): try the others
+                    raise               # bad key, region, blocked prompt…: retrying won't help
+                waits = delays if e.busy else (4.0,)
+                if attempt >= len(waits) or clock() - start + waits[attempt] > MAX_TOTAL_S:
+                    break               # give up on this model, try the next one
+                sleep(waits[attempt])
+                attempt += 1
+        if clock() - start > MAX_TOTAL_S:
+            break
+    raise last
 
 
 def list_models(key, timeout=30):
