@@ -6,9 +6,8 @@ import os
 from PySide6.QtWidgets import (QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QProgressBar,
                                QPushButton, QTableWidget, QTableWidgetItem)
 
-from core.storage_manager import browse_directory, cleanup_temp_files_safe, get_disk_drives
+from core.storage_manager import browse_directory, cleanup_temp_files_safe, get_disk_drives, preview_temp_files
 from ui.widgets.common import Card, Page, label, set_role
-from ui.workers import TaskWorker
 
 
 class StoragePage(Page):
@@ -17,7 +16,6 @@ class StoragePage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
-        self._worker = None
         self._loaded = False
         self.path = os.path.splitdrive(os.path.expanduser("~"))[0] + "\\" if os.name == "nt" else "/"
 
@@ -88,7 +86,7 @@ class StoragePage(Page):
             disk = by_letter.get(letter, {})
             self.drives.setItem(r, 0, QTableWidgetItem(f"{d['device']}  ({d['fstype']})"))
             self.drives.setItem(r, 1, QTableWidgetItem(disk.get("name") or "—"))
-            self.drives.setItem(r, 2, QTableWidgetItem(disk.get("health") or "Not available"))
+            self.drives.setItem(r, 2, QTableWidgetItem(disk.get("health") or "Unavailable"))
             self.drives.setItem(r, 3, QTableWidgetItem(d["total"]))
             self.drives.setItem(r, 4, QTableWidgetItem(d["free"]))
             bar = QProgressBar()
@@ -129,12 +127,27 @@ class StoragePage(Page):
                 QMessageBox.warning(self, "Open", str(e))
 
     def run_cleanup(self):
-        if QMessageBox.question(self, "Clean temp files", "Delete temporary files now?") != QMessageBox.Yes:
+        # Preview first (CLAUDE.md: never delete without showing what will go)
+        self.btn_clean.setEnabled(False)
+        self.clean_result.setText("Checking temp folders…")
+        self.run_task(preview_temp_files, on_done=self._confirm_cleanup)
+
+    def _confirm_cleanup(self, result):
+        self.btn_clean.setEnabled(True)
+        if not isinstance(result, tuple) or len(result) != 2 or isinstance(result[0], bool):
+            self.clean_result.setText("Could not check the temp folders.")
+            return
+        items, size = result
+        self.clean_result.setText("")
+        if items == 0:
+            self.clean_result.setText("Temp folders are already empty.")
+            return
+        msg = (f"Found {items} item(s), about {size / 1024 ** 2:.1f} MB, in your Temp folder and Windows\\Temp.\n\n"
+               "Delete them? Files that are in use will be skipped.")
+        if QMessageBox.question(self, "Clean temp files", msg) != QMessageBox.Yes:
             return
         self.btn_clean.setEnabled(False)
         self.clean_result.setText("Cleaning…")
-        self._worker = TaskWorker(cleanup_temp_files_safe)
-
         def done(result):
             self.btn_clean.setEnabled(True)
             text = result if isinstance(result, str) else f"Failed: {result[1]}"
@@ -143,5 +156,4 @@ class StoragePage(Page):
                                 "" if isinstance(result, str) else text)
             self.load_drives()
 
-        self._worker.done.connect(done)
-        self._worker.start()
+        self.run_task(cleanup_temp_files_safe, on_done=done)

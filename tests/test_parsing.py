@@ -119,3 +119,25 @@ def test_lhm_parsing():
     assert r["gpu_temps"]["NVIDIA GeForce RTX 3070"] == {"memory": 70.0, "core": 55.0, "hotspot": 66.0}
     assert [f["rpm"] for f in r["fans"]] == [1150.0]      # stopped/unused headers hidden
     assert r["board_temps"] == [{"name": "System", "celsius": 34.0}]  # impossible -55 C dropped
+
+
+def test_lhm_web_server_json():
+    """Shape of LibreHardwareMonitor's /data.json (HttpServer.cs GenerateJsonForNode)."""
+    from core.sensors_lhm import flatten_lhm_json
+    def sensor(text, typ, raw, val):
+        return {"id": 0, "Text": text, "SensorId": "/x", "Type": typ, "RawValue": raw, "Value": val, "Children": []}
+    tree = {"id": 0, "Text": "Sensor", "Children": [{"id": 1, "Text": "MY-PC", "Children": [
+        {"id": 2, "Text": "AMD Ryzen 7 5800X", "HardwareId": "/amdcpu/0", "Children": [
+            {"id": 3, "Text": "Temperatures", "Children": [sensor("Core (Tctl/Tdie)", "Temperature", 61.5, "61.5 °C")]}]},
+        {"id": 4, "Text": "ASUS ROG STRIX B550-F", "HardwareId": "/motherboard", "Children": [
+            {"id": 5, "Text": "Nuvoton NCT6798D", "HardwareId": "/lpc/nct6798d/0", "Children": [
+                {"id": 6, "Text": "Fans", "Children": [sensor("Fan #1", "Fan", 1150.0, "1150 RPM")]}]}]},
+        {"id": 7, "Text": "NVIDIA GeForce RTX 3070", "HardwareId": "/gpu-nvidia/0", "Children": [
+            {"id": 8, "Text": "Temperatures", "Children": [sensor("GPU Core", "Temperature", None, "55.0 °C")]}]},
+    ]}]}
+    hw, sensors = flatten_lhm_json(tree)
+    r = parse_lhm(hw, sensors)
+    assert r["cpu_temp"] == 61.5
+    assert r["fans"] == [{"name": "Nuvoton NCT6798D Fan #1", "rpm": 1150.0}]
+    # RawValue null -> fall back to the formatted text
+    assert r["gpu_temps"]["NVIDIA GeForce RTX 3070"]["core"] == 55.0

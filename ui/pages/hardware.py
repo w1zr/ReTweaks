@@ -1,8 +1,10 @@
 # ui/pages/hardware.py
-"""Everything RyTweaks detected, one card per component, plus the hardware report export."""
+"""Everything RYTWEAKS detected, one card per component, plus the hardware report export."""
 
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QFileDialog, QGridLayout, QHBoxLayout, QMessageBox, QPushButton
+import csv
+
+from PySide6.QtWidgets import QFileDialog, QGridLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton
 
 from core.report import build_report, report_to_json, report_to_text
 from ui.widgets.common import Card, KeyValueGrid, Page, fmt, join, label, set_role, NA
@@ -26,11 +28,18 @@ class HardwarePage(Page):
         self.btn_json.clicked.connect(lambda: self.export("json"))
         self.btn_txt = QPushButton("Export as text")
         self.btn_txt.clicked.connect(lambda: self.export("txt"))
+        self.btn_csv = QPushButton("Export as CSV")
+        self.btn_csv.clicked.connect(lambda: self.export("csv"))
         self.btn_copy = QPushButton("Copy to clipboard")
         self.btn_copy.clicked.connect(self.copy_report)
-        for b in (self.btn_rescan, self.btn_json, self.btn_txt, self.btn_copy):
+        for b in (self.btn_rescan, self.btn_json, self.btn_txt, self.btn_csv, self.btn_copy):
             bar.addWidget(b)
         bar.addStretch()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Search hardware…")
+        self.search.setFixedWidth(220)
+        self.search.textChanged.connect(self.apply_filter)
+        bar.addWidget(self.search)
         self.content.addLayout(bar)
 
         self.status = label("Scanning hardware…", "muted")
@@ -143,17 +152,24 @@ class HardwarePage(Page):
         self.cards["net"].kv.set_rows(
             [(n.get("name"), join(n.get("description"), n.get("status"), n.get("link_speed"), sep=" · "))
              for n in d.get("network", [])] or [("Adapters", None)])
+        self.apply_filter()
+
+    def apply_filter(self, text=None):
+        text = self.search.text() if text is None else text
+        for card in self.cards.values():
+            card.setVisible(card.kv.filter(text) > 0 or not text)
 
     def on_sources(self, src):
         lhm = src.get("lhm")
         self.cards["sources"].kv.set_rows([
             ("GPU load, all brands", "Windows GPU counters (same as Task Manager)" if src.get("gpu_counters")
-             else "Not available (needs Windows 10 version 1709 or newer)"),
+             else "Unavailable (needs Windows 10 version 1709 or newer)"),
             ("CPU clock", "Windows performance counters" if src.get("windows_counters") else NA),
             ("NVIDIA extras", f"NVIDIA driver ({src['nvml_gpus']} GPU)" if src.get("nvml_gpus")
              else "No NVIDIA GPU / driver"),
             ("Temperatures & fans", f"{lhm} (running)" if lhm else "LibreHardwareMonitor not running"),
         ])
+        self.apply_filter()
 
     # ------------------------------------------------------------ export
 
@@ -167,8 +183,18 @@ class HardwarePage(Page):
             return
         try:
             r = self._report()
-            with open(name, "w", encoding="utf-8") as f:
-                f.write(report_to_json(r) if ext == "json" else report_to_text(r))
+            if ext == "csv":
+                # One row per value shown on this page: Component, Field, Value
+                with open(name, "w", newline="", encoding="utf-8-sig") as f:
+                    w = csv.writer(f)
+                    w.writerow(["Component", "Field", "Value"])
+                    for card in self.cards.values():
+                        title = card.title_label.text().title() if card.title_label else ""
+                        for key, value in card.kv.rows:
+                            w.writerow([title, key, value])
+            else:
+                with open(name, "w", encoding="utf-8") as f:
+                    f.write(report_to_json(r) if ext == "json" else report_to_text(r))
             self.status.setText(f"Report saved to {name}")
         except Exception as e:
             QMessageBox.critical(self, "Export failed", str(e))

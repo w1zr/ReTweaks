@@ -44,6 +44,20 @@ def is_virtual(name):
     return any(h in n for h in _VIRTUAL_HINTS)
 
 
+def _guess_integrated(vendor, dedicated_bytes):
+    """True / False / None (unknown).
+
+    Under 512 MB of dedicated memory is always an integrated GPU. NVIDIA makes no integrated
+    GPUs for x86 PCs. But AMD APUs can reserve 1-16 GB as "dedicated" in the BIOS, and Intel
+    makes both kinds (Arc), so with a big number we can't tell and say so.
+    """
+    if dedicated_bytes < 512 * 1024 * 1024:
+        return True
+    if vendor == "NVIDIA":
+        return False
+    return None
+
+
 def luid_key(high, low):
     """Normalized LUID key, matching how PDH names GPU counter instances."""
     return f"0x{high & 0xFFFFFFFF:08X}_0x{low & 0xFFFFFFFF:08X}"
@@ -124,8 +138,7 @@ def _list_adapters_windows():
                             "vendor_id": desc.VendorId,
                             "vram_gb": round(desc.DedicatedVideoMemory / (1024 ** 3), 1) or None,
                             "shared_gb": round(desc.SharedSystemMemory / (1024 ** 3), 1) or None,
-                            # Integrated GPUs have little or no dedicated VRAM
-                            "integrated": desc.DedicatedVideoMemory < 512 * 1024 * 1024,
+                            "integrated": _guess_integrated(VENDORS.get(desc.VendorId), desc.DedicatedVideoMemory),
                             "luid": luid_key(desc.AdapterLuid.HighPart, desc.AdapterLuid.LowPart),
                         })
             finally:
@@ -141,5 +154,5 @@ def _list_adapters_windows():
             seen.add(a["luid"])
             unique.append(a)
     # Dedicated GPUs first, so the dashboard shows the gaming GPU as GPU 1
-    unique.sort(key=lambda a: (a["integrated"], -(a["vram_gb"] or 0)))
+    unique.sort(key=lambda a: (a["integrated"] is True, -(a["vram_gb"] or 0)))
     return unique

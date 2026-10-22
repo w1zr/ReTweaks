@@ -3,7 +3,7 @@
 
 Everything is collected with ONE PowerShell call plus DXGI for the GPU list, instead of
 launching PowerShell once per component. Values that Windows does not expose on a given
-PC are returned as None, and the UI shows "Not available on this PC". Nothing here
+PC are returned as None, and the UI shows "Unavailable". Nothing here
 guesses or hardcodes a value for a specific model.
 
 Live values (loads, clocks, temps) are in core/telemetry.py.
@@ -15,12 +15,12 @@ import psutil
 from core import gpu_dxgi
 from core.winutil import IS_WINDOWS, run_powershell_json, as_list, is_admin
 
-UNAVAILABLE = None  # the UI turns None into "Not available on this PC"
+UNAVAILABLE = None  # the UI turns None into "Unavailable"
 
 # SMBIOS memory type codes (Win32_PhysicalMemory.SMBIOSMemoryType), from the SMBIOS spec.
 SMBIOS_MEMORY_TYPES = {
-    20: "DDR", 21: "DDR2", 24: "DDR3", 26: "DDR4", 27: "LPDDR", 28: "LPDDR2",
-    29: "LPDDR3", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5",
+    18: "DDR", 19: "DDR2", 20: "DDR2 FB-DIMM", 24: "DDR3", 26: "DDR4", 27: "LPDDR",
+    28: "LPDDR2", 29: "LPDDR3", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5",
 }
 
 # Board serial numbers are deliberately NOT collected: users attach hardware reports to

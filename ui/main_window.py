@@ -219,9 +219,14 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------ shutdown
 
     def closeEvent(self, event):
+        # Hide right away so closing feels instant, then let background threads finish:
+        # Qt crashes if a QThread is destroyed while it's still running.
+        self.hide()
         if self._telemetry:
             self._telemetry.stop()
-            self._telemetry.wait(2000)
-        if self._scan_worker and self._scan_worker.isRunning():
-            self._scan_worker.wait(2000)
+            self._telemetry.wait()
+        if self._scan_worker:
+            self._scan_worker.wait()
+        for p in self.pages:
+            p.wait_for_tasks()
         super().closeEvent(event)

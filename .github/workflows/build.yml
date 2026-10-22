@@ -1,0 +1,53 @@
+# Builds RYTWEAKS.exe on a Windows server (CLAUDE.md section 16).
+#
+# - Pull requests / main / manual run: builds the .exe and attaches it to the run as a
+#   downloadable "artifact" (Actions tab -> the run -> Artifacts), for previewing.
+# - Pushing a tag like v1.2: builds the .exe and publishes the GitHub release, using
+#   release-notes/<tag>.md as the release text.
+name: Build RYTWEAKS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the release on tag pushes
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest tests -q
+
+      - name: Build RYTWEAKS.exe
+        run: python build.py
+
+      - name: Upload .exe for preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: RYTWEAKS-exe
+          path: dist/RYTWEAKS.exe
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $notes = "release-notes/$tag.md"
+          if (-not (Test-Path $notes)) { throw "Missing $notes - add release notes before tagging." }
+          gh release create $tag dist/RYTWEAKS.exe --title "RYTWEAKS $tag" --notes-file $notes

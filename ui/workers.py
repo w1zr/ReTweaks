@@ -43,6 +43,10 @@ class TelemetryWorker(QThread):
             traceback.print_exc()
             return
         last_sources = None
+        # Counters need time between two readings; the first one would show 0%
+        waited = time.monotonic()
+        while self._running and time.monotonic() - waited < 1.0:
+            self.msleep(50)
         while self._running:
             started = time.monotonic()
             try:

@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton
 
 from core.profiles import PROFILES, apply_profile
 from ui.widgets.common import Card, Page, label, set_role
-from ui.workers import TaskWorker
 
 
 class ProfilesPage(Page):
@@ -15,7 +14,6 @@ class ProfilesPage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
-        self._worker = None
         self.buttons = []
         row = QHBoxLayout()
         row.setSpacing(16)
@@ -46,9 +44,7 @@ class ProfilesPage(Page):
         for b in self.buttons:
             b.setEnabled(False)
         self.result.setText(f"Applying {name}…")
-        self._worker = TaskWorker(apply_profile, name)
-        self._worker.done.connect(lambda results: self._done(name, results))
-        self._worker.start()
+        self.run_task(apply_profile, name, on_done=lambda results: self._done(name, results))
 
     def _done(self, name, results):
         for b in self.buttons:
