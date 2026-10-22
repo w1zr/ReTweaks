@@ -258,9 +258,28 @@ def stretch_mode_status(width, height, displays=None):
     if hz:
         return True, hz, (f"✔ Your display offers {width}×{height} (up to {hz} Hz), so Fortnite can list it "
                           "in Fullscreen mode.")
-    return False, None, (f"✖ Your display doesn't offer {width}×{height} yet, so Fortnite can't use it. Add it "
-                         "as a custom resolution in your graphics card's control panel (steps below), then "
-                         "press Check again.")
+    return False, None, (f"✖ Your graphics card doesn't offer {width}×{height} yet, so Fortnite can't list it. "
+                         "NVIDIA: press “Set up NVIDIA automatically”. AMD/Intel: add it as a custom resolution "
+                         "(steps below), then press Check again.")
+
+
+def restore_saved_mode(device):
+    """Put a display back to the mode saved in Windows settings (its normal desktop resolution).
+    Used after the NVIDIA custom-resolution test. Returns (ok, message)."""
+    if not IS_WINDOWS:
+        return False, "Only available on Windows."
+    try:
+        user32 = _user32()
+        dm = _new_devmode()
+        if not user32.EnumDisplaySettingsExW(device, 0xFFFFFFFE, ctypes.byref(dm), 0):   # ENUM_REGISTRY_SETTINGS
+            return False, "Couldn't read your saved display mode."
+        dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY
+        code = user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None, 0, None)
+        if code != DISP_CHANGE_SUCCESSFUL:
+            return False, f"Windows couldn't switch back: {DISP_CHANGE_TEXT.get(code, code)}."
+        return True, f"Desktop is back to {dm.dmPelsWidth}×{dm.dmPelsHeight} at {dm.dmDisplayFrequency} Hz."
+    except Exception as e:
+        return False, f"Display change failed: {e}"
 
 
 def set_refresh_rate(device, hz):
