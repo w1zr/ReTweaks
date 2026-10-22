@@ -112,3 +112,38 @@ def test_microphone_card(monkeypatch):
     p.refresh()
     assert p._input_row is None
     app.processEvents()
+
+
+def test_lock_switches(monkeypatch):
+    import pytest
+    pytest.importorskip("PySide6")
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    from ui.pages import audio as page_mod
+    monkeypatch.setattr(page_mod.audio, "AVAILABLE", True)
+    fake = FakeBackend()
+    monkeypatch.setattr(page_mod.AudioPage, "_make_backend", lambda self: fake)
+
+    class Ctx:
+        settings = {}
+        logs = []
+        locks = {"output": None, "input": None}
+        def log_action(self, *a): self.logs.append(a)
+        def lock_value(self, k): return self.locks[k]
+        def set_volume_lock(self, k, p): self.locks[k] = p
+
+    ctx = Ctx()
+    p = page_mod.AudioPage(ctx)
+    p.refresh()
+    assert p._input_row.lock is not None and not p._input_row.lock.isChecked()
+    p._input_row.lock.click()                      # lock the mic at its current 70%
+    assert ctx.locks["input"] == 70 and "locked at 70%" in p.status.text()
+    p._input_row.slider.setValue(85)               # moving the locked slider moves the lock
+    assert ctx.locks["input"] == 85 and fake.mic[0] == 85
+    p._input_row.lock.click()
+    assert ctx.locks["input"] is None
+    p._master_row.lock.click()
+    assert ctx.locks["output"] == 50
+    app.processEvents()

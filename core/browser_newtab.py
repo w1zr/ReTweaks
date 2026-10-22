@@ -53,6 +53,15 @@ def render(theme, engine=bd.DEFAULT_ENGINE, custom="", bookmarks=(), private=Fal
     tiles_html = ("<div class='tiles'>" + "".join(tiles) + "</div>") if tiles else \
         "<p class='hint'>Bookmark pages with ☆ (Ctrl+D) and they show up here.</p>"
     template = json.dumps(_search_template(engine, custom)).replace("</", "<\\/")
+    # Galaxy theme: the same kind of static starfield as the rest of the app
+    stars = ""
+    if t.get("stars"):
+        import random
+        rnd = random.Random(7)
+        dots = ", ".join(f"radial-gradient({rnd.choice([1, 1, 1.5, 2])}px {rnd.choice([1, 1, 1.5, 2])}px at "
+                         f"{rnd.randint(0, 100)}% {rnd.randint(0, 100)}%, rgba(255,255,255,{rnd.choice([.35, .5, .7, .9])}), transparent)"
+                         for _ in range(90))
+        stars = f"body {{ background-image: {dots}; background-attachment: fixed; }}"
     private_note = ("<p class='private'>Private tab: no history, cookies or cache are kept after it closes.</p>"
                     if private else "")
     return f"""<!doctype html>
@@ -85,6 +94,7 @@ def render(theme, engine=bd.DEFAULT_ENGINE, custom="", bookmarks=(), private=Fal
   .h {{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
   .hint, .private {{ color:var(--muted); font-size:13px; margin-top:40px; }}
   .private {{ margin-top:14px; }}
+  {stars}
 </style></head>
 <body><main>
   <div class="brand">{LOGO_SVG.format(c=html.escape(t.get('logo', t['text'])))}<span class="word">RYTWEAKS</span></div>

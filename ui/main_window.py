@@ -138,6 +138,17 @@ class MainWindow(QMainWindow):
         self._auto.event.connect(self.rules_page.on_auto_event)
         self._auto.event.connect(self._discord_event)
         self._auto.start()
+        # Volume lock + system tray (v1.5)
+        self._really_quit = False
+        self._tray_tip_shown = False
+        self.tray = None
+        self.volume_lock = None
+        self._lock_timer = QTimer(self)
+        from core import audio_lock as _al
+        self._lock_timer.setInterval(_al.INTERVAL_MS)
+        self._lock_timer.timeout.connect(self._lock_tick)
+        self.restart_volume_lock()
+        self.apply_tray(bool(self.settings.get("tray_on_close", False)))
         from core import updater
         result = updater.read_update_status()   # left behind by the in-app updater
         if result == "OK":
@@ -357,7 +368,82 @@ class MainWindow(QMainWindow):
 
     def quit_for_update(self):
         """The updater script is waiting for this process to exit."""
+        self._really_quit = True
         QApplication.instance().quit()
+
+    # ------------------------------------------------------------ volume lock (v1.5)
+
+    def lock_value(self, kind):
+        from core import audio_lock
+        return audio_lock.clean_lock(self.settings.get(audio_lock.KEYS[kind]))
+
+    def set_volume_lock(self, kind, percent):
+        """percent None turns the lock off. Saved in settings, enforced by a 0.5 s timer."""
+        from core import audio_lock
+        self.set_setting(audio_lock.KEYS[kind], audio_lock.clean_lock(percent))
+        self.restart_volume_lock()
+
+    def restart_volume_lock(self):
+        from core import audio, audio_lock
+        if not audio.AVAILABLE:
+            return
+        if self.volume_lock is None:
+            try:
+                backend = audio.AudioBackend()
+            except Exception:
+                return
+            self.volume_lock = audio_lock.VolumeLock(
+                read=lambda k: backend.master_state() if k == "output" else backend.input_state(),
+                write=lambda k, p: backend.set_master_volume(p) if k == "output" else backend.set_input_volume(p),
+                get_lock=lambda k: self.settings.get(audio_lock.KEYS[k]),
+                log=self.log_action)
+        if self.volume_lock.active():
+            self._lock_timer.start()
+        else:
+            self._lock_timer.stop()
+
+    def _lock_tick(self):
+        if self.volume_lock is not None:
+            self.volume_lock.tick()
+
+    # ------------------------------------------------------------ system tray (v1.5)
+
+    def apply_tray(self, enabled):
+        from PySide6.QtWidgets import QMenu, QSystemTrayIcon
+        if enabled and QSystemTrayIcon.isSystemTrayAvailable():
+            if self.tray is None:
+                self.tray = QSystemTrayIcon(self.windowIcon(), self)
+                self.tray.setToolTip("RYTWEAKS")
+                menu = QMenu(self)
+                menu.addAction("Open RYTWEAKS", self.show_from_tray)
+                menu.addSeparator()
+                menu.addAction("Quit RYTWEAKS", self.quit_from_tray)
+                self.tray.setContextMenu(menu)
+                self.tray.activated.connect(
+                    lambda r: self.show_from_tray()
+                    if r in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick) else None)
+            self.tray.show()
+        elif self.tray is not None:
+            self.tray.hide()
+
+    def tray_active(self):
+        return bool(self.settings.get("tray_on_close", False) and self.tray is not None and self.tray.isVisible())
+
+    def start_hidden(self):
+        """Started with Windows (--minimized): go straight to the tray if it's on, else the taskbar."""
+        if self.tray_active():
+            self.hide()
+        else:
+            self.showMinimized()
+
+    def show_from_tray(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def quit_from_tray(self):
+        self._really_quit = True
+        self.close()
 
     def _select(self, index):
         button = self.nav_group.button(index)
@@ -567,6 +653,19 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------ shutdown
 
     def closeEvent(self, event):
+        if self.tray_active() and not self._really_quit:
+            # "Keep running in the tray": hide instead of quitting; volume lock and auto game mode keep working
+            event.ignore()
+            self.hide()
+            if not self._tray_tip_shown:
+                self._tray_tip_shown = True
+                self.tray.showMessage("RYTWEAKS is still running",
+                                      "Volume lock and auto game mode keep working. Right-click the tray "
+                                      "icon and choose Quit RYTWEAKS to close it.", self.windowIcon(), 5000)
+            return
+        self._lock_timer.stop()
+        if self.tray is not None:
+            self.tray.hide()
         # Hide right away so closing feels instant, then let background threads finish:
         # Qt crashes if a QThread is destroyed while it's still running.
         self.hide()

@@ -107,6 +107,7 @@ class EdgeView(QWidget):
     def __init__(self, engine, env_holder, private=False, parent=None, newtab_folder=None):
         super().__init__(parent)
         self.newtab_folder = newtab_folder
+        self.dark = True                 # websites' preferred color scheme follows the RYTWEAKS theme
         self.setAttribute(Qt.WA_NativeWindow, True)
         self.setAttribute(Qt.WA_DontCreateNativeAncestors, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
@@ -165,6 +166,7 @@ class EdgeView(QWidget):
         s.IsStatusBarEnabled = True
         s.AreDefaultContextMenusEnabled = True
         s.IsZoomControlEnabled = True
+        self.set_dark(self.dark)
         if self.newtab_folder:
             try:   # RYTWEAKS start page: https://rytweaks.newtab/ -> local folder
                 wv.SetVirtualHostNameToFolderMapping(bd.NEWTAB_HOST, self.newtab_folder,
@@ -288,6 +290,18 @@ class EdgeView(QWidget):
                 self.controller.MoveFocus(self.engine.C.CoreWebView2MoveFocusReason.Programmatic)
             except Exception:
                 pass
+
+    def set_dark(self, dark):
+        """Sites that support it (prefers-color-scheme) use dark or light mode to match the theme."""
+        self.dark = bool(dark)
+        if self.wv is None:
+            return
+        try:
+            C = self.engine.C
+            self.wv.Profile.PreferredColorScheme = (C.CoreWebView2PreferredColorScheme.Dark if self.dark
+                                                    else C.CoreWebView2PreferredColorScheme.Light)
+        except Exception:
+            pass
 
     def clear_site_data(self, on_ok, on_fail):
         """Clears cookies, cache and site storage of the normal (non-private) profile."""

@@ -378,6 +378,7 @@ class BrowserPage(Page):
             return None
         from ui.widgets.edge_view import EdgeView
         v = EdgeView(self.engine, self.env_holder, private=private, newtab_folder=self.newtab_folder)
+        v.dark = not (self._theme or {}).get("light", False)
         self.stack.addWidget(v)
         self.views.append(v)
         i = self.tabbar.addTab("Private · New tab" if private else "New tab")
@@ -845,6 +846,8 @@ class BrowserPage(Page):
     # ------------------------------------------------------------ theme and shutdown
     def on_theme(self, t):
         self._theme = t
+        for v in self.views:
+            v.set_dark(not t.get("light", False))
         if self._started:
             self._refresh_newtab()
         self.brand_logo.update()

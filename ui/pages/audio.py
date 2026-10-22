@@ -18,7 +18,7 @@ POLL_MS = 1000
 class VolumeRow(QWidget):
     """Name + slider + percent + mute checkbox. Dragging blocks refreshes of this row."""
 
-    def __init__(self, name, on_volume, on_mute, parent=None):
+    def __init__(self, name, on_volume, on_mute, parent=None, on_lock=None, locked=None):
         super().__init__(parent)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 2, 0, 2)
@@ -33,6 +33,16 @@ class VolumeRow(QWidget):
         lay.addWidget(self.slider, 1)
         lay.addWidget(self.pct)
         lay.addWidget(self.mute)
+        self.lock = None
+        if on_lock is not None:
+            # Volume lock (v1.5): hold this volume; RYTWEAKS puts it back if anything else changes it
+            self.lock = QCheckBox("Lock")
+            self.lock.setToolTip("Keep this volume where it is. If an app or Windows changes it, RYTWEAKS "
+                                 "puts it back within half a second. Moving this slider changes the locked "
+                                 "level. Works while RYTWEAKS is running (also from the tray).")
+            self.lock.setChecked(locked is not None)
+            self.lock.clicked.connect(lambda checked: on_lock(checked, self.slider.value()))
+            lay.addWidget(self.lock)
         self._dragging = False
         self.slider.sliderPressed.connect(lambda: setattr(self, "_dragging", True))
         self.slider.sliderReleased.connect(lambda: setattr(self, "_dragging", False))
@@ -234,8 +244,9 @@ class AudioPage(Page):
             return
         if self._master_row is None:
             self._clear(self.master_holder)
-            self._master_row = VolumeRow("Master", self._set_master_volume,
-                                         self._set_master_mute)
+            self._master_row = VolumeRow("Master", self._set_master_volume, self._set_master_mute,
+                                         on_lock=lambda on, v: self._toggle_lock("output", on, v),
+                                         locked=self._lock_value("output"))
             self.master_holder.addWidget(self._master_row)
         self._master_row.show_state(*state)
 
@@ -269,11 +280,35 @@ class AudioPage(Page):
             return
         if self._input_row is None:
             self._clear(self.in_master_holder)
-            self._input_row = VolumeRow("Microphone", self._set_input_volume, self._set_input_mute)
+            self._input_row = VolumeRow("Microphone", self._set_input_volume, self._set_input_mute,
+                                        on_lock=lambda on, v: self._toggle_lock("input", on, v),
+                                        locked=self._lock_value("input"))
             self.in_master_holder.addWidget(self._input_row)
         self._input_row.show_state(*state)
 
+    # ---- volume lock (v1.5), enforced by the main window so it also works with this page closed
+    def _lock_value(self, kind):
+        fn = getattr(self.ctx, "lock_value", None)
+        return fn(kind) if fn else None
+
+    def _toggle_lock(self, kind, on, percent):
+        what = ("Lock " if on else "Unlock ") + ("microphone" if kind == "input" else "speaker") + " volume"
+        try:
+            self.ctx.set_volume_lock(kind, percent if on else None)
+            self.ctx.log_action("Audio mixer", what + (f" at {percent}%" if on else ""), "OK")
+            self.status.setText(f"{'Microphone' if kind == 'input' else 'Speaker'} volume locked at {percent}%."
+                                if on else "Lock turned off.")
+        except Exception as exc:
+            self.ctx.log_action("Audio mixer", what, "Failed", str(exc))
+            self._fail(what, exc)
+
+    def _relock(self, kind, percent):
+        """Moving a locked slider in RYTWEAKS moves the lock with it."""
+        if self._lock_value(kind) is not None:
+            self.ctx.set_volume_lock(kind, percent)
+
     def _set_input_volume(self, percent):
+        self._relock("input", percent)
         try:
             self.backend.set_input_volume(percent)
         except Exception as exc:
@@ -322,6 +357,7 @@ class AudioPage(Page):
         self._session_key = None
 
     def _set_master_volume(self, percent):
+        self._relock("output", percent)
         try:
             self.backend.set_master_volume(percent)
         except Exception as exc:
