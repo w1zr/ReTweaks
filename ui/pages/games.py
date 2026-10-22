@@ -13,6 +13,45 @@ from core import game_presets as gp
 from ui.widgets.common import Card, Notice, Page, label, set_role
 
 
+class KeepDialog(QDialog):
+    """'Keep this resolution?' with a countdown. No answer = switch back (like Windows' own dialog)."""
+
+    SECONDS = 15
+
+    def __init__(self, parent, w, h):
+        super().__init__(None)            # top-level, so it stays visible while the screen mode changes
+        self.setWindowTitle("Keep this resolution?")
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.left = self.SECONDS
+        v = QVBoxLayout(self)
+        v.addWidget(label(f"Your screen is now running {w}×{h}, stretched by your NVIDIA card.", "sectionTitle", wrap=True))
+        self.text = label("", "cardLine", wrap=True)
+        v.addWidget(self.text)
+        row = QHBoxLayout()
+        keep = set_role(QPushButton("Keep"), "primary")
+        keep.clicked.connect(self.accept)
+        back = QPushButton("Switch back")
+        back.clicked.connect(self.reject)
+        row.addStretch()
+        row.addWidget(back)
+        row.addWidget(keep)
+        v.addLayout(row)
+        from PySide6.QtCore import QTimer
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._tick)
+        self.timer.start(1000)
+        self._tick(first=True)
+
+    def _tick(self, first=False):
+        if not first:
+            self.left -= 1
+        if self.left <= 0:
+            self.timer.stop()
+            self.reject()
+            return
+        self.text.setText(f"Switching back in {self.left} seconds unless you press Keep.")
+
+
 class PresetEditor(QDialog):
     """Key/value table for one user preset. Keys can only be ones the engine knows for the game
     (or, for your own file, ones that exist in that file); values are free text."""
@@ -190,8 +229,14 @@ class GamesPage(Page):
         self.b_stretch.clicked.connect(self.apply_stretch)
         self.b_native = QPushButton("Back to native")
         self.b_native.clicked.connect(self.apply_native)
+        self.b_nvidia = QPushButton("Set up NVIDIA automatically")
+        self.b_nvidia.setToolTip("Adds this resolution to your NVIDIA graphics card, stretched to full screen "
+                                 "(same as NVIDIA Control Panel → Create Custom Resolution). Your screen switches "
+                                 "for a test; press Keep or it switches back by itself.")
+        self.b_nvidia.clicked.connect(self.nvidia_setup)
         srow.addWidget(self.b_stretch)
         srow.addWidget(self.b_native)
+        srow.addWidget(self.b_nvidia)
         srow.addStretch()
         self.stretch_card.body.addLayout(srow)
         self.stretch_lock = QCheckBox("Lock the file afterwards so Fortnite doesn't reset it (recommended)")
@@ -212,7 +257,8 @@ class GamesPage(Page):
             "<b>All three steps are needed:</b><br>"
             "<b>1.</b> Apply stretched here (with Fortnite closed).<br>"
             "<b>2.</b> Your graphics card must offer the resolution and stretch it (once):<br>"
-            "&nbsp;&nbsp;• <b>NVIDIA Control Panel</b> → Display → Change resolution → Customize → tick “Enable "
+            "&nbsp;&nbsp;• <b>NVIDIA:</b> press <b>Set up NVIDIA automatically</b> above. If that doesn't work on your PC, "
+            "do it by hand in <b>NVIDIA Control Panel</b> → Display → Change resolution → Customize → tick “Enable "
             "resolutions not exposed by the display” → Create Custom Resolution: same width × height and your "
             "refresh rate → Test → Yes. Then Adjust desktop size and position → Scaling: <b>Full-screen</b>, "
             "Perform scaling on: <b>GPU</b>, tick <b>Override the scaling mode set by games and programs</b> → Apply.<br>"
@@ -457,6 +503,60 @@ class GamesPage(Page):
                 self.stretch_check.setText("Couldn't read your display's modes.")
 
         self.run_task(display.stretch_mode_status, w, h, on_done=done)
+
+    def nvidia_setup(self):
+        """Adds the chosen resolution to the NVIDIA driver (stretched to full screen), with a timed Keep test."""
+        from core import display
+        from core import nvidia_display as nvd
+        w, h = self.stretch_size.currentData()
+        if gp.game_running("fortnite"):
+            QMessageBox.warning(self, "Set up NVIDIA", "Close Fortnite first.")
+            return
+        try:
+            available, hz, _m = display.stretch_mode_status(w, h)
+        except Exception:
+            available = None
+        if available:
+            self.stretch_check.setText(f"✔ Your graphics card already offers {w}×{h} (up to {hz} Hz). Nothing to set "
+                                       "up: in Fortnite pick Window Mode: Fullscreen, then this resolution.")
+            return
+        if QMessageBox.question(
+                self, "Set up NVIDIA",
+                f"RYTWEAKS will add {w}×{h} to your NVIDIA graphics card, stretched to fill your screen.\n\n"
+                "Your screen goes black for a moment and switches to it as a test. Then press Keep within "
+                f"{KeepDialog.SECONDS} seconds. If you don't (or can't see the screen), it switches back by "
+                "itself.\n\nContinue?") != QMessageBox.Yes:
+            return
+        what = f"NVIDIA custom resolution {w}×{h}"
+        try:
+            nv = nvd.NvApi()
+            device, nw, nh, hz = nvd.primary_display()
+            did = nv.display_id(device)
+            timing = nv.timing(did, nw, nh, hz)
+            nv.try_custom(did, nvd.build_custom(w, h, timing))
+        except Exception as e:
+            self.ctx.log_action("Game presets", what, "Failed", str(e))
+            QMessageBox.warning(self, "Set up NVIDIA",
+                                f"The NVIDIA driver didn't accept it: {e}\n\nNothing was changed. You can still add it "
+                                "by hand in NVIDIA Control Panel (step 2 on this page).")
+            return
+        keep = KeepDialog(self, w, h).exec() == QDialog.Accepted
+        try:
+            if keep:
+                nv.save_custom(did)
+                ok, msg = display.restore_saved_mode(device)
+                self.ctx.log_action("Game presets", what, "Saved")
+                self.msg.setText(f"✔ {w}×{h} was added to your NVIDIA card. {msg} Now start Fortnite and pick "
+                                 f"Window Mode: Fullscreen and Resolution: {w}×{h}.")
+            else:
+                nv.revert_trial(did)
+                self.ctx.log_action("Game presets", what, "Reverted")
+                self.msg.setText("Switched back. Nothing was saved.")
+        except Exception as e:
+            ok, msg = display.restore_saved_mode(device)          # always try to get the normal desktop back
+            self.ctx.log_action("Game presets", what, "Failed", str(e))
+            QMessageBox.warning(self, "Set up NVIDIA", f"{e}\n\n{msg}")
+        self.check_stretch_mode()
 
     def _lock_after(self):
         if self.stretch_lock.isChecked() and self.path and not gp.is_read_only(self.path):
