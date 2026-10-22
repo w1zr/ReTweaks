@@ -214,11 +214,11 @@ def get_stylesheet(theme_name="Midnight", custom_accent=None):
     QLabel#navSection {{ font-size: 10px; font-weight: 700; letter-spacing: 1px; color: {t['muted']};
                           padding: 14px 10px 4px 10px; }}
     QMenu {{ background-color: {t['card']}; color: {t['text']}; border: 1px solid {t['border']};
-             border-radius: 10px; padding: 6px; font-size: 14px; }}
-    QMenu::item {{ background: transparent; padding: 8px 32px 8px 14px; border-radius: 6px; min-width: 180px; }}
+             border-radius: 8px; padding: 4px; font-size: 13px; }}
+    QMenu::item {{ background: transparent; padding: 5px 22px 5px 10px; border-radius: 5px; min-width: 140px; }}
     QMenu::item:selected {{ background-color: {t['card_hover']}; color: {t['text']}; }}
     QMenu::item:disabled {{ color: {t['subtext']}; }}
-    QMenu::separator {{ height: 1px; background: {t['border']}; margin: 5px 8px; }}
+    QMenu::separator {{ height: 1px; background: {t['border']}; margin: 3px 6px; }}
     QMenu::indicator {{ width: 14px; height: 14px; left: 8px; }}
     QPushButton[role="nav"] {{ background: transparent; color: {t['subtext']}; border: none;
         border-radius: 8px; padding: 7px 12px; text-align: left; font-size: 13px; }}
