@@ -16,8 +16,8 @@ WHATS_NEW = [
                 "bookmarks, history, downloads, and your choice of search engine."),
     ("Microphone and volume lock", "The Audio mixer now controls your microphone too, and can lock the speaker or "
                                    "mic volume so apps can't change it."),
-    ("Fortnite stretched resolution", "Apply a stretched resolution like 1720×1080 from Game presets, with a backup "
-                                      "first and one-click Back to native."),
+    ("Stretched resolution", "Set a stretched desktop resolution like 1720×1080 on Display & drivers (like NVIDIA "
+                             "Control Panel), with a 15-second Keep test and one-click Back to native."),
     ("Tray", "Optionally keep RYTWEAKS running in the system tray when you close the window (Settings → Behavior)."),
     ("Built-in FPS overlay", "The in-game overlay reads Windows' own frame events, so it no longer needs "
                              "PresentMon. Nothing is injected into the game."),

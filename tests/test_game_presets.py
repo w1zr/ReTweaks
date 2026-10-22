@@ -194,26 +194,3 @@ def test_import_validation_accepts_and_writes_nothing_on_reject(store, tmp_path)
     bad.write_text(_json.dumps(_good(game="apex")))
     assert gp.import_preset("fortnite", bad)[0] == "error"
     assert gp.user_presets("fortnite") == {}
-
-
-def test_fortnite_stretched_resolution(tmp_path, monkeypatch):
-    monkeypatch.setenv("APPDATA", str(tmp_path))
-    monkeypatch.setattr(gp, "game_running", lambda gid: False)
-    ini = tmp_path / "GameUserSettings.ini"
-    ini.write_text("[/Script/FortniteGame.FortGameUserSettings]\n"
-                   "ResolutionSizeX=1920\nResolutionSizeY=1080\nLastUserConfirmedResolutionSizeX=1920\n"
-                   "LastUserConfirmedResolutionSizeY=1080\nDesiredScreenWidth=1920\nDesiredScreenHeight=1080\n"
-                   "FullscreenMode=1\nsg.ShadowQuality=3\n", encoding="utf-8")
-    ok, msg, applied, skipped = gp.apply_changes("fortnite", str(ini), "ini", gp.resolution_changes(1720, 1080))
-    assert ok and gp.current_resolution(str(ini)) == (1720, 1080)
-    s = gp.read_settings(str(ini), "ini")
-    assert s["DesiredScreenWidth"] in ("1720", 1720) and str(s["FullscreenMode"]) == "0"
-    assert str(s["sg.ShadowQuality"]) == "3"                       # unrelated setting untouched
-    assert "LastUserConfirmedDesiredScreenWidth" in skipped        # not in this file: never added
-    assert "LastUserConfirmedDesiredScreenWidth" not in ini.read_text()
-    ok, *_ = gp.apply_changes("fortnite", str(ini), "ini", gp.resolution_changes(1920, 1080))
-    assert gp.current_resolution(str(ini)) == (1920, 1080)
-    import pytest
-    with pytest.raises(ValueError):
-        gp.resolution_changes(100, 50)
-    assert gp.BY_ID["fortnite"].lockable
