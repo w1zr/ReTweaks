@@ -5,7 +5,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
                                QPushButton, QTableWidget, QTableWidgetItem)
 
-from core.startup_manager import (SCHED_SOURCE, TASK_WARNING, disable_startup_entry, enable_startup_entry,
+from core.startup_manager import (SCHED_SOURCE, TASK_ID_PREFIX, TASK_WARNING, disable_scheduled_tasks,
+                                  disable_startup_entry, enable_scheduled_tasks, enable_startup_entry,
                                   extract_icon)
 from ui.widgets.common import Page, label, set_role
 
@@ -16,11 +17,16 @@ def _list_startup_apps(include_windows_tasks=False):
 
 
 def _batch_disable(entries):
-    return [(e, *disable_startup_entry(e)) for e in entries]
+    """Registry and Startup-folder entries are instant; scheduled tasks go in one PowerShell run."""
+    tasks = [e for e in entries if e.get("source") == SCHED_SOURCE]
+    others = [(e, *disable_startup_entry(e)) for e in entries if e.get("source") != SCHED_SOURCE]
+    return others + (disable_scheduled_tasks(tasks) if tasks else [])
 
 
 def _batch_enable(ids):
-    return [(i, *enable_startup_entry(i)) for i in ids]
+    tasks = [i for i in ids if str(i).startswith(TASK_ID_PREFIX)]
+    others = [(i, *enable_startup_entry(i)) for i in ids if i not in tasks]
+    return others + (enable_scheduled_tasks(tasks) if tasks else [])
 
 
 class StartupPage(Page):
@@ -89,12 +95,14 @@ class StartupPage(Page):
         if not self._loaded:
             self.load()
 
-    def load(self, force=False):
+    def load(self, force=False, quiet=False):
+        """quiet=True re-checks in the background and keeps the current list on screen meanwhile."""
         if self.busy() and not force:
             return  # a load is already running
         self._loaded = True
-        self.table.setRowCount(0)
-        self.count_lbl.setText("Loading…")
+        if not quiet:
+            self.table.setRowCount(0)
+            self.count_lbl.setText("Loading…")
         self._load_gen = getattr(self, "_load_gen", 0) + 1
         gen = self._load_gen
         self.run_task(_list_startup_apps, self.win_tasks.isChecked(),
@@ -207,9 +215,10 @@ class StartupPage(Page):
             done += bool(ok)
             self.ctx.log_action("Startup apps", f"Disable {e['name']}", "Success" if ok else "Failed",
                                 "" if ok else msg)
+        self._apply_status({e["id"] for e, ok, _ in res if ok}, "Disabled")
         QMessageBox.information(self, "Startup apps", f"Disabled {done} of {total} app(s)."
                                 + "".join(f"\n{e['name']}: {msg}" for e, ok, msg in res if not ok))
-        self.load(force=True)
+        self.load(force=True, quiet=True)   # re-check with Windows in the background
 
     def enable_selected(self):
         ids = self._checked_ids()
@@ -228,6 +237,14 @@ class StartupPage(Page):
         for entry_id, ok, msg in res:
             done += bool(ok)
             self.ctx.log_action("Startup apps", f"Enable {entry_id}", "Success" if ok else "Failed", "" if ok else msg)
+        self._apply_status({i for i, ok, _ in res if ok}, "Enabled")
         QMessageBox.information(self, "Startup apps", f"Enabled {done} of {total} app(s)."
                                 + "".join(f"\n{i}: {msg}" for i, ok, msg in res if not ok))
-        self.load(force=True)
+        self.load(force=True, quiet=True)   # re-check with Windows in the background
+
+    def _apply_status(self, ids, status):
+        """Show the verified result right away instead of waiting for a full re-scan."""
+        for e in self.entries:
+            if e.get("id") in ids:
+                e["status"] = status
+        self.filter_table()

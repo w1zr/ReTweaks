@@ -67,8 +67,19 @@ def get_publisher(file_path):
     except Exception:
         return "Unavailable"
 
+_ICON_CACHE = {}
+
+
 def extract_icon(file_path):
-    """Extracts native system icon using Qt QFileIconProvider."""
+    """Extracts native system icon using Qt QFileIconProvider (cached: refreshing the list is fast)."""
+    if file_path in _ICON_CACHE:
+        return _ICON_CACHE[file_path]
+    icon = _extract_icon(file_path)
+    _ICON_CACHE[file_path] = icon
+    return icon
+
+
+def _extract_icon(file_path):
     try:
         clean_path = file_path.strip('"').split('.exe')[0] + '.exe'
         if not os.path.exists(clean_path):
@@ -442,6 +453,105 @@ def disable_scheduled_task(entry):
     if not ok:
         remove_backup(entry["id"])            # nothing changed, so don't leave a stale backup
     return ok, msg
+
+
+_BATCH_TASKS_PS = r"""
+$want = @(%(items)s)
+$all = @{}
+foreach ($t in Get-ScheduledTask -ErrorAction SilentlyContinue) { $all[$t.TaskPath + '|' + $t.TaskName] = $t }
+$out = @()
+foreach ($w in $want) {
+  $p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($w[0]))
+  $n = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($w[1]))
+  $r = [ordered]@{ before = $null; after = $null; error = $null }
+  $t = $all[$p + '|' + $n]
+  if ($null -eq $t) { $r.error = 'Task not found.' }
+  else {
+    $r.before = $t.State.ToString()
+    try {
+      if (%(enable)s) { $t = $t | Enable-ScheduledTask -ErrorAction Stop } else { $t = $t | Disable-ScheduledTask -ErrorAction Stop }
+      $r.after = $t.State.ToString()   # Enable/Disable-ScheduledTask return the task as Windows now has it
+    } catch { $r.error = $_.Exception.Message }
+  }
+  $out += [PSCustomObject]$r
+}
+ConvertTo-Json -InputObject @($out) -Compress
+"""
+
+
+def _b64(text):
+    return base64.b64encode(str(text).encode("utf-8")).decode("ascii")
+
+
+def set_tasks_enabled_batch(tasks, enable):
+    """Enable or disable several scheduled tasks in ONE PowerShell run (it used to take three runs
+    per task). tasks: [(task_path, name)]. Returns [(before, after, error)] in the same order.
+    Names are passed base64-encoded and matched literally, so they can't run as code or match
+    other tasks by wildcard."""
+    if sys.platform != "win32" or not tasks:
+        return [(None, None, "Scheduled tasks can only be changed on Windows.")] * len(tasks)
+    items = ",".join(f"@('{_b64(p)}','{_b64(n)}')" for p, n in tasks)
+    script = _BATCH_TASKS_PS % {"items": items, "enable": "$true" if enable else "$false"}
+    from core.winutil import run_powershell
+    try:
+        out = run_powershell(script, timeout=30 + 10 * len(tasks))
+        data = json.loads((out or "").strip() or "[]")
+    except Exception as e:
+        return [(None, None, f"PowerShell failed: {e}")] * len(tasks)
+    data = data if isinstance(data, list) else [data]
+    results = []
+    for i in range(len(tasks)):
+        d = data[i] if i < len(data) and isinstance(data[i], dict) else {}
+        results.append((d.get("before"), d.get("after"), d.get("error") or (None if d else "No result.")))
+    return results
+
+
+def disable_scheduled_tasks(entries):
+    """Disable several scheduled-task entries at once. Returns [(entry, ok, message)]."""
+    results, todo = [], []
+    for e in entries:
+        path = e.get("task_path") or split_task_id(e["id"])[0]
+        name = e.get("task_name") or split_task_id(e["id"])[1]
+        if e.get("managed") or (path == "\\" and name == OWN_TASK_NAME):
+            results.append((e, False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."))
+            continue
+        backup = dict(e)
+        backup["original_state"] = e.get("task_state") or "Ready"
+        save_backup(e["id"], backup)              # record the previous state first
+        todo.append((e, path, name))
+    for (e, _p, _n), (before, after, err) in zip(todo, set_tasks_enabled_batch([(p, n) for _, p, n in todo], False)):
+        if before:
+            b = load_backups().get(e["id"])
+            if b is not None and b.get("original_state") != before:
+                b["original_state"] = before      # the real state Windows reported just before the change
+                save_backup(e["id"], b)
+        if (after or "").lower() == "disabled" and (before or "").lower() != "disabled":
+            results.append((e, True, f"Task is now {after}."))
+        else:
+            remove_backup(e["id"])                # nothing changed, so don't leave a stale backup
+            if (before or "").lower() == "disabled":
+                results.append((e, False, "The task is already disabled."))
+            else:
+                results.append((e, False, err or f"Windows reports the task as {after or 'unknown'}."))
+    return results
+
+
+def enable_scheduled_tasks(entry_ids):
+    """Enable several scheduled tasks at once. Returns [(entry_id, ok, message)]."""
+    results, todo = [], []
+    for i in entry_ids:
+        path, name = split_task_id(i)
+        if path == "\\" and name == OWN_TASK_NAME:
+            results.append((i, False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."))
+        else:
+            todo.append((i, path, name))
+    for (i, _p, _n), (before, after, err) in zip(todo, set_tasks_enabled_batch([(p, n) for _, p, n in todo], True)):
+        if after and after.lower() != "disabled":
+            remove_backup(i)
+            results.append((i, True, f"Task is now {after}."))
+        else:
+            results.append((i, False, err or f"Windows reports the task as {after or 'unknown'}."))
+    return results
 
 
 def enable_scheduled_task(entry_id):

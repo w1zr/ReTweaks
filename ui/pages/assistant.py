@@ -92,44 +92,40 @@ class AssistantPage(Page):
             "Manager, which isn't available on this system.")
         self.content.addWidget(self.unavailable)
 
-        # ---- first-run setup ----
-        self.setup = Card("Set up the assistant")
-        self.setup.body.addWidget(label(
-            "The assistant uses Google's Gemini API with your own free key. RYTWEAKS contains no "
-            "key. Yours is stored in Windows Credential Manager on this PC.", wrap=True))
-        link = QPushButton("Get a free key (aistudio.google.com/apikey)")
-        link.clicked.connect(lambda: webbrowser.open(AI.KEY_URL))
+        # ---- one-time key bar (only until a key is saved; the chat is visible right away) ----
+        self.setup = Card("Connect your free Gemini key (one time)")
         row = QHBoxLayout()
-        row.addWidget(link)
-        row.addStretch(1)
-        self.setup.body.addLayout(row)
         self.key_edit = QLineEdit()
         self.key_edit.setEchoMode(QLineEdit.Password)
         self.key_edit.setPlaceholderText("Paste your Gemini API key")
         self.key_edit.textChanged.connect(self._update_save_enabled)
-        self.setup.body.addWidget(self.key_edit)
-        self.age_chk = QCheckBox("I'm 18 or older (required by Google's Gemini API terms)")
+        self.key_edit.returnPressed.connect(lambda: self.save_btn.isEnabled() and self._save_key())
+        row.addWidget(self.key_edit, 1)
+        link = QPushButton("Get a free key")
+        link.clicked.connect(lambda: webbrowser.open(AI.KEY_URL))
+        row.addWidget(link)
+        self.save_btn = set_role(QPushButton("Save key"), "primary")
+        self.save_btn.setEnabled(False)
+        self.save_btn.clicked.connect(self._save_key)
+        row.addWidget(self.save_btn)
+        self.setup.body.addLayout(row)
+        row = QHBoxLayout()
+        self.age_chk = QCheckBox("I'm 18 or older")
         self.terms_chk = QCheckBox("I accept Google's Gemini API terms")
         for c in (self.age_chk, self.terms_chk):
             c.toggled.connect(self._update_save_enabled)
-            self.setup.body.addWidget(c)
-        terms = QPushButton("Read Google's Gemini API terms")
+            row.addWidget(c)
+        terms = QPushButton("Read the terms")
         terms.clicked.connect(lambda: webbrowser.open(AI.TERMS_URL))
-        row = QHBoxLayout()
         row.addWidget(terms)
         row.addStretch(1)
         self.setup.body.addLayout(row)
         self.setup.body.addWidget(label(
-            "Free-tier chats may be reviewed by people at Google and used to improve Google "
-            "products. Don't share personal information.", "warn", wrap=True))
-        self.save_btn = set_role(QPushButton("Save key and start"), "primary")
-        self.save_btn.setEnabled(False)
-        self.save_btn.clicked.connect(self._save_key)
+            "Saved once in Windows Credential Manager on this PC, so you won't be asked again. RYTWEAKS "
+            "contains no key. Free-tier chats may be reviewed by Google, so don't share personal info.",
+            "muted", wrap=True))
         self.setup_status = label("", "muted", wrap=True)
-        row = QHBoxLayout()
-        row.addWidget(self.save_btn)
-        row.addWidget(self.setup_status, 1)
-        self.setup.body.addLayout(row)
+        self.setup.body.addWidget(self.setup_status)
         self.content.addWidget(self.setup)
 
         # ---- chat ----
@@ -164,7 +160,7 @@ class AssistantPage(Page):
         opts.body.addLayout(r1)
         self.opts_status = label("", "muted", wrap=True)
         opts.body.addWidget(self.opts_status)
-        cl.addWidget(opts)
+        self._opts_card = opts      # added below the chat, so the conversation comes first
 
         self.msgs_host = QWidget()
         self.msgs = QVBoxLayout(self.msgs_host)
@@ -199,6 +195,7 @@ class AssistantPage(Page):
         cl.addLayout(row)
         cl.addWidget(label("Answers can be wrong. Check anything risky before you act on it. "
                            "Nothing here is run for you.", "muted", wrap=True))
+        cl.addWidget(self._opts_card)
         self.content.addWidget(self.chat)
 
         self.finish()
@@ -211,10 +208,17 @@ class AssistantPage(Page):
         has_key = ok and AI.load_key() is not None
         self.unavailable.setVisible(not ok)
         self.setup.setVisible(ok and not has_key)
-        self.chat.setVisible(has_key)
+        self.chat.setVisible(ok)                 # the chat shows right away
+        for w in (self.input, self.starters, self.send_btn):
+            w.setEnabled(has_key or self._pending)
+        self.remove_btn.setEnabled(has_key)
+        self.input.setPlaceholderText(
+            "Ask about your PC. Enter sends, Shift+Enter adds a line." if has_key
+            else "Paste your free key above once, then ask anything about your PC here.")
 
     def on_shown(self):
         self._refresh_mode()
+        (self.input if AI.load_key() else self.key_edit).setFocus()
 
     def _update_save_enabled(self, *_):
         self.save_btn.setEnabled(bool(self.key_edit.text().strip()) and self.age_chk.isChecked()
@@ -237,6 +241,7 @@ class AssistantPage(Page):
         self.terms_chk.setChecked(False)
         self.ctx.log_action("AI Assistant", "Save API key to Windows Credential Manager", "Saved")
         self._refresh_mode()
+        self.input.setFocus()
 
     def _remove_key(self):
         if QMessageBox.question(self, "Remove key",
