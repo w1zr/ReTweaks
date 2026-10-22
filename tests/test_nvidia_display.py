@@ -57,70 +57,79 @@ class FakeNv:
         FakeNv.calls.append(("revert", did))
 
 
+class FakeDialog:
+    result = True
+
+    def __init__(self, *a, **k):
+        pass
+
+    def exec(self):
+        from PySide6.QtWidgets import QDialog
+        return QDialog.Accepted if FakeDialog.result else QDialog.Rejected
+
+
 @pytest.mark.parametrize("keep", [True, False])
-def test_setup_flow(monkeypatch, keep):
+def test_stretch_flow_adds_mode_then_applies(monkeypatch, keep):
     pytest.importorskip("PySide6")
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox
     app = QApplication.instance() or QApplication([])
-    from core import display
-    from ui.pages import games
+    from core import display as dsp
+    from ui.pages import display as page_mod
     monkeypatch.setattr(nvd, "NvApi", FakeNv)
-    monkeypatch.setattr(nvd, "primary_display", lambda: ("\\\\.\\DISPLAY1", 1920, 1080, 165))
-    restored = []
-    monkeypatch.setattr(display, "restore_saved_mode", lambda dev: (restored.append(dev), (True, "Desktop back."))[1])
-    monkeypatch.setattr(display, "stretch_mode_status", lambda w, h: (False, None, "missing"))
-    monkeypatch.setattr(games.gp, "game_running", lambda gid: False)
+    FakeDialog.result = keep
+    monkeypatch.setattr(page_mod, "KeepSettingsDialog", FakeDialog)
     monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
-    monkeypatch.setattr(games.KeepDialog, "exec", lambda self: QDialog.Accepted if keep else QDialog.Rejected)
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: None))
+    d = {"device": "\\\\.\\DISPLAY1", "width": 1920, "height": 1080, "bpp": 32, "hz": 165, "max_hz": 165,
+         "modes": [(1920, 1080, 32, 165)]}
+    added = dict(d, modes=d["modes"] + [(1720, 1080, 32, 165)])
+    monkeypatch.setattr(dsp, "list_displays", lambda: [added])
+    calls = []
+    monkeypatch.setattr(dsp, "set_resolution", lambda dev, w, h, hz, stretch, persist: (calls.append((w, h, hz, persist)), (True, "ok"))[1])
+    monkeypatch.setattr(dsp, "restore_saved_mode", lambda dev: (calls.append("restore"), (True, "back"))[1])
 
     class Ctx:
         settings = {}
+        static = {}
         logs = []
         def log_action(self, *a): self.logs.append(a)
 
-    page = games.GamesPage(Ctx())
-    page.nvidia_setup()
-    assert ("try", 1720, 1080, 1920) in FakeNv.calls
+    page = page_mod.DisplayPage(Ctx())
+    monkeypatch.setattr(page, "refresh", lambda: None)
+    page._stretch(d, 1720, 1080, None)
+    assert ("try", 1720, 1080, 1920) in FakeNv.calls     # source 1720x1080, native 1920-wide timing
     if keep:
-        assert ("save", 7) in FakeNv.calls and restored == ["\\\\.\\DISPLAY1"]
-        assert "added to your NVIDIA card" in page.msg.text()
+        assert ("save", 7) in FakeNv.calls
+        assert (1720, 1080, 165, False) in calls and (1720, 1080, 165, True) in calls   # trial, then saved
     else:
-        assert ("revert", 7) in FakeNv.calls and not any(c[0] == "save" for c in FakeNv.calls)
+        assert ("revert", 7) in FakeNv.calls and not any(isinstance(c, tuple) for c in calls)
     app.processEvents()
 
 
-def test_keep_dialog_counts_down_and_reverts():
+def test_stretch_existing_mode_skips_nvidia(monkeypatch):
     pytest.importorskip("PySide6")
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication, QMessageBox
     app = QApplication.instance() or QApplication([])
-    from ui.pages.games import KeepDialog
-    d = KeepDialog(None, 1720, 1080)
-    assert "15 seconds" in d.text.text()
-    for _ in range(KeepDialog.SECONDS):
-        d._tick()
-    assert d.result() == 0 and not d.timer.isActive()        # rejected = switch back
-    app.processEvents()
-
-
-def test_setup_skipped_when_mode_exists(monkeypatch):
-    pytest.importorskip("PySide6")
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
-    from core import display
-    from ui.pages import games
-    monkeypatch.setattr(nvd, "NvApi", FakeNv)
-    monkeypatch.setattr(display, "stretch_mode_status", lambda w, h: (True, 165, "ok"))
-    monkeypatch.setattr(games.gp, "game_running", lambda gid: False)
+    from core import display as dsp
+    from ui.pages import display as page_mod
     FakeNv.calls = []
+    monkeypatch.setattr(nvd, "NvApi", FakeNv)
+    FakeDialog.result = False                            # not confirmed in time -> back to saved mode
+    monkeypatch.setattr(page_mod, "KeepSettingsDialog", FakeDialog)
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
+    calls = []
+    monkeypatch.setattr(dsp, "set_resolution", lambda dev, w, h, hz, stretch, persist: (calls.append(persist), (True, "ok"))[1])
+    monkeypatch.setattr(dsp, "restore_saved_mode", lambda dev: (calls.append("restore"), (True, "back"))[1])
 
     class Ctx:
         settings = {}
+        static = {}
         def log_action(self, *a): pass
 
-    page = games.GamesPage(Ctx())
-    page.nvidia_setup()
-    assert FakeNv.calls == [] and "already offers" in page.stretch_check.text()
+    page = page_mod.DisplayPage(Ctx())
+    monkeypatch.setattr(page, "refresh", lambda: None)
+    page._stretch({"device": "D1", "width": 1920, "height": 1080, "modes": []}, 1720, 1080, 144)
+    assert FakeNv.calls == [] and calls == [False, "restore"]
     app.processEvents()

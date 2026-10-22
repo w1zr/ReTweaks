@@ -20,6 +20,8 @@ DM_BITSPERPEL = 0x00040000
 DM_PELSWIDTH = 0x00080000
 DM_PELSHEIGHT = 0x00100000
 DM_DISPLAYFREQUENCY = 0x00400000
+DM_DISPLAYFIXEDOUTPUT = 0x20000000
+DMDFO_STRETCH = 1          # DEVMODE dmDisplayFixedOutput: stretch a lower resolution to fill the screen
 DM_INTERLACED = 2          # dmDisplayFlags value
 CDS_UPDATEREGISTRY = 0x00000001
 CDS_TEST = 0x00000002
@@ -247,20 +249,77 @@ def list_displays():
     return out
 
 
-def stretch_mode_status(width, height, displays=None):
-    """Whether the primary display offers width x height (needed for Fortnite's stretched resolution).
-    Returns (available: bool|None, max_hz|None, message). None = couldn't check (not Windows)."""
-    displays = list_displays() if displays is None else displays
-    if not displays:
-        return None, None, "Couldn't read your display's modes."
-    d = next((x for x in displays if x.get("primary")), displays[0])
-    hz = max_refresh_at(d.get("modes") or [], width, height, d.get("bpp"))
-    if hz:
-        return True, hz, (f"✔ Your display offers {width}×{height} (up to {hz} Hz), so Fortnite can list it "
-                          "in Fullscreen mode.")
-    return False, None, (f"✖ Your graphics card doesn't offer {width}×{height} yet, so Fortnite can't list it. "
-                         "NVIDIA: press “Set up NVIDIA automatically”. AMD/Intel: add it as a custom resolution "
-                         "(steps below), then press Check again.")
+# ------------------------------------------------------------------ stretched resolution (v1.5)
+# Global, like NVIDIA Control Panel: the whole desktop runs at e.g. 1720x1080 and the picture is
+# stretched to fill the monitor. Games in Windowed Fullscreen (borderless) use the desktop resolution,
+# so they're stretched too, without touching any game file.
+STRETCH_WIDTHS_1080 = [1720, 1680, 1650, 1600, 1440]
+
+
+def native_size(display):
+    """The monitor's largest mode (its native resolution), from the driver's mode list."""
+    sizes = [(m[0], m[1]) for m in display.get("modes") or [] if m[0] and m[1]]
+    if not sizes:
+        return display.get("width"), display.get("height")
+    return max(sizes, key=lambda s: (s[0] * s[1], s[0]))
+
+
+def stretch_choices(display):
+    """[(width, height, max_hz or None)]: narrower resolutions at the native height. max_hz None means
+    the graphics card doesn't offer it yet (it has to be added as a custom resolution first)."""
+    nw, nh = native_size(display)
+    if not nw or not nh:
+        return []
+    modes = display.get("modes") or []
+    offered = sorted({m[0] for m in modes if m[1] == nh and m[0] < nw and m[0] >= nh}, reverse=True)
+    wanted = list(offered)
+    if nh == 1080:
+        wanted += [w for w in STRETCH_WIDTHS_1080 if w not in offered and w < nw]
+    four_three = int(round(nh * 4 / 3))
+    if four_three < nw and four_three not in wanted:
+        wanted.append(four_three)
+    out = []
+    for w in sorted(set(wanted), reverse=True):
+        out.append((w, nh, max_refresh_at(modes, w, nh, display.get("bpp"))))
+    return out
+
+
+def set_resolution(device, width, height, hz=None, stretch=True, persist=False):
+    """Switch a display to width x height. stretch asks the driver to fill the screen (DMDFO_STRETCH).
+    persist=False is a trial that isn't saved (restore_saved_mode() undoes it); persist=True saves it.
+    Returns (ok, message)."""
+    if not IS_WINDOWS:
+        return False, "Only available on Windows."
+    try:
+        user32 = _user32()
+        dm = _current_devmode(user32, device)
+        if dm is None:
+            return False, "Could not read the current display mode."
+        dm.dmPelsWidth, dm.dmPelsHeight = int(width), int(height)
+        fields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL
+        if hz:
+            dm.dmDisplayFrequency = int(hz)
+            fields |= DM_DISPLAYFREQUENCY
+        tries = [True, False] if stretch else [False]
+        code = None
+        for want_stretch in tries:
+            dm.dmFields = fields | (DM_DISPLAYFIXEDOUTPUT if want_stretch else 0)
+            dm.dmDisplayFixedOutput = DMDFO_STRETCH if want_stretch else 0
+            code = user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None, CDS_TEST, None)
+            if code == DISP_CHANGE_SUCCESSFUL:
+                break
+        if code != DISP_CHANGE_SUCCESSFUL:
+            return False, f"Windows rejected {width}×{height}: {DISP_CHANGE_TEXT.get(code, code)}."
+        code = user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None,
+                                               CDS_UPDATEREGISTRY if persist else 0, None)
+        if code != DISP_CHANGE_SUCCESSFUL:
+            return False, f"Couldn't switch to {width}×{height}: {DISP_CHANGE_TEXT.get(code, code)}."
+        now = _current_devmode(user32, device)
+        if now is None or (int(now.dmPelsWidth), int(now.dmPelsHeight)) != (int(width), int(height)):
+            return False, "Windows didn't switch to that resolution."
+        return True, f"Now running {width}×{height} at {int(now.dmDisplayFrequency)} Hz."
+    except Exception as e:
+        return False, f"Display change failed: {e}"
 
 
 def restore_saved_mode(device):

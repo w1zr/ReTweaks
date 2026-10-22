@@ -1,8 +1,9 @@
 # core/nvidia_display.py
-"""NVIDIA custom resolutions for Fortnite's stretched resolution (v1.5). Windows + NVIDIA only.
+"""NVIDIA custom resolutions for the stretched resolution on Display & drivers (v1.5). Windows +
+NVIDIA only.
 
-Fortnite only lists resolutions the graphics driver offers, and 1720x1080 (etc.) isn't offered by
-default. This adds one through NVIDIA's public NVAPI (the same feature as NVIDIA Control Panel →
+Windows (and games) only use resolutions the graphics driver offers, and 1720x1080 (etc.) isn't
+offered by default. This adds one through NVIDIA's public NVAPI (the same feature as NVIDIA Control Panel →
 Change resolution → Customize → Create Custom Resolution):
 
   1. Read the timing the monitor uses now (e.g. 1920x1080 @ 165 Hz) with NvAPI_DISP_GetTiming.
@@ -158,15 +159,3 @@ class NvApi:
     def revert_trial(self, display_id):
         ids = (c_uint32 * 1)(display_id)
         self.call("NvAPI_DISP_RevertCustomDisplayTrial", [ctypes.POINTER(c_uint32), c_uint32], ids, 1)
-
-
-def primary_display():
-    """(gdi_name, width, height, hz) of the primary display, or raise."""
-    from core import display
-    ds = display.list_displays()
-    if not ds:
-        raise OSError("Couldn't read your displays.")
-    d = next((x for x in ds if x.get("primary")), ds[0])
-    if not d.get("hz"):
-        raise OSError("Couldn't read your monitor's refresh rate.")
-    return d["device"], d["width"], d["height"], d["hz"]

@@ -40,11 +40,21 @@ def test_driver_age_text_and_urls():
     assert display.vendor_driver_url("Other") is None
 
 
-def test_stretch_mode_status():
+def test_stretch_choices_and_native():
     from core import display as d
-    disp = [{"primary": True, "bpp": 32, "modes": [(1920, 1080, 32, 165), (1720, 1080, 32, 144), (1720, 1080, 32, 60)]}]
-    ok, hz, msg = d.stretch_mode_status(1720, 1080, disp)
-    assert ok and hz == 144 and "144 Hz" in msg
-    ok, hz, msg = d.stretch_mode_status(1440, 1080, disp)
-    assert ok is False and hz is None and "custom resolution" in msg
-    assert d.stretch_mode_status(1720, 1080, [])[0] is None
+    disp = {"width": 1920, "height": 1080, "bpp": 32,
+            "modes": [(1920, 1080, 32, 165), (1720, 1080, 32, 144), (1280, 720, 32, 60), (1024, 768, 32, 60)]}
+    assert d.native_size(disp) == (1920, 1080)
+    ch = {(w, h): hz for w, h, hz in d.stretch_choices(disp)}
+    assert ch[(1720, 1080)] == 144                       # already on the graphics card
+    assert ch[(1440, 1080)] is None                      # 4:3, not added yet
+    assert (1920, 1080) not in ch and (1280, 720) not in ch
+    four_k = {"width": 3840, "height": 2160, "bpp": 32, "modes": [(3840, 2160, 32, 60)]}
+    assert d.stretch_choices(four_k) == [(2880, 2160, None)]   # only 4:3 offered for non-1080 screens
+    assert d.stretch_choices({"modes": []}) == []
+
+
+def test_set_resolution_refuses_off_windows(monkeypatch):
+    from core import display as d
+    monkeypatch.setattr(d, "IS_WINDOWS", False)
+    assert d.set_resolution("x", 1720, 1080)[0] is False

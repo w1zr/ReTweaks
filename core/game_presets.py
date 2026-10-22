@@ -399,40 +399,6 @@ GAMES = [
 BY_ID = {g.id: g for g in GAMES}
 
 
-# ================================================================ Fortnite stretched resolution (v1.5)
-# Keys from Fortnite's GameUserSettings.ini as used by common stretched-resolution guides (verified
-# against multiple guides 2026-10-22). Only keys that already exist in the user's file are changed.
-STRETCH_SIZES = [(1720, 1080), (1680, 1080), (1650, 1080), (1600, 1080), (1440, 1080)]
-STRETCH_WIDTH_KEYS = ["ResolutionSizeX", "LastUserConfirmedResolutionSizeX", "DesiredScreenWidth",
-                      "LastUserConfirmedDesiredScreenWidth"]
-STRETCH_HEIGHT_KEYS = ["ResolutionSizeY", "LastUserConfirmedResolutionSizeY", "DesiredScreenHeight",
-                       "LastUserConfirmedDesiredScreenHeight"]
-# Unreal Engine window modes: 0 = Fullscreen, 1 = Windowed Fullscreen, 2 = Windowed. Stretching needs
-# real (exclusive) fullscreen; borderless always uses the desktop resolution.
-FULLSCREEN_KEYS = ["FullscreenMode", "LastConfirmedFullscreenMode", "PreferredFullscreenMode"]
-
-
-def resolution_changes(width, height, fullscreen=True):
-    """Settings for a screen resolution in Fortnite's file (stretched or back to native)."""
-    w, h = int(width), int(height)
-    if not (640 <= w <= 7680 and 480 <= h <= 4320):
-        raise ValueError("That resolution is out of range.")
-    out = {k: w for k in STRETCH_WIDTH_KEYS}
-    out.update({k: h for k in STRETCH_HEIGHT_KEYS})
-    if fullscreen:
-        out.update({k: 0 for k in FULLSCREEN_KEYS})
-    return out
-
-
-def current_resolution(path, fmt="ini"):
-    """(width, height) Fortnite will use, read from the file, or None."""
-    try:
-        s = read_settings(path, fmt)
-        return int(float(s["ResolutionSizeX"])), int(float(s["ResolutionSizeY"]))
-    except Exception:
-        return None
-
-
 def game_running(game_id):
     """True if the game is running (it would overwrite the file when it closes)."""
     g = BY_ID.get(game_id)
