@@ -13,13 +13,20 @@ IS_WINDOWS = platform.system() == "Windows"
 CREATE_NO_WINDOW = 0x08000000 if IS_WINDOWS else 0
 
 
-def run(cmd, timeout=30, check=False):
-    """Run a command without a console window. Returns CompletedProcess (text mode)."""
+def run(cmd, timeout=30, check=False, encoding=None):
+    """Run a command without a console window. Returns CompletedProcess (text mode).
+
+    reg.exe / powercfg.exe print in the console's OEM code page, so that's the default on
+    Windows ("oem" is a Windows-only Python codec). Otherwise accents and Cyrillic in
+    localized output would come out garbled.
+    """
+    if encoding is None:
+        encoding = "oem" if IS_WINDOWS else "utf-8"
     return subprocess.run(
         cmd,
         capture_output=True,
         text=True,
-        encoding="utf-8",
+        encoding=encoding,
         errors="replace",
         timeout=timeout,
         check=check,
@@ -39,6 +46,7 @@ def run_powershell(script, timeout=45):
         ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
          "-EncodedCommand", encoded],
         timeout=timeout,
+        encoding="utf-8",  # forced to UTF-8 at the top of the script
     )
     return result.stdout
 

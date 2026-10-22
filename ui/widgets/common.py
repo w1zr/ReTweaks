@@ -134,6 +134,7 @@ class Page(QWidget):
     def __init__(self, ctx, parent=None):
         super().__init__(parent)
         self.ctx = ctx  # the MainWindow: log_action(), theme, static data, etc.
+        self._tasks = []  # running TaskWorkers; kept alive until they finish
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
@@ -150,6 +151,25 @@ class Page(QWidget):
             self.content.addWidget(sub)
         scroll.setWidget(inner)
         outer.addWidget(scroll)
+
+    def run_task(self, fn, *args, on_done=None):
+        """Run fn(*args) on a background thread; on_done(result) runs on the UI thread."""
+        from ui.workers import TaskWorker
+        w = TaskWorker(fn, *args)
+        if on_done:
+            w.done.connect(on_done)
+        self._tasks.append(w)
+        w.finished.connect(lambda: self._tasks.remove(w) if w in self._tasks else None)
+        w.start()
+        return w
+
+    def busy(self):
+        return any(w.isRunning() for w in self._tasks)
+
+    def wait_for_tasks(self):
+        """Called when the app closes: a QThread must not be destroyed while running."""
+        for w in list(self._tasks):
+            w.wait()
 
     def finish(self):
         """Call at the end of a subclass __init__ to push content to the top."""

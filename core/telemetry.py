@@ -202,10 +202,12 @@ def _match_nvml(adapters, nvml_devices):
                 pairs[a["luid"]] = item[1]
                 remaining.remove(item)
                 break
-    # Names didn't match (rare): pair the leftovers in order
-    unmatched = [a for a in adapters if a.get("vendor") == "NVIDIA" and a["luid"] not in pairs]
-    for a, item in zip(unmatched, remaining):
-        pairs[a["luid"]] = item[1]
+    # Two identical NVIDIA cards: we can't tell which NVML device is which DXGI adapter
+    # without PCI bus IDs, so don't pair them (showing card A's temperature on card B
+    # would be wrong data). Load/VRAM still come from the Windows counters.
+    names = [a["name"].lower() for a in adapters if a.get("vendor") == "NVIDIA"]
+    if len(names) != len(set(names)):
+        return {}
     return pairs
 
 
@@ -270,7 +272,8 @@ class Telemetry:
             self._last_lhm_time = now
         lhm = self._last_lhm
 
-        engines = aggregate_gpu_engines(counters.get("gpu_engine") or {})
+        raw_engines = counters.get("gpu_engine")  # None = counter couldn't be read this second
+        engines = aggregate_gpu_engines(raw_engines) if isinstance(raw_engines, dict) else {}
         gpu_mem = aggregate_gpu_memory(counters.get("gpu_mem") or {})
         gpus = []
         for a in self.adapters:
@@ -278,7 +281,7 @@ class Telemetry:
                  "vram_total_gb": a.get("vram_gb"), "load": None, "load_source": None,
                  "engine": None, "vram_used_gb": None, "temp_c": None, "temp_source": None,
                  "hotspot_c": None, "core_mhz": None, "mem_mhz": None, "power_w": None, "fan_pct": None}
-            if self.pdh.has("gpu_engine"):
+            if isinstance(raw_engines, dict):
                 e = engines.get(a["luid"])
                 # Counter set exists but this GPU has no active engines right now = idle
                 g["load"] = e["load"] if e else 0.0

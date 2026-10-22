@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QMessageBox, QPushButton
 
 from core.optimizer import WindowsOptimizer as W
 from ui.widgets.common import Card, Page, fmt_rate, label
-from ui.workers import TaskWorker
 
 DNS_PROVIDERS = [
     ("Cloudflare", "1.1.1.1", "1.0.0.1"),
@@ -21,7 +20,6 @@ class NetworkPage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
-        self._workers = []
         self._loaded = False
 
         card = Card("DNS")
@@ -62,12 +60,7 @@ class NetworkPage(Page):
         self.finish()
 
     def _run(self, fn, *args, on_done=None):
-        w = TaskWorker(fn, *args)
-        if on_done:
-            w.done.connect(on_done)
-        self._workers.append(w)
-        w.finished.connect(lambda: self._workers.remove(w) if w in self._workers else None)
-        w.start()
+        self.run_task(fn, *args, on_done=on_done)
 
     def on_shown(self):
         if not self._loaded:

@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLineEdit, Q
 
 from core.startup_manager import disable_startup_entry, enable_startup_entry, extract_icon
 from ui.widgets.common import Page, label, set_role
-from ui.workers import TaskWorker
 
 
 def _list_startup_apps():
@@ -23,7 +22,6 @@ class StartupPage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         self.entries = []
-        self._worker = None
         self._loaded = False
 
         tools = QHBoxLayout()
@@ -78,12 +76,12 @@ class StartupPage(Page):
             self.load()
 
     def load(self):
+        if self.busy():
+            return  # a load is already running
         self._loaded = True
         self.table.setRowCount(0)
         self.count_lbl.setText("Loading…")
-        self._worker = TaskWorker(_list_startup_apps)
-        self._worker.done.connect(self._loaded_entries)
-        self._worker.start()
+        self.run_task(_list_startup_apps, on_done=self._loaded_entries)
 
     def _loaded_entries(self, entries):
         self.entries = entries if isinstance(entries, list) else []

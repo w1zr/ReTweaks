@@ -19,8 +19,8 @@ UNAVAILABLE = None  # the UI turns None into "Not available on this PC"
 
 # SMBIOS memory type codes (Win32_PhysicalMemory.SMBIOSMemoryType), from the SMBIOS spec.
 SMBIOS_MEMORY_TYPES = {
-    20: "DDR", 21: "DDR2", 24: "DDR3", 26: "DDR4", 27: "LPDDR", 28: "LPDDR2",
-    29: "LPDDR3", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5",
+    18: "DDR", 19: "DDR2", 20: "DDR2 FB-DIMM", 24: "DDR3", 26: "DDR4", 27: "LPDDR",
+    28: "LPDDR2", 29: "LPDDR3", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5",
 }
 
 # Board serial numbers are deliberately NOT collected: users attach hardware reports to

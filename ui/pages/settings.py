@@ -52,8 +52,13 @@ class SettingsPage(Page):
             "sensors. That needs a hardware driver, which RyTweaks does not install. Instead:<br><br>"
             f"1. Download <a href='{LHM_URL}'>LibreHardwareMonitor</a> (free, open source).<br>"
             "2. Run it as administrator and leave it open (it can start minimized).<br>"
-            "3. RyTweaks finds it within about 15 seconds and shows temperatures and fans.<br><br>"
-            "NVIDIA GPU temperature works without it, through the NVIDIA driver.", "cardLine", wrap=True)
+            "3. In LibreHardwareMonitor, turn on <b>Options → Remote Web Server → Run</b> "
+            "(keep the default port 8085).<br>"
+            "4. RyTweaks finds it within a few seconds and shows temperatures and fans.<br><br>"
+            "Step 3 is needed for LibreHardwareMonitor 0.9.5 and newer. Older versions "
+            "(0.9.4 and before) are detected without it.<br>"
+            "NVIDIA GPU temperature works without LibreHardwareMonitor, through the NVIDIA driver.",
+            "cardLine", wrap=True)
         help_.setOpenExternalLinks(True)
         sensors.body.addWidget(help_)
         self.content.addWidget(sensors)

@@ -15,6 +15,14 @@ BALANCED_GUID = "381b4222-f694-41f0-9685-ff5bb260df2e"     # Windows default pla
 
 NOT_WINDOWS = (False, "This only works on Windows.")
 
+# Xbox Game Bar capture: the old global switch plus the two toggles in
+# Settings > Gaming > Captures ("Record what happened" = HistoricalCaptureEnabled)
+_CAPTURE_VALUES = [
+    (r"HKCU\System\GameConfigStore", "GameDVR_Enabled"),
+    (r"HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled"),
+    (r"HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR", "HistoricalCaptureEnabled"),
+]
+
 
 def _ps_quote(text):
     """Quote a value for PowerShell single-quoted strings (adapter names can contain ')."""
@@ -69,16 +77,22 @@ class WindowsOptimizer:
     def get_xbox_captures():
         if not IS_WINDOWS:
             return "Not Windows"
-        v = _reg_query_dword(r"HKCU\System\GameConfigStore", "GameDVR_Enabled")
-        if v is None:
+        values = [_reg_query_dword(k, v) for k, v in _CAPTURE_VALUES]
+        if any(v == 0 for v in values):
+            return "Disabled"
+        if all(v is None for v in values):
             return "Enabled (Windows default)"
-        return "Enabled" if v == 1 else "Disabled"
+        return "Enabled"
 
     @staticmethod
     def set_xbox_captures(disable: bool):
         if not IS_WINDOWS:
             return NOT_WINDOWS
-        ok, err = _reg_set_dword(r"HKCU\System\GameConfigStore", "GameDVR_Enabled", 0 if disable else 1)
+        ok, err = True, ""
+        for key, value in _CAPTURE_VALUES:
+            k_ok, k_err = _reg_set_dword(key, value, 0 if disable else 1)
+            if not k_ok:
+                ok, err = False, k_err
         return (True, f"Background capture {'disabled' if disable else 'enabled'}.") if ok else (False, err)
 
     # ------------------------------------------------------------ Power plans

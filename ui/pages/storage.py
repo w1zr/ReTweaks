@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
 
 from core.storage_manager import browse_directory, cleanup_temp_files_safe, get_disk_drives
 from ui.widgets.common import Card, Page, label, set_role
-from ui.workers import TaskWorker
 
 
 class StoragePage(Page):
@@ -17,7 +16,6 @@ class StoragePage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
-        self._worker = None
         self._loaded = False
         self.path = os.path.splitdrive(os.path.expanduser("~"))[0] + "\\" if os.name == "nt" else "/"
 
@@ -133,8 +131,6 @@ class StoragePage(Page):
             return
         self.btn_clean.setEnabled(False)
         self.clean_result.setText("Cleaning…")
-        self._worker = TaskWorker(cleanup_temp_files_safe)
-
         def done(result):
             self.btn_clean.setEnabled(True)
             text = result if isinstance(result, str) else f"Failed: {result[1]}"
@@ -143,5 +139,4 @@ class StoragePage(Page):
                                 "" if isinstance(result, str) else text)
             self.load_drives()
 
-        self._worker.done.connect(done)
-        self._worker.start()
+        self.run_task(cleanup_temp_files_safe, on_done=done)

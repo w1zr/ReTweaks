@@ -6,8 +6,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout
 
 from core.optimizer import WindowsOptimizer as W
 from core.winutil import is_admin
-from ui.widgets.common import Card, Notice, Page, label, set_role, set_status_style
-from ui.workers import TaskWorker
+from ui.widgets.common import Card, Notice, Page, label, set_status_style
 
 
 class TweakRow(QWidget):
@@ -89,7 +88,6 @@ class TweaksPage(Page):
                 card.body.addWidget(sep)
             card.body.addWidget(row)
         self.content.addWidget(card)
-        self._workers = []
         self.finish()
 
     def on_shown(self):
@@ -100,18 +98,10 @@ class TweaksPage(Page):
             self._refresh(row)
 
     def _refresh(self, row):
-        w = TaskWorker(row.get_status)
-        w.done.connect(row.show_status)
-        self._keep(w)
-        w.start()
-
-    def _keep(self, worker):
-        self._workers.append(worker)
-        worker.finished.connect(lambda: self._workers.remove(worker) if worker in self._workers else None)
+        self.run_task(row.get_status, on_done=row.show_status)
 
     def run(self, row, action_text, fn):
         row.set_busy(True)
-        w = TaskWorker(fn)
 
         def done(result):
             ok, msg = result
@@ -121,6 +111,4 @@ class TweaksPage(Page):
                 QMessageBox.warning(self, row.name, msg)
             self._refresh(row)
 
-        w.done.connect(done)
-        self._keep(w)
-        w.start()
+        self.run_task(fn, on_done=done)
