@@ -21,6 +21,7 @@ from core.themes import get_stylesheet, get_theme
 from core.version import APP_NAME, __version__
 from core.winutil import is_admin
 from ui.pages.dashboard import DashboardPage
+from ui.pages.games import GamesPage
 from ui.pages.hardware import HardwarePage
 from ui.pages.logs import LogsPage
 from ui.pages.network import NetworkPage
@@ -37,7 +38,7 @@ from ui.workers import StaticScanWorker, TelemetryWorker
 # (section, [(button text, page class), ...])
 NAV = [
     ("MONITOR", [("Dashboard", DashboardPage), ("Hardware", HardwarePage)]),
-    ("OPTIMIZE", [("Tweaks", TweaksPage), ("Profiles", ProfilesPage),
+    ("OPTIMIZE", [("Tweaks", TweaksPage), ("Profiles", ProfilesPage), ("Game presets", GamesPage),
                   ("Startup apps", StartupPage), ("Network", NetworkPage)]),
     ("TOOLS", [("Storage && cleanup", StoragePage), ("Snapshots", SnapshotPage), ("Logs", LogsPage)]),
 ]
