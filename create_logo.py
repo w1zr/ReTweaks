@@ -72,6 +72,30 @@ def _small_chip(p, size):
     p.restore()
 
 
+def render_taskbar(size):
+    """The v1.4 drawing, kept for the running app's window and taskbar icon (owner preference
+    2026-10-21): the chip zoomed to fill the tile, without pins at 24 px and below."""
+    img = QImage(size, size, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(BACKGROUND))
+    p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
+    if size <= 24:
+        grow = size * 0.42
+        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), pins=[0] * 12,
+                   stroke_scale=1.15 if size > 16 else 1.05)
+    elif size <= 48:
+        grow = size * 0.12
+        paint_chip(p, QRectF(-grow, -grow, size + 2 * grow, size + 2 * grow), stroke_scale=1.2)
+    else:
+        pad = size * 0.04
+        paint_chip(p, QRectF(pad, pad, size - 2 * pad, size - 2 * pad))
+    p.end()
+    return img
+
+
 def render(size):
     img = QImage(size, size, QImage.Format_ARGB32)
     img.fill(Qt.transparent)
@@ -98,8 +122,9 @@ def png_bytes(img):
     return bytes(data)
 
 
-def write_ico(path, sizes=SIZES):
-    images = [(s, png_bytes(render(s))) for s in sizes]
+def write_ico(path, sizes=SIZES, renderer=None):
+    renderer = renderer or render
+    images = [(s, png_bytes(renderer(s))) for s in sizes]
     header = struct.pack("<HHH", 0, 1, len(images))
     offset = 6 + 16 * len(images)
     entries, blobs = b"", b""
@@ -117,7 +142,9 @@ def generate_icon():
     QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
     os.makedirs("assets", exist_ok=True)
     out = write_ico(os.path.join("assets", "icon.ico"))
-    print(f"Chip icon saved to {out} ({', '.join(str(s) for s in SIZES)} px)")
+    print(f"Chip icon (.exe, Explorer, shortcuts) saved to {out} ({', '.join(str(s) for s in SIZES)} px)")
+    out = write_ico(os.path.join("assets", "taskbar.ico"), renderer=render_taskbar)
+    print(f"Taskbar/window icon saved to {out}")
 
 
 if __name__ == "__main__":

@@ -37,7 +37,10 @@ def main():
         sys.exit(0)
     
     # Apply app icon globally across all windows
-    icon_path = resource_path("assets/icon.ico")
+    # Window + taskbar use the v1.4 drawing (owner preference); the .exe file keeps icon.ico
+    icon_path = resource_path("assets/taskbar.ico")
+    if not os.path.exists(icon_path):
+        icon_path = resource_path("assets/icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     

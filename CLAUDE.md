@@ -59,7 +59,7 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `release-notes/vX.Y.md` — The text of each GitHub release.
 - `create_logo.py` — Builds `assets/icon.ico` (the chip) at 16–256 px, each size drawn separately. `build.py` — PyInstaller single-file build. Output: `dist\RYTWEAKS.exe`.
 - `.github/workflows/` — GitHub Actions build and release.
-- `assets/icon.ico` — The app icon.
+- `assets/icon.ico` — The .exe / Explorer / shortcut icon (small sizes drawn on the pixel grid). `assets/taskbar.ico` — The window and taskbar icon, kept as the v1.4 drawing by owner preference (2026-10-21). Both come from `create_logo.py`.
 - `.gitignore` — Excludes `build/`, `dist/`, `__pycache__/`, `*.spec`, `.vscode/` and `.pytest_cache/`.
 
 ---
