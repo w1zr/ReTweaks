@@ -56,13 +56,9 @@ class HardwareMonitor:
 
     @staticmethod
     def get_gpu_info():
-        """
-        Retrieves exact GPU model names and precise VRAM (matching Task Manager 8GB)
-        using NVML and Windows DirectX / Registry properties.
-        """
         gpus = []
         
-        # 1. Try NVIDIA NVML first for precise VRAM and live telemetry
+        # 1. Try NVIDIA NVML first for precise telemetry
         try:
             import pynvml
             pynvml.nvmlInit()
@@ -121,10 +117,10 @@ class HardwareMonitor:
         except Exception:
             pass
 
-        # 2. PowerShell CIM Query with registry / DirectX VRAM fallback for true 8GB detection
+        # 2. PowerShell Registry 64-bit QWORD Query (Bypasses WMI 4GB limitation globally for all GPUs)
         if not gpus and platform.system() == "Windows":
             try:
-                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM, DriverVersion, DriverDate, Status | ConvertTo-Json"'
+                cmd = '''powershell -NoProfile -Command "$adapters = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue | Where-Object {$_.PSChildName -match '^\\d{4}$'}; $res = foreach ($a in $adapters) { $desc = $a.GetValue('DriverDesc'); $mem = $a.GetValue('HardwareInformation.qwMemorySize'); if(-not $mem){$mem = $a.GetValue('HardwareInformation.MemorySize')}; if($desc -and $mem){ [PSCustomObject]@{ Name = $desc; VRAM = $mem } } }; if($res){ $res | ConvertTo-Json }"'''
                 output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
                 if output.strip():
                     data = json.loads(output)
@@ -135,24 +131,15 @@ class HardwareMonitor:
                         name = gpu.get('Name') or "Unknown GPU"
                         name_lower = name.lower()
                         
-                        # Filter out virtual display adapters
                         if any(v in name_lower for v in ['meta', 'virtual', 'parsec', 'displaylink', 'remote desktop', 'indirect', 'vmware', 'hyper-v']):
                             continue
                             
-                        adapter_ram = int(gpu.get('AdapterRAM', 0) or 0)
-                        vram_gb = round(adapter_ram / (1024**3), 1)
-                        
-                        # RTX 4065 / 4060 laptops or desktops have 8GB. If WMI returns ~4GB due to 32-bit integer overflow, fix it to 8.0 GB
-                        if "4060" in name_lower and (vram_gb < 5.0):
-                            vram_gb = 8.0
-
-                        vram_str = f"{vram_gb} GB" if vram_gb > 0 else "8.0 GB" if "4060" in name_lower else "Unavailable"
-                        
-                        driver_ver = gpu.get('DriverVersion') or "Unavailable"
-                        driver_date = gpu.get('DriverDate') or "Unavailable"
+                        vram_bytes = int(gpu.get('VRAM', 0) or 0)
+                        vram_gb = round(vram_bytes / (1024**3), 1)
+                        vram_str = f"{vram_gb} GB" if vram_gb > 0 else "Unavailable"
                         
                         manufacturer = "Unknown"
-                        if "nvidia" in name_lower:
+                        if "nvidia" in name_lower or "geforce" in name_lower:
                             manufacturer = "NVIDIA"
                         elif "amd" in name_lower or "radeon" in name_lower:
                             manufacturer = "AMD"
@@ -169,13 +156,44 @@ class HardwareMonitor:
                             'mem_clock': 'Unavailable',
                             'power': 'Unavailable',
                             'fan_speed': 'Unavailable',
-                            'driver_version': driver_ver,
-                            'driver_date': driver_date,
+                            'driver_version': 'Unavailable',
+                            'driver_date': 'Unavailable',
                             'resolution': 'Unavailable',
-                            'status': gpu.get('Status') or 'OK'
+                            'status': 'OK'
                         })
             except Exception as e:
-                print(f"PowerShell GPU query error: {e}")
+                print(f"Registry 64-bit VRAM query error: {e}")
+
+        # 3. Final WMI fallback if registry query returned nothing
+        if not gpus and platform.system() == "Windows":
+            try:
+                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM, DriverVersion, DriverDate, Status | ConvertTo-Json"'
+                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
+                if output.strip():
+                    data = json.loads(output)
+                    if isinstance(data, dict):
+                        data = [data]
+                    for gpu in data:
+                        name = gpu.get('Name') or "Unknown GPU"
+                        adapter_ram = int(gpu.get('AdapterRAM', 0) or 0)
+                        vram_gb = round(adapter_ram / (1024**3), 1)
+                        gpus.append({
+                            'name': name,
+                            'manufacturer': 'Unknown',
+                            'vram': f"{vram_gb} GB" if vram_gb > 0 else "Unavailable",
+                            'utilization': 'Unavailable',
+                            'temperature': 'Unavailable',
+                            'core_clock': 'Unavailable',
+                            'mem_clock': 'Unavailable',
+                            'power': 'Unavailable',
+                            'fan_speed': 'Unavailable',
+                            'driver_version': gpu.get('DriverVersion') or 'Unavailable',
+                            'driver_date': gpu.get('DriverDate') or 'Unavailable',
+                            'resolution': 'Unavailable',
+                            'status': 'OK'
+                        })
+            except Exception:
+                pass
 
         if not gpus:
             gpus.append({
@@ -213,18 +231,48 @@ class HardwareMonitor:
 
     @staticmethod
     def get_motherboard_info():
-        return {
+        mb_info = {
             'manufacturer': 'Unavailable',
             'model': 'Unavailable',
             'serial': 'Unavailable',
             'bios_version': 'Unavailable',
             'bios_date': 'Unavailable'
         }
+        if platform.system() == "Windows":
+            try:
+                cmd = 'powershell -NoProfile -Command "$board = Get-CimInstance Win32_BaseBoard; $bios = Get-CimInstance Win32_BIOS; [PSCustomObject]@{ Manufacturer = $board.Manufacturer; Model = $board.Product; Serial = $board.SerialNumber; BiosVersion = $bios.SMBIOSBIOSVersion; BiosDate = $bios.ReleaseDate } | ConvertTo-Json"'
+                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
+                if output.strip():
+                    data = json.loads(output)
+                    mb_info['manufacturer'] = data.get('Manufacturer', 'Unavailable').strip()
+                    mb_info['model'] = data.get('Model', 'Unavailable').strip()
+                    mb_info['serial'] = data.get('Serial', 'Unavailable').strip()
+                    mb_info['bios_version'] = data.get('BiosVersion', 'Unavailable').strip()
+                    mb_info['bios_date'] = data.get('BiosDate', 'Unavailable').strip()
+            except Exception:
+                pass
+        return mb_info
 
     @staticmethod
     def get_disk_info():
         disks = []
         try:
+            smart_map = {}
+            if platform.system() == "Windows":
+                try:
+                    cmd = 'powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object DeviceId, OperationalStatus, HealthStatus | ConvertTo-Json"'
+                    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
+                    if output.strip():
+                        s_data = json.loads(output)
+                        if isinstance(s_data, dict):
+                            s_data = [s_data]
+                        for d in s_data:
+                            health = d.get('HealthStatus')
+                            status_str = "Healthy (SMART OK)" if health == 0 or health == "Healthy" else f"Status: {health}"
+                            smart_map[str(d.get('DeviceId'))] = status_str
+                except Exception:
+                    pass
+
             for partition in psutil.disk_partitions(all=False):
                 try:
                     usage = psutil.disk_usage(partition.mountpoint)
@@ -246,7 +294,26 @@ class HardwareMonitor:
 
     @staticmethod
     def get_monitors_info():
-        return [{'name': 'Primary Display', 'resolution': 'Active', 'status': 'OK'}]
+        monitors = []
+        if platform.system() == "Windows":
+            try:
+                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_DesktopMonitor | Select-Object Name, DeviceID, Status | ConvertTo-Json"'
+                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
+                if output.strip():
+                    data = json.loads(output)
+                    if isinstance(data, dict):
+                        data = [data]
+                    for m in data:
+                        monitors.append({
+                            'name': m.get('Name') or 'Display Device',
+                            'resolution': 'Active',
+                            'status': m.get('Status') or 'OK'
+                        })
+            except Exception:
+                pass
+        if not monitors:
+            monitors.append({'name': 'Primary Display', 'resolution': 'Active', 'status': 'OK'})
+        return monitors
 
     @staticmethod
     def get_network_info():
@@ -272,7 +339,26 @@ class HardwareMonitor:
 
     @staticmethod
     def get_audio_info():
-        return [{'name': 'Standard Audio Device', 'status': 'OK', 'manufacturer': 'Unavailable'}]
+        audio_devs = []
+        if platform.system() == "Windows":
+            try:
+                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_SoundDevice | Select-Object Name, Manufacturer, Status | ConvertTo-Json"'
+                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
+                if output.strip():
+                    data = json.loads(output)
+                    if isinstance(data, dict):
+                        data = [data]
+                    for aud in data:
+                        audio_devs.append({
+                            'name': aud.get('Name') or 'Audio Device',
+                            'status': aud.get('Status') or 'OK',
+                            'manufacturer': aud.get('Manufacturer') or 'Unknown'
+                        })
+            except Exception:
+                pass
+        if not audio_devs:
+            audio_devs.append({'name': 'Standard Audio Device', 'status': 'OK', 'manufacturer': 'Unknown'})
+        return audio_devs
 
     @staticmethod
     def get_system_info():
