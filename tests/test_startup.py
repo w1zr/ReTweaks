@@ -83,3 +83,28 @@ def test_quote_is_injection_safe():
 def test_find_task_matches_literally():
     script = sm._ps_find_task("\\Vendor\\", "Up*date")
     assert "-eq $p" in script and "-eq $n" in script and "Up*date" not in script
+
+
+def test_batch_disable_keeps_backup_only_on_real_change(monkeypatch, tmp_path):
+    monkeypatch.setattr(sm, "BACKUP_STORE", tmp_path / "b.json")
+    entries = [{"id": sm.task_entry_id("\\V\\", n), "name": n, "task_path": "\\V\\", "task_name": n,
+                "source": sm.SCHED_SOURCE, "task_state": "Ready"} for n in ("A", "B", "C")]
+    calls = []
+
+    def fake_batch(tasks, enable):
+        calls.append((tasks, enable))
+        return [("Ready", "Disabled", None), ("Disabled", "Disabled", None), ("Ready", "Ready", "Access denied")]
+
+    monkeypatch.setattr(sm, "set_tasks_enabled_batch", fake_batch)
+    res = sm.disable_scheduled_tasks(entries)
+    assert len(calls) == 1 and calls[0][1] is False and len(calls[0][0]) == 3   # one PowerShell run
+    assert [ok for _, ok, _ in res] == [True, False, False]
+    assert "already disabled" in res[1][2] and "Access denied" in res[2][2]
+    backups = sm.load_backups()
+    assert list(backups) == [entries[0]["id"]] and backups[entries[0]["id"]]["original_state"] == "Ready"
+
+
+def test_batch_script_never_contains_raw_names():
+    script = sm._BATCH_TASKS_PS % {"items": f"@('{sm._b64(chr(92))}','{sm._b64('x; Remove-Item *')}')",
+                                   "enable": "$false"}
+    assert "Remove-Item *" not in script
