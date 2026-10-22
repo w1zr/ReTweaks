@@ -22,6 +22,7 @@ from core.optimizer import WindowsOptimizer
 from core.startup_manager import list_startup_apps, disable_startup_entry, enable_startup_entry, extract_icon
 from core.storage_manager import get_disk_drives, browse_directory, cleanup_temp_files_safe
 from core.themes import get_stylesheet, THEMES
+from core.version import __version__, APP_NAME
 
 def resource_path(relative_path):
     try:
@@ -64,7 +65,7 @@ class StartupWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("RYTWEAKS v1.1 — Verified Windows Optimization Suite")
+        self.setWindowTitle(f"{APP_NAME} v{__version__} — Verified Windows Optimization Suite")
         self.resize(1280, 800)
         self.hardware_data = {}
         self.startup_entries = []
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
         brand_container = QVBoxLayout()
         title_lbl = QLabel("RYTWEAKS")
         title_lbl.setStyleSheet("font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: 2px;")
-        subtitle_lbl = QLabel("VERSION 1.1")
+        subtitle_lbl = QLabel(f"VERSION {__version__}")
         subtitle_lbl.setStyleSheet("font-size: 10px; font-weight: bold; color: #888888; letter-spacing: 1px; margin-bottom: 12px;")
         brand_container.addWidget(title_lbl)
         brand_container.addWidget(subtitle_lbl)
@@ -141,7 +142,7 @@ class MainWindow(QMainWindow):
         self.admin_lbl.setStyleSheet("color: #888888; font-size: 11px;")
         sidebar_layout.addWidget(self.admin_lbl)
 
-        version_lbl = QLabel("v1.1 • Professional Edition")
+        version_lbl = QLabel(f"v{__version__} • Professional Edition")
         version_lbl.setStyleSheet("color: #555555; font-size: 11px;")
         sidebar_layout.addWidget(version_lbl)
 

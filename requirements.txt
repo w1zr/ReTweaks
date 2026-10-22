@@ -1,6 +1,9 @@
-customtkinter>=5.2.0
+# Runtime
+PySide6>=6.5
 psutil>=5.9.0
-wmi>=1.5.1
-pycaw>=2024.1.0
-comtypes>=1.1.14
+py-cpuinfo>=9.0.0       # CPU model name + cache sizes (core/hardware.py)
+nvidia-ml-py>=12.535.0  # provides the "pynvml" module for NVIDIA GPU telemetry; safe on non-NVIDIA PCs
+
+# Build / dev tools
 PyInstaller>=6.0.0
+Pillow>=10.0.0          # only used by create_logo.py

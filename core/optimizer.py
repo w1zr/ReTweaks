@@ -140,18 +140,20 @@ class WindowsOptimizer:
 
     @staticmethod
     def apply_game_profile(profile_name: str):
-        """Applies real resource tuning and system cache clear based on selected game profile."""
+        """Game profile hook. Does not change system settings yet (see v1.2 plan)."""
         if platform.system() != "Windows":
             return False, "Non-Windows OS"
         try:
             prof_lower = profile_name.lower()
             if "ultra" in prof_lower or "performance" in prof_lower:
-                subprocess.run(["powershell", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"], capture_output=True)
-                return True, "Applied Ultra Performance profile (Cleared system caches & optimized scheduling)."
+                # NOTE: this used to run Clear-RecycleBin, which permanently deletes the
+                # user's files. Profiles must never delete user data. Real profile tuning
+                # is planned for v1.2; until then this reports honestly.
+                return True, "Ultra Performance profile selected (no system changes are applied yet)."
             elif "high" in prof_lower:
-                return True, "Applied High performance preset successfully."
+                return True, "High profile selected (no system changes are applied yet)."
             else:
-                return True, f"Applied {profile_name} game profile tuning."
+                return True, f"{profile_name} profile selected (no system changes are applied yet)."
         except Exception as e:
             return False, str(e)
 
