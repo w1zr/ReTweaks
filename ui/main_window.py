@@ -11,16 +11,24 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QPalette
 from PySide6.QtWidgets import QApplication
-from PySide6.QtWidgets import (QButtonGroup, QFrame, QHBoxLayout, QMainWindow, QPushButton,
-                               QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QButtonGroup, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QMainWindow,
+                               QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
 from core.themes import get_stylesheet, get_theme
 from core.version import APP_NAME, __version__
 from core.winutil import is_admin
+from ui.pages.about import AboutPage
+from ui.pages.assistant import AssistantPage
+from ui.pages.audio import AudioPage
+from ui.pages.clicker import ClickerPage
 from ui.pages.dashboard import DashboardPage
+from ui.pages.display import DisplayPage
+from ui.pages.fps import FpsPage
+from ui.pages.fun import FunPage
+from ui.pages.health import HealthPage
 from ui.pages.games import GamesPage
 from ui.pages.rules import RulesPage
 from ui.pages.hardware import HardwarePage
@@ -38,13 +46,16 @@ from ui.workers import AutoGameWorker, StaticScanWorker, TelemetryWorker
 
 # (section, [(button text, page class), ...])
 NAV = [
-    ("MONITOR", [("Dashboard", DashboardPage), ("Hardware", HardwarePage)]),
+    ("MONITOR", [("Dashboard", DashboardPage), ("Hardware", HardwarePage), ("Health Check", HealthPage),
+                 ("FPS test", FpsPage), ("Display && drivers", DisplayPage)]),
     ("OPTIMIZE", [("Tweaks", TweaksPage), ("Profiles", ProfilesPage), ("Game presets", GamesPage),
                   ("Program rules", RulesPage),
                   ("Startup apps", StartupPage), ("Network", NetworkPage)]),
-    ("TOOLS", [("Storage && cleanup", StoragePage), ("Snapshots", SnapshotPage), ("Logs", LogsPage)]),
+    ("TOOLS", [("Storage && cleanup", StoragePage), ("Audio mixer", AudioPage), ("Auto clicker", ClickerPage),
+               ("AI Assistant", AssistantPage), ("Snapshots", SnapshotPage), ("Fun tools", FunPage),
+               ("Logs", LogsPage)]),
 ]
-BOTTOM_NAV = [("Settings", SettingsPage)]
+BOTTOM_NAV = [("About", AboutPage), ("Settings", SettingsPage)]
 
 
 def resource_path(relative_path):
@@ -58,8 +69,10 @@ def config_path():
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, progress=None):
         super().__init__()
+        # progress(status) keeps the splash animating while pages are built (see ui/splash.py)
+        self._progress = progress or (lambda status=None: None)
         self.setWindowTitle(f"{APP_NAME} v{__version__}")
         self.resize(1320, 860)
         self.setMinimumSize(1000, 640)
@@ -95,6 +108,7 @@ class MainWindow(QMainWindow):
         names = self.page_names()
         start = self.settings.get("startup_page", "Dashboard")
         self._select(names.index(start) if start in names else 0)
+        self._progress("Scanning hardware…")
         self.start_static_scan()
         self.start_telemetry()
         self.rules_page = next(p for p in self.pages if isinstance(p, RulesPage))
@@ -122,16 +136,35 @@ class MainWindow(QMainWindow):
         side = QFrame()
         side.setObjectName("sidebar")
         side.setFixedWidth(220)
-        v = QVBoxLayout(side)
-        v.setContentsMargins(12, 22, 12, 16)
+        outer = QVBoxLayout(side)
+        outer.setContentsMargins(0, 22, 0, 16)
+        outer.setSpacing(2)
+        brand = label(APP_NAME, "brand")          # wordmark only, no logo beside it (CLAUDE.md section 5)
+        brand.setContentsMargins(12, 0, 12, 0)
+        outer.addWidget(brand)
+        ver = label(f"Version {__version__}", "brandVersion")
+        ver.setContentsMargins(12, 0, 12, 0)
+        outer.addWidget(ver)
+
+        # 20 pages don't fit short screens, so the page list scrolls
+        scroll = QScrollArea()
+        scroll.setObjectName("navScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        holder = QWidget()
+        v = QVBoxLayout(holder)
+        v.setContentsMargins(12, 0, 12, 0)
         v.setSpacing(2)
-        v.addWidget(label(APP_NAME, "brand"))
-        v.addWidget(label(f"Version {__version__}", "brandVersion"))
+        scroll.setWidget(holder)
+        outer.addWidget(scroll, 1)
+        self._nav_holder = holder
 
         self.nav_group = QButtonGroup(self)
         self.nav_group.setExclusive(True)
 
-        def add_button(text, page_cls):
+        def add_button(text, page_cls, layout):
+            self._progress(f"Loading {text.replace('&&', '&')}…")
             page = page_cls(self)
             index = self.stack.addWidget(page)
             self.pages.append(page)
@@ -140,24 +173,101 @@ class MainWindow(QMainWindow):
             b.setCursor(Qt.PointingHandCursor)
             b.clicked.connect(lambda _=False, i=index: self._select(i))
             self.nav_group.addButton(b, index)
-            v.addWidget(b)
+            layout.addWidget(b)
 
         for section, items in NAV:
             v.addWidget(label(section, "navSection"))
             for text, cls in items:
-                add_button(text, cls)
+                add_button(text, cls, v)
         v.addStretch(1)
+        bottom = QVBoxLayout()
+        bottom.setContentsMargins(12, 6, 12, 0)
+        bottom.setSpacing(2)
         for text, cls in BOTTOM_NAV:
-            add_button(text, cls)
+            add_button(text, cls, bottom)
+        outer.addLayout(bottom)
         self.update_label = set_role(QPushButton(""), "primary")
         self.update_label.hide()
         self.update_label.clicked.connect(lambda: self._select(self.stack.indexOf(self.settings_page)))
-        v.addWidget(self.update_label)
+        wrap = QHBoxLayout()
+        wrap.setContentsMargins(12, 0, 12, 0)
+        wrap.addWidget(self.update_label)
+        outer.addLayout(wrap)
         admin = "Running as administrator" if is_admin() else "Not running as administrator"
         footer = label(admin, "sidebarFooter", wrap=True)
-        footer.setContentsMargins(10, 10, 0, 0)
-        v.addWidget(footer)
+        footer.setContentsMargins(22, 10, 12, 0)
+        outer.addWidget(footer)
+
+        # Accent bar that slides to the selected page (150 ms)
+        self._indicator = QFrame(side)
+        self._indicator.setObjectName("navIndicator")
+        self._indicator.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self._indicator.hide()
+        self._indicator_anim = QPropertyAnimation(self._indicator, b"geometry", self)
+        self._indicator_anim.setDuration(150)
+        self._indicator_anim.setEasingCurve(QEasingCurve.OutCubic)
+        scroll.verticalScrollBar().valueChanged.connect(lambda _v: self._move_indicator(animate=False))
+        self._side = side
         return side
+
+    def _indicator_rect(self, button):
+        top_left = button.mapTo(self._side, button.rect().topLeft())
+        return QRect(top_left.x(), top_left.y() + 7, 3, button.height() - 14)
+
+    def _move_indicator(self, animate=True):
+        button = self.nav_group.checkedButton()
+        if not button or not button.isVisible():
+            self._indicator.hide()
+            return
+        # Hide it when the selected button is scrolled out of the visible list
+        target = self._indicator_rect(button)
+        holder_top = self._nav_holder.parentWidget().mapTo(self._side, self._nav_holder.parentWidget().rect().topLeft()).y()
+        holder_bottom = holder_top + self._nav_holder.parentWidget().height()
+        in_list = button.parentWidget() is self._nav_holder
+        if in_list and (target.bottom() < holder_top or target.top() > holder_bottom):
+            self._indicator.hide()
+            return
+        self._indicator.show()
+        self._indicator.raise_()
+        if animate and self._indicator.geometry().isValid() and self._indicator.width() > 0:
+            self._indicator_anim.stop()
+            self._indicator_anim.setStartValue(self._indicator.geometry())
+            self._indicator_anim.setEndValue(target)
+            self._indicator_anim.start()
+        else:
+            self._indicator.setGeometry(target)
+
+    def _apply_nav_icons(self):
+        from ui.widgets.brand import nav_icon
+        for b in self.nav_group.buttons():
+            name = b.text().replace("&&", "&")
+            off = nav_icon(name, self.theme["subtext"])
+            on = nav_icon(name, self.theme["text"])
+            if off is None:
+                continue
+            icon = QIcon()
+            icon.addPixmap(off.pixmap(18, 18), QIcon.Normal, QIcon.Off)
+            icon.addPixmap(on.pixmap(18, 18), QIcon.Normal, QIcon.On)
+            icon.addPixmap(on.pixmap(18, 18), QIcon.Active, QIcon.Off)
+            b.setIcon(icon)
+            b.setIconSize(QSize(18, 18))
+
+    def go_to_page(self, name):
+        """Open a page by its sidebar label (used by Health Check fixes and About)."""
+        names = self.page_names()
+        if name in names:
+            self._select(names.index(name))
+            return True
+        return False
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(0, lambda: self._move_indicator(animate=False))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "_indicator"):
+            self._move_indicator(animate=False)
 
     def page_names(self):
         return [self.nav_group.button(i).text().replace("&&", "&") for i in range(len(self.pages))]
@@ -171,9 +281,29 @@ class MainWindow(QMainWindow):
         QApplication.instance().quit()
 
     def _select(self, index):
-        self.nav_group.button(index).setChecked(True)
+        button = self.nav_group.button(index)
+        button.setChecked(True)
+        changed = self.stack.currentIndex() != index
         self.stack.setCurrentIndex(index)
+        if changed and self.isVisible():
+            self._fade_in(self.pages[index])
+        scroll = self._nav_holder.parentWidget().parentWidget() if hasattr(self, "_nav_holder") else None
+        if isinstance(scroll, QScrollArea) and button.parentWidget() is self._nav_holder:
+            scroll.ensureWidgetVisible(button, 0, 8)
+        self._move_indicator(animate=self.isVisible())
         self.pages[index].on_shown()
+
+    def _fade_in(self, page):
+        """150 ms fade between pages. The effect is removed afterwards so scrolling stays fast."""
+        effect = QGraphicsOpacityEffect(page)
+        page.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity", page)
+        anim.setDuration(150)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.finished.connect(lambda: page.setGraphicsEffect(None))
+        anim.start(QPropertyAnimation.DeleteWhenStopped)
 
     # ------------------------------------------------------------ workers
 
@@ -226,6 +356,8 @@ class MainWindow(QMainWindow):
         QApplication.setPalette(pal)
         for p in self.pages:
             p.on_theme(self.theme)
+        if hasattr(self, "nav_group"):
+            self._apply_nav_icons()
 
     def set_setting(self, key, value):
         self.settings[key] = value

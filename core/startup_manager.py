@@ -2,14 +2,23 @@
 
 import os
 import json
-import winreg
+import re
+import sys
 import subprocess
 from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileIconProvider
 from PySide6.QtCore import QFileInfo
 
-BACKUP_STORE = Path(os.getenv('APPDATA')) / "RYTWEAKS" / "startup_backups.json"
+try:                      # winreg only exists on Windows; the module must still import elsewhere (tests)
+    import winreg
+except ImportError:
+    winreg = None
+
+from core.autostart import TASK_NAME as OWN_TASK_NAME
+
+SCHED_SOURCE = "Scheduled task"
+BACKUP_STORE = Path(os.getenv('APPDATA') or str(Path.home())) / "RYTWEAKS" / "startup_backups.json"
 
 def _ensure_backup_store():
     BACKUP_STORE.parent.mkdir(parents=True, exist_ok=True)
@@ -70,13 +79,18 @@ def extract_icon(file_path):
         pass
     return QIcon()
 
-def list_startup_apps():
-    """Enumerates startup entries from Registry, Startup Folders, and Scheduled Tasks."""
+def list_startup_apps(include_windows_tasks=False):
+    """Enumerates startup entries from Registry, Startup Folders, and Scheduled Tasks.
+
+    Scheduled tasks under \\Microsoft\\ (Windows' own) are left out unless include_windows_tasks.
+    """
     entries = []
     seen_ids = set()
 
     # 1. Registry HKCU Run
     try:
+        if winreg is None:
+            raise OSError("not Windows")
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ) as key:
             i = 0
             while True:
@@ -96,13 +110,15 @@ def list_startup_apps():
                             "impact": "Medium"
                         })
                     i += 1
-                except WindowsError:
+                except OSError:
                     break
     except Exception:
         pass
 
     # 2. Registry HKLM Run
     try:
+        if winreg is None:
+            raise OSError("not Windows")
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
             i = 0
             while True:
@@ -122,16 +138,17 @@ def list_startup_apps():
                             "impact": "High"
                         })
                     i += 1
-                except WindowsError:
+                except OSError:
                     break
     except Exception:
         pass
 
     # 3. Startup Folders (User & Common)
-    folders = [
-        ("User Startup", Path(os.getenv('APPDATA')) / r"Microsoft\Windows\Start Menu\Programs\Startup"),
-        ("Common Startup", Path(os.getenv('PROGRAMDATA')) / r"Microsoft\Windows\Start Menu\Programs\Startup")
-    ]
+    folders = []
+    if os.getenv('APPDATA'):
+        folders.append(("User Startup", Path(os.getenv('APPDATA')) / r"Microsoft\Windows\Start Menu\Programs\Startup"))
+    if os.getenv('PROGRAMDATA'):
+        folders.append(("Common Startup", Path(os.getenv('PROGRAMDATA')) / r"Microsoft\Windows\Start Menu\Programs\Startup"))
     for source_label, folder_path in folders:
         if folder_path.exists():
             for item in folder_path.iterdir():
@@ -151,6 +168,12 @@ def list_startup_apps():
                             "impact": "Low"
                         })
 
+    # 3b. Scheduled tasks that run at sign-in or boot
+    for t in list_scheduled_startup_tasks(include_windows_tasks):
+        if t["id"] not in seen_ids:
+            seen_ids.add(t["id"])
+            entries.append(t)
+
     # 4. Check Disabled Backups in Store
     backups = load_backups()
     for entry_id, bdata in backups.items():
@@ -166,6 +189,9 @@ def disable_startup_entry(entry):
     source = entry['source']
     name = entry['name']
     path = entry['path']
+
+    if source == SCHED_SOURCE:
+        return disable_scheduled_task(entry)
 
     # Backup first
     save_backup(entry_id, entry)
@@ -192,10 +218,15 @@ def disable_startup_entry(entry):
 def enable_startup_entry(entry_id):
     """Restores a disabled startup entry from backup."""
     backups = load_backups()
+    if entry_id not in backups and entry_id.startswith(TASK_ID_PREFIX):
+        # a task someone else disabled: the user picked it explicitly, so re-enable it
+        return enable_scheduled_task(entry_id)
     if entry_id not in backups:
         return False, "No backup found for restoration."
     
     entry = backups[entry_id]
+    if entry.get('source') == SCHED_SOURCE:
+        return enable_scheduled_task(entry_id)
     source = entry['source']
     name = entry['name']
     path = entry['path']
@@ -221,3 +252,189 @@ def enable_startup_entry(entry_id):
     except Exception as e:
         return False, str(e)
     return False, "Restoration failed."
+
+
+# ======================================================================================
+# Scheduled tasks (v1.4). Tasks are never deleted, only disabled/enabled, and the real
+# state is read back after every change.
+# ======================================================================================
+
+TASK_ID_PREFIX = "task_"
+OWN_TASK_LABEL = "RYTWEAKS (managed in Settings)"
+TASK_WARNING = ("Some scheduled tasks are needed by apps (updaters, drivers, backup or security tools). "
+                "Disabling one can stop that app from updating or working. You can turn it back on here.")
+
+_LIST_TASKS_PS = r"""
+$out = @()
+foreach ($t in Get-ScheduledTask -ErrorAction SilentlyContinue) {
+  $kinds = @()
+  foreach ($tr in $t.Triggers) {
+    $c = $tr.CimClass.CimClassName
+    if ($c -eq 'MSFT_TaskLogonTrigger') { $kinds += 'Logon' }
+    elseif ($c -eq 'MSFT_TaskBootTrigger') { $kinds += 'Boot' }
+  }
+  if ($kinds.Count -eq 0) { continue }
+  $acts = @()
+  foreach ($a in $t.Actions) { $acts += [pscustomobject]@{ Execute = $a.Execute; Arguments = $a.Arguments } }
+  $out += [pscustomobject]@{
+    Name = $t.TaskName; TaskPath = $t.TaskPath; State = $t.State.ToString();
+    Author = $t.Author; UserId = $t.Principal.UserId; Triggers = $kinds; Actions = $acts
+  }
+}
+$out | ConvertTo-Json -Depth 5 -Compress
+"""
+
+_SYSTEM_USERS = {"system", "nt authority\\system", "s-1-5-18", "local service", "nt authority\\local service",
+                 "network service", "nt authority\\network service", "s-1-5-19", "s-1-5-20"}
+
+
+def _as_list(v):
+    if v is None:
+        return []
+    return v if isinstance(v, list) else [v]
+
+
+def task_entry_id(task_path, name):
+    return f"{TASK_ID_PREFIX}{task_path}{name}"
+
+
+def split_task_id(entry_id):
+    """'task_\\Vendor\\Updater' -> ('\\Vendor\\', 'Updater')."""
+    full = entry_id[len(TASK_ID_PREFIX):] if entry_id.startswith(TASK_ID_PREFIX) else entry_id
+    cut = full.rfind("\\") + 1
+    return full[:cut] or "\\", full[cut:]
+
+
+def parse_scheduled_tasks(data, include_windows_tasks=False):
+    """Turn the PowerShell JSON (text, dict or list) into startup-list entries. Pure function."""
+    if isinstance(data, (str, bytes)):
+        text = data.decode("utf-8", "replace") if isinstance(data, bytes) else data
+        text = text.strip().lstrip("\ufeff")
+        if not text:
+            return []
+        try:
+            data = json.loads(text)
+        except ValueError:
+            return []
+    entries = []
+    for t in _as_list(data):
+        if not isinstance(t, dict):
+            continue
+        name = t.get("Name") or ""
+        tpath = t.get("TaskPath") or "\\"
+        if not name:
+            continue
+        kinds = [str(k) for k in _as_list(t.get("Triggers"))]
+        if not kinds:
+            continue
+        if tpath.lower().startswith("\\microsoft\\") and not include_windows_tasks:
+            continue
+        actions = [a for a in _as_list(t.get("Actions")) if isinstance(a, dict)]
+        action_txt = "; ".join(" ".join(x for x in (str(a.get("Execute") or "").strip(),
+                                                    str(a.get("Arguments") or "").strip()) if x)
+                               for a in actions if a.get("Execute")) or "Unavailable"
+        state = str(t.get("State") or "Unknown")
+        user = str(t.get("UserId") or "")
+        scope = "All Users" if (user.lower() in _SYSTEM_USERS or not user) else "Current User"
+        managed = (tpath == "\\" and name == OWN_TASK_NAME)
+        entries.append({
+            "id": task_entry_id(tpath, name),
+            "name": OWN_TASK_LABEL if managed else name,
+            "path": action_txt,
+            "source": SCHED_SOURCE,
+            "scope": scope,
+            "status": "Disabled" if state.lower() == "disabled" else "Enabled",
+            "publisher": str(t.get("Author") or "") or "Unknown",
+            "impact": "Medium",
+            "task_name": name,
+            "task_path": tpath,
+            "task_state": state,
+            "triggers": sorted(set(kinds)),
+            "run_as": user,
+            "managed": managed,
+        })
+    entries.sort(key=lambda e: e["name"].lower())
+    return entries
+
+
+def list_scheduled_startup_tasks(include_windows_tasks=False):
+    """Scheduled tasks that run at logon or boot. Empty list off Windows or if PowerShell fails."""
+    if sys.platform != "win32":
+        return []
+    try:
+        from core.winutil import run_powershell
+        out = run_powershell(_LIST_TASKS_PS, timeout=60)
+        entries = parse_scheduled_tasks(out, include_windows_tasks)
+    except Exception:
+        return []
+    for e in entries:
+        if e["publisher"] == "Unknown" and e["path"] != "Unavailable":
+            e["publisher"] = get_publisher(e["path"])
+    return entries
+
+
+def _ps_quote(text):
+    return "'" + str(text).replace("'", "''") + "'"
+
+
+def get_task_state(task_path, name):
+    """Real current state of one task ('Ready', 'Disabled', ...) or None if it can't be read."""
+    if sys.platform != "win32":
+        return None
+    try:
+        from core.winutil import run_powershell
+        out = run_powershell(
+            f"try {{ (Get-ScheduledTask -TaskPath {_ps_quote(task_path)} -TaskName {_ps_quote(name)} "
+            "-ErrorAction Stop).State.ToString() } catch { 'ERR: ' + $_.Exception.Message }", timeout=30).strip()
+    except Exception:
+        return None
+    if not out or out.startswith("ERR:"):
+        return None
+    return out.splitlines()[-1].strip()
+
+
+def _set_task_enabled(task_path, name, enable):
+    """Run Enable/Disable-ScheduledTask, then read the state back. Returns (ok, message)."""
+    if sys.platform != "win32":
+        return False, "Scheduled tasks can only be changed on Windows."
+    from core.winutil import run_powershell
+    cmd = "Enable-ScheduledTask" if enable else "Disable-ScheduledTask"
+    out = run_powershell(
+        f"try {{ {cmd} -TaskPath {_ps_quote(task_path)} -TaskName {_ps_quote(name)} -ErrorAction Stop | Out-Null; 'OK' }} "
+        "catch { $_.Exception.Message }", timeout=40).strip()
+    state = get_task_state(task_path, name)
+    wanted_ok = (state is not None and state.lower() != "disabled") if enable else (state or "").lower() == "disabled"
+    if wanted_ok:
+        return True, f"Task is now {state}."
+    if out and out != "OK":
+        return False, out
+    return False, f"Windows did not confirm the change (state is {state or 'unavailable'})."
+
+
+def disable_scheduled_task(entry):
+    task_path = entry.get("task_path") or split_task_id(entry["id"])[0]
+    name = entry.get("task_name") or split_task_id(entry["id"])[1]
+    if entry.get("managed") or (task_path == "\\" and name == OWN_TASK_NAME):
+        return False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."
+    before = get_task_state(task_path, name)
+    if before is None:
+        return False, "Could not read the task's current state, so nothing was changed."
+    if before.lower() == "disabled":
+        return False, "The task is already disabled."
+    backup = dict(entry)
+    backup["original_state"] = before
+    save_backup(entry["id"], backup)          # record the previous state first
+    ok, msg = _set_task_enabled(task_path, name, False)
+    if not ok:
+        remove_backup(entry["id"])            # nothing changed, so don't leave a stale backup
+    return ok, msg
+
+
+def enable_scheduled_task(entry_id):
+    task_path, name = split_task_id(entry_id)
+    if task_path == "\\" and name == OWN_TASK_NAME:
+        return False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."
+    ok, msg = _set_task_enabled(task_path, name, True)
+    if ok:
+        remove_backup(entry_id)
+    return ok, msg

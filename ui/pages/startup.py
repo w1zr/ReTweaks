@@ -2,16 +2,25 @@
 """Startup apps manager (moved from the old main_window.py; behavior unchanged)."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
                                QPushButton, QTableWidget, QTableWidgetItem)
 
-from core.startup_manager import disable_startup_entry, enable_startup_entry, extract_icon
+from core.startup_manager import (SCHED_SOURCE, TASK_WARNING, disable_startup_entry, enable_startup_entry,
+                                  extract_icon)
 from ui.widgets.common import Page, label, set_role
 
 
-def _list_startup_apps():
+def _list_startup_apps(include_windows_tasks=False):
     from core.startup_manager import list_startup_apps
-    return list_startup_apps()
+    return list_startup_apps(include_windows_tasks)
+
+
+def _batch_disable(entries):
+    return [(e, *disable_startup_entry(e)) for e in entries]
+
+
+def _batch_enable(ids):
+    return [(i, *enable_startup_entry(i)) for i in ids]
 
 
 class StartupPage(Page):
@@ -30,10 +39,15 @@ class StartupPage(Page):
         self.search.textChanged.connect(self.filter_table)
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["All apps", "Enabled", "Disabled", "Current user", "All users",
-                                    "Registry", "Startup folder"])
+                                    "Registry", "Startup folder", "Scheduled tasks"])
         self.filter_combo.currentIndexChanged.connect(self.filter_table)
         tools.addWidget(self.search, 1)
         tools.addWidget(self.filter_combo)
+        self.win_tasks = QCheckBox("Show Windows tasks")
+        self.win_tasks.setToolTip("Include scheduled tasks under \\Microsoft\\ (Windows' own). Leave them alone unless you know what they do.")
+        self.win_tasks.setChecked(bool(self.ctx.settings.get("startup_show_windows_tasks", False)))
+        self.win_tasks.toggled.connect(self._win_tasks_toggled)
+        tools.addWidget(self.win_tasks)
         self.content.addLayout(tools)
 
         sel = QHBoxLayout()
@@ -47,11 +61,11 @@ class StartupPage(Page):
         sel.addWidget(self.count_lbl)
         self.content.addLayout(sel)
 
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Application", "Publisher", "Source", "Status"])
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["Application", "Publisher", "Source", "Status", "Scope"])
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.Stretch)
-        for c in range(1, 4):
+        for c in range(1, 5):
             hh.setSectionResizeMode(c, QHeaderView.ResizeToContents)
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
@@ -75,13 +89,17 @@ class StartupPage(Page):
         if not self._loaded:
             self.load()
 
-    def load(self):
-        if self.busy():
+    def load(self, force=False):
+        if self.busy() and not force:
             return  # a load is already running
         self._loaded = True
         self.table.setRowCount(0)
         self.count_lbl.setText("Loading…")
-        self.run_task(_list_startup_apps, on_done=self._loaded_entries)
+        self.run_task(_list_startup_apps, self.win_tasks.isChecked(), on_done=self._loaded_entries)
+
+    def _win_tasks_toggled(self, on):
+        self.ctx.set_setting("startup_show_windows_tasks", bool(on))
+        self.load(force=True)
 
     def _loaded_entries(self, entries):
         self.entries = entries if isinstance(entries, list) else []
@@ -101,23 +119,34 @@ class StartupPage(Page):
                     or (mode == "Current user" and scope != "Current User") \
                     or (mode == "All users" and scope != "All Users") \
                     or (mode == "Registry" and "Registry" not in source) \
-                    or (mode == "Startup folder" and "Startup Folder" not in source):
+                    or (mode == "Startup folder" and "Startup Folder" not in source) \
+                    or (mode == "Scheduled tasks" and source != SCHED_SOURCE):
                 continue
             r = self.table.rowCount()
             self.table.insertRow(r)
             item = QTableWidgetItem(e["name"])
-            item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            item.setCheckState(Qt.Unchecked)
-            item.setData(Qt.UserRole, e["id"])
+            managed = bool(e.get("managed"))
+            if managed:
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)   # not toggled here
+                item.setToolTip("RYTWEAKS's own start-with-Windows task. Change it in Settings.")
+            else:
+                item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                item.setCheckState(Qt.Unchecked)
+                item.setData(Qt.UserRole, e["id"])
+                if source == SCHED_SOURCE:
+                    item.setToolTip(f"Task: {e.get('task_path', '')}{e.get('task_name', '')}\n"
+                                    f"Runs: {e.get('path', '')}\nTriggers: {', '.join(e.get('triggers', []))}\n"
+                                    f"State: {e.get('task_state', '')}\n\n{TASK_WARNING}")
             icon = extract_icon(e.get("path", ""))
             if not icon.isNull():
                 item.setIcon(icon)
             self.table.setItem(r, 0, item)
             self.table.setItem(r, 1, QTableWidgetItem(e.get("publisher", "Unknown")))
             self.table.setItem(r, 2, QTableWidgetItem(source))
-            st = QTableWidgetItem(status)
+            st = QTableWidgetItem("Managed in Settings" if managed else status)
             st.setForeground(Qt.red if status == "Disabled" else Qt.green)
             self.table.setItem(r, 3, st)
+            self.table.setItem(r, 4, QTableWidgetItem(scope))
         self.table.blockSignals(False)
         self.update_count()
 
@@ -155,29 +184,47 @@ class StartupPage(Page):
         if not ids:
             QMessageBox.information(self, "Startup apps", "Tick at least one app first.")
             return
-        if QMessageBox.question(self, "Disable startup apps",
-                                f"Disable {len(ids)} app(s) from starting with Windows?") != QMessageBox.Yes:
+        chosen = [e for e in (next((x for x in self.entries if x["id"] == i), None) for i in ids)
+                  if e and e.get("status") == "Enabled" and not e.get("managed")]
+        text = f"Disable {len(ids)} app(s) from starting with Windows?"
+        if any(e.get("source") == SCHED_SOURCE for e in chosen):
+            text += "\n\n" + TASK_WARNING
+        if QMessageBox.question(self, "Disable startup apps", text) != QMessageBox.Yes:
+            return
+        self.count_lbl.setText("Working…")
+        self.run_task(_batch_disable, chosen, on_done=lambda res, n=len(ids): self._disabled(res, n))
+
+    def _disabled(self, res, total):
+        if not isinstance(res, list):
+            QMessageBox.warning(self, "Startup apps", f"Failed: {res[1] if isinstance(res, tuple) else res}")
+            self.load(force=True)
             return
         done = 0
-        for entry_id in ids:
-            e = next((x for x in self.entries if x["id"] == entry_id), None)
-            if e and e.get("status") == "Enabled":
-                ok, msg = disable_startup_entry(e)
-                done += ok
-                self.ctx.log_action("Startup apps", f"Disable {e['name']}", "Success" if ok else "Failed",
-                                    "" if ok else msg)
-        QMessageBox.information(self, "Startup apps", f"Disabled {done} of {len(ids)} app(s).")
-        self.load()
+        for e, ok, msg in res:
+            done += bool(ok)
+            self.ctx.log_action("Startup apps", f"Disable {e['name']}", "Success" if ok else "Failed",
+                                "" if ok else msg)
+        QMessageBox.information(self, "Startup apps", f"Disabled {done} of {total} app(s)."
+                                + "".join(f"\n{e['name']}: {msg}" for e, ok, msg in res if not ok))
+        self.load(force=True)
 
     def enable_selected(self):
         ids = self._checked_ids()
         if not ids:
             QMessageBox.information(self, "Startup apps", "Tick at least one app first.")
             return
+        self.count_lbl.setText("Working…")
+        self.run_task(_batch_enable, ids, on_done=lambda res, n=len(ids): self._enabled(res, n))
+
+    def _enabled(self, res, total):
+        if not isinstance(res, list):
+            QMessageBox.warning(self, "Startup apps", f"Failed: {res[1] if isinstance(res, tuple) else res}")
+            self.load(force=True)
+            return
         done = 0
-        for entry_id in ids:
-            ok, msg = enable_startup_entry(entry_id)
-            done += ok
+        for entry_id, ok, msg in res:
+            done += bool(ok)
             self.ctx.log_action("Startup apps", f"Enable {entry_id}", "Success" if ok else "Failed", "" if ok else msg)
-        QMessageBox.information(self, "Startup apps", f"Enabled {done} of {len(ids)} app(s).")
-        self.load()
+        QMessageBox.information(self, "Startup apps", f"Enabled {done} of {total} app(s)."
+                                + "".join(f"\n{i}: {msg}" for i, ok, msg in res if not ok))
+        self.load(force=True)

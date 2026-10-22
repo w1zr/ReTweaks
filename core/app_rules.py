@@ -166,9 +166,202 @@ def _active_plan():
         return None
 
 
-def _load_saved_plan():
+def _restore_path():
+    return _store().with_name("auto_boost_restore.json")
+
+
+def _read_state():
+    """The crash-recovery file: {"plan": <power plan guid>, "calm": [<calming records>]}."""
     try:
-        return json.loads(_store().with_name("auto_boost_restore.json").read_text(encoding="utf-8")).get("plan")
+        data = json.loads(_restore_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_state(state):
+    p = _restore_path()
+    try:
+        state = {k: v for k, v in state.items() if v}
+        if state:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(state), encoding="utf-8")
+        elif p.exists():
+            p.unlink()
+    except Exception:
+        pass
+
+
+def _load_saved_plan():
+    return _read_state().get("plan")
+
+
+# ---------------------------------------------------------------- background calming
+# While a game runs, lower the CPU priority of ONLY the programs the user picked, then put
+# it back. The original priority is written to the crash-recovery file before it is lowered.
+
+CALM_LEVELS = {"Below normal": ("BELOW_NORMAL_PRIORITY_CLASS", 0x4000),
+               "Idle": ("IDLE_PRIORITY_CLASS", 0x40)}
+CALM_DEFAULT = "Below normal"
+# Never lowered, whatever the user types: system-critical processes and RYTWEAKS itself.
+PROTECTED = frozenset({"csrss", "wininit", "winlogon", "services", "lsass", "smss", "svchost", "dwm",
+                       "explorer", "audiodg", "system", "registry", "msmpeng", "rytweaks",
+                       "rytweaks.old", "system idle process", "memory compression", "secure system"})
+
+
+def normalize_name(name):
+    """'Discord.EXE ' -> 'discord'. Returns '' for anything that isn't a plain program name."""
+    if not isinstance(name, str):
+        return ""
+    n = name.strip().lower()
+    if n.endswith(".exe"):
+        n = n[:-4]
+    if not n or len(n) > 100 or any(c in n for c in '\\/:*?"<>|') or any(ord(c) < 32 for c in n):
+        return ""
+    return n
+
+
+def is_protected(name):
+    return normalize_name(name) in PROTECTED
+
+
+def validate_calm_name(name):
+    """(ok, normalized_name_or_message). Used when adding, and again before every change."""
+    n = normalize_name(name)
+    if not n:
+        return False, "Type a program name such as discord or chrome (no folders)."
+    if n in PROTECTED:
+        return False, f"{n} is protected: RYTWEAKS never lowers system-critical programs or itself."
+    return True, n
+
+
+def calm_priority_value(level):
+    """psutil priority constant for a level name (works on any OS; None if unknown)."""
+    if level not in CALM_LEVELS:
+        return None
+    attr, fallback = CALM_LEVELS[level]
+    return getattr(psutil, attr, fallback)
+
+
+def _config_path():
+    return _store().with_name("calm_config.json")
+
+
+def load_calm_config():
+    """{"enabled": bool, "apps": [names], "priority": level}. Mirrors the "calm_enabled" setting
+    (the background worker has no access to the window's settings)."""
+    cfg = {"enabled": False, "apps": [], "priority": CALM_DEFAULT}
+    try:
+        data = json.loads(_config_path().read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            cfg["enabled"] = bool(data.get("enabled", False))
+            apps = []
+            for a in data.get("apps", []) if isinstance(data.get("apps"), list) else []:
+                ok, n = validate_calm_name(a)
+                if ok and n not in apps:
+                    apps.append(n)
+            cfg["apps"] = apps
+            if data.get("priority") in CALM_LEVELS:
+                cfg["priority"] = data["priority"]
+    except Exception:
+        pass
+    return cfg
+
+
+def save_calm_config(cfg):
+    p = _config_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"enabled": bool(cfg.get("enabled")), "apps": list(cfg.get("apps", [])),
+                               "priority": cfg.get("priority", CALM_DEFAULT)}, indent=2), encoding="utf-8")
+    os.replace(tmp, p)
+
+
+def load_calm_records():
+    """Programs that are lowered right now (or were when RYTWEAKS last closed)."""
+    recs = _read_state().get("calm")
+    return [r for r in recs if isinstance(r, dict) and {"pid", "name", "create_time", "original", "set"} <= set(r)] \
+        if isinstance(recs, list) else []
+
+
+def calm_apply(processes, names, level, records, own_pid=None):
+    """Lower the priority of running processes whose name is in `names`.
+
+    processes: iterable of objects with pid, name(), create_time(), nice(value=None) (psutil.Process
+    or a fake). records: list of dicts already lowered (updated in place, so the caller can save
+    it right after each change). Returns a list of event strings."""
+    target = calm_priority_value(level)
+    if target is None:
+        return [f"Background calming: unknown priority “{level}”, nothing changed."]
+    wanted = {normalize_name(n) for n in names} - {""}
+    events = []
+    for p in processes:
+        raw = ""
+        try:
+            raw = p.name()
+            n = normalize_name(raw)
+            if n not in wanted:
+                continue
+            if n in PROTECTED or p.pid == own_pid or p.pid == os.getpid():
+                continue                                    # protected, even if it got into the list
+            ctime = p.create_time()
+            if any(r["pid"] == p.pid and abs(r["create_time"] - ctime) < 0.01 for r in records):
+                continue                                    # already calmed
+            original = p.nice()
+            if original == target:
+                continue                                    # nothing to change, nothing to restore
+            rec = {"pid": p.pid, "name": n, "create_time": ctime, "original": original, "set": target}
+            records.append(rec)                             # recorded BEFORE it is changed
+            _save_calm(records)
+            try:
+                p.nice(target)
+            except Exception:
+                records.remove(rec)
+                _save_calm(records)
+                raise
+            events.append(f"Background calming: {raw} (PID {p.pid}) lowered to {level}.")
+        except Exception as e:
+            if type(e).__name__ == "AccessDenied":
+                events.append(f"Background calming: Windows didn't allow changing {normalize_name(raw) or 'a program'}.")
+            # NoSuchProcess / ZombieProcess / anything else: it just isn't there any more
+    return events
+
+
+def calm_restore(get_process, records, only=None):
+    """Put priorities back. get_process(pid) -> process object or None. Only processes that are
+    still the SAME process (PID + creation time) and still at the priority we set are restored;
+    if the user changed it meanwhile it is left alone. `only`: restore just these names.
+    Mutates `records` (removes the handled ones); returns event strings."""
+    events = []
+    for rec in list(records):
+        if only is not None and rec["name"] not in only:
+            continue
+        records.remove(rec)
+        try:
+            p = get_process(rec["pid"])
+            if p is None or abs(p.create_time() - rec["create_time"]) >= 0.01:
+                continue                                    # gone, or the PID now belongs to another program
+            if p.nice() != rec["set"]:
+                events.append(f"Background calming: {rec['name']} (PID {rec['pid']}) was changed by you, "
+                              "so RYTWEAKS left its priority alone.")
+                continue
+            p.nice(rec["original"])
+            events.append(f"Background calming: {rec['name']} (PID {rec['pid']}) restored to its original priority.")
+        except Exception as e:
+            if type(e).__name__ == "AccessDenied":
+                events.append(f"Background calming: Windows didn't allow restoring {rec['name']}.")
+    return events
+
+
+def _save_calm(records):
+    state = _read_state()
+    state["calm"] = list(records)
+    _write_state(state)
+
+
+def _get_process(pid):
+    try:
+        return psutil.Process(pid)
     except Exception:
         return None
 
@@ -181,24 +374,59 @@ class AutoGameMode:
         # Plan to restore when the last boosted program exits. Saved to disk too, so it's
         # restored on the next start if RYTWEAKS was closed or crashed during a game.
         self.saved_plan = _load_saved_plan()
+        # Programs lowered by background calming; also on disk, so a crash can be undone.
+        self.calm_records = load_calm_records()
 
     def _set_saved(self, plan):
         self.saved_plan = plan
-        try:
-            p = _store().with_name("auto_boost_restore.json")
-            if plan:
-                p.write_text(json.dumps({"plan": plan}), encoding="utf-8")
-            elif p.exists():
-                p.unlink()
-        except Exception:
-            pass
+        state = _read_state()
+        state["plan"] = plan
+        _write_state(state)
 
     def poll(self, rules):
+        events = self._poll_power(rules)
+        try:
+            events += self._poll_calm(rules)
+        except Exception as e:
+            events.append(f"Background calming: error: {e}")
+        return events
+
+    def _poll_calm(self, rules):
+        """Calm the picked programs while any program from Program rules is running."""
+        cfg = load_calm_config()
+        if not self.calm_records and not (cfg["enabled"] and cfg["apps"] and rules):
+            return []
+        game_exes = {os.path.normcase(r["exe"]) for r in rules}
+        procs, game_up = [], False
+        for p in psutil.process_iter(["pid", "name", "exe"]):
+            try:
+                exe = p.info.get("exe")
+                if exe and os.path.normcase(exe) in game_exes:
+                    game_up = True
+                procs.append(p)
+            except Exception:
+                continue
+        if not (cfg["enabled"] and game_up and IS_WINDOWS):
+            return self.calm_restore_all()                  # game closed, or switched off
+        events = calm_restore(_get_process, self.calm_records, only={r["name"] for r in self.calm_records
+                                                                    if r["name"] not in cfg["apps"]})
+        _save_calm(self.calm_records)
+        events += calm_apply(procs, cfg["apps"], cfg["priority"], self.calm_records)
+        return events
+
+    def calm_restore_all(self):
+        if not self.calm_records:
+            return []
+        events = calm_restore(_get_process, self.calm_records)
+        _save_calm(self.calm_records)
+        return events
+
+    def _poll_power(self, rules):
         events = []
         watched = {os.path.normcase(r["exe"]): r for r in rules
                    if r.get("boost") or r.get("priority") not in (None, PRIORITY_CHOICES[0])}
         if not watched and not self.running:
-            return self.restore()  # e.g. a plan left boosted after RYTWEAKS closed mid-game
+            return self.restore_power()  # e.g. a plan left boosted after RYTWEAKS closed mid-game
         seen = {}
         for p in psutil.process_iter(["pid", "exe"]):
             try:
@@ -249,11 +477,14 @@ class AutoGameMode:
                 events.append(f"{rule['name'] if rule else os.path.basename(exe)} closed.")
                 del self.running[exe]
         if not self.running:
-            events += self.restore()
+            events += self.restore_power()
         return events
 
     def restore(self):
-        """Put the power plan back (also called when RYTWEAKS closes)."""
+        """Put the power plan and calmed priorities back (called when RYTWEAKS closes)."""
+        return self.restore_power() + self.calm_restore_all()
+
+    def restore_power(self):
         if self.saved_plan is None:
             return []
         plan = self.saved_plan

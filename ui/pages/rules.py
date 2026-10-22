@@ -3,8 +3,10 @@
 
 import os
 
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QMessageBox,
-                               QPushButton, QTextEdit)
+import psutil
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QInputDialog,
+                               QListWidget, QMessageBox, QPushButton, QTextEdit)
 
 from core import app_rules as R
 from ui.widgets.common import Card, Page, label, set_role
@@ -84,6 +86,8 @@ class RulesPage(Page):
         self.content.addWidget(self.empty)
         self._insert_at = self.content.count()
 
+        self._build_calm_card()
+
         log_card = Card("Auto game mode activity")
         self.activity = QTextEdit()
         self.activity.setReadOnly(True)
@@ -94,6 +98,129 @@ class RulesPage(Page):
         self.finish()
         for rule in R.load_rules():
             self._add_card(rule)
+
+    # ------------------------------------------------------------ background calming
+    def _build_calm_card(self):
+        cfg = R.load_calm_config()
+        enabled = bool(self.ctx.settings.get("calm_enabled", False))
+        cfg["enabled"] = enabled
+        R.save_calm_config(cfg)          # the background worker reads this copy
+        self.calm_cfg = cfg
+        card = Card("Background calming")
+        card.body.addWidget(label(
+            "While any program listed above is running, temporarily lower the CPU priority of only the "
+            "programs you pick here, then put it back when the game closes (or RYTWEAKS closes). If you "
+            "change a program's priority yourself in the meantime, RYTWEAKS leaves it alone. System-critical "
+            "programs and RYTWEAKS itself can't be added. This never closes or pauses anything.",
+            "muted", wrap=True))
+        self.calm_switch = QCheckBox("Enable background calming")
+        self.calm_switch.setChecked(enabled)
+        self.calm_switch.toggled.connect(self._calm_enabled)
+        card.body.addWidget(self.calm_switch)
+        row = QHBoxLayout()
+        row.addWidget(label("Priority to use:", "cardLine"))
+        self.calm_level = QComboBox()
+        self.calm_level.addItems(list(R.CALM_LEVELS))
+        self.calm_level.setCurrentText(cfg["priority"])
+        self.calm_level.setToolTip("Below normal is gentle. Idle only gives the program CPU time nobody else wants.")
+        self.calm_level.currentTextChanged.connect(self._calm_level)
+        row.addWidget(self.calm_level)
+        row.addStretch()
+        card.body.addLayout(row)
+        self.calm_list = QListWidget()
+        self.calm_list.setMaximumHeight(130)
+        card.body.addWidget(self.calm_list)
+        row = QHBoxLayout()
+        b_run = QPushButton("Add from running programs…")
+        b_run.clicked.connect(self._calm_add_running)
+        b_type = QPushButton("Type a name…")
+        b_type.clicked.connect(self._calm_add_typed)
+        b_del = QPushButton("Remove selected")
+        b_del.clicked.connect(self._calm_remove)
+        for b in (b_run, b_type, b_del):
+            row.addWidget(b)
+        row.addStretch()
+        card.body.addLayout(row)
+        self.calm_status = label("", "cardLine", wrap=True)
+        card.body.addWidget(self.calm_status)
+        self.content.addWidget(card)
+        self._fill_calm_list()
+        self._timer = QTimer(self)
+        self._timer.setInterval(3000)
+        self._timer.timeout.connect(self._refresh_calm_status)
+        self._timer.start()
+        self._refresh_calm_status()
+
+    def _fill_calm_list(self):
+        self.calm_list.clear()
+        self.calm_list.addItems(self.calm_cfg["apps"])
+
+    def _calm_save(self):
+        R.save_calm_config(self.calm_cfg)
+
+    def _calm_enabled(self, on):
+        self.ctx.set_setting("calm_enabled", bool(on))
+        self.calm_cfg["enabled"] = bool(on)
+        self._calm_save()
+        self.msg.setText("Background calming " + ("on. It starts the next time a game from the list runs."
+                                                  if on else "off. Anything already lowered is restored within a few seconds."))
+        self.ctx.log_action("Background calming", "Enabled" if on else "Disabled", "Success")
+        self._refresh_calm_status()
+
+    def _calm_level(self, level):
+        self.calm_cfg["priority"] = level
+        self._calm_save()
+        self.ctx.log_action("Background calming", f"Priority set to {level}", "Success")
+
+    def _calm_add(self, name):
+        ok, result = R.validate_calm_name(name)
+        if not ok:
+            QMessageBox.warning(self, "Background calming", result)
+            return
+        if result in self.calm_cfg["apps"]:
+            self.msg.setText(f"{result} is already in the list.")
+            return
+        self.calm_cfg["apps"].append(result)
+        self._calm_save()
+        self._fill_calm_list()
+        self.ctx.log_action("Background calming", f"Added {result}", "Success")
+
+    def _calm_add_typed(self):
+        name, ok = QInputDialog.getText(self, "Add a program", "Program name (for example discord or chrome):")
+        if ok and name.strip():
+            self._calm_add(name)
+
+    def _calm_add_running(self):
+        names = set()
+        for p in psutil.process_iter(["name"]):
+            n = R.normalize_name(p.info.get("name") or "")
+            if n and n not in R.PROTECTED:
+                names.add(n)
+        if not names:
+            QMessageBox.information(self, "Background calming", "Unavailable: no running programs could be listed.")
+            return
+        name, ok = QInputDialog.getItem(self, "Add a running program", "Program:", sorted(names), 0, False)
+        if ok and name:
+            self._calm_add(name)
+
+    def _calm_remove(self):
+        item = self.calm_list.currentItem()
+        if not item:
+            return
+        self.calm_cfg["apps"].remove(item.text())
+        self._calm_save()
+        self._fill_calm_list()
+        self.ctx.log_action("Background calming", f"Removed {item.text()}", "Success")
+
+    def _refresh_calm_status(self):
+        recs = R.load_calm_records()
+        if recs:
+            self.calm_status.setText("Calmed right now: " + ", ".join(
+                f"{r['name']} (PID {r['pid']})" for r in recs))
+        elif self.calm_cfg["enabled"]:
+            self.calm_status.setText("Nothing is calmed right now. Waiting for a game from the list above to run.")
+        else:
+            self.calm_status.setText("Off.")
 
     def _add_card(self, rule):
         card = RuleCard(self, rule)

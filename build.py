@@ -17,6 +17,8 @@ def build_app():
         "--uac-admin",
         "--icon=assets/icon.ico",  # Embeds the icon into RYTWEAKS.exe for Windows Explorer
         "--add-data=assets/icon.ico;assets", # Bundles the icon for runtime taskbar loading
+        "--collect-submodules=pycaw",        # Audio mixer: pycaw's COM interface modules
+        "--hidden-import=comtypes.stream",
         "--name=RYTWEAKS",
         "main.py"
     ]

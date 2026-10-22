@@ -501,3 +501,218 @@ def add_custom_file(path, name=None):
     data["files"].append(entry)
     save_custom(data)
     return entry, f"Added {entry['name']} ({fmt} format, {len(FORMATS[fmt].parse(text))} settings)."
+
+
+# ================================================================ v1.4: manage user presets
+# User presets live in custom_presets.json under "presets"[game_or_file_id][name] = {key: value}.
+# That format is unchanged, so presets saved by earlier versions keep loading.
+
+PRESET_FORMAT = "rytweaks-preset"
+PRESET_VERSION = 1
+MAX_IMPORT_BYTES = 256 * 1024
+MAX_PRESET_KEYS = 500
+MAX_NAME_LEN = 60
+MAX_KEY_LEN = 200
+MAX_VALUE_LEN = 500
+
+
+def clean_name(name):
+    """(ok, name_or_message) for a preset name."""
+    if not isinstance(name, str):
+        return False, "The preset name must be text."
+    name = name.strip()
+    if not name:
+        return False, "Give the preset a name."
+    if len(name) > MAX_NAME_LEN:
+        return False, f"The preset name can be at most {MAX_NAME_LEN} characters."
+    if any(ord(c) < 32 for c in name):
+        return False, "The preset name can't contain control characters."
+    return True, name
+
+
+def known_keys(entry_id, file_keys=None):
+    """Keys the engine knows for this entry: every key in the built-in tiers of a game.
+    For a user's own file there are no built-in tiers, so it is the keys found in that file."""
+    game = BY_ID.get(entry_id)
+    if game:
+        keys = []
+        for tier in game.presets.values():
+            for k in tier:
+                if k not in keys:
+                    keys.append(k)
+        return keys
+    return list(file_keys or [])
+
+
+def validate_settings(settings, allowed_keys=None):
+    """(ok, message). Types: text, int, float or bool values only. If allowed_keys is given,
+    every key must be in it."""
+    if not isinstance(settings, dict) or not settings:
+        return False, "The preset has no settings."
+    if len(settings) > MAX_PRESET_KEYS:
+        return False, f"The preset has too many settings (limit {MAX_PRESET_KEYS})."
+    for k, v in settings.items():
+        if not isinstance(k, str) or not k.strip() or len(k) > MAX_KEY_LEN \
+                or any(ord(c) < 32 for c in k):
+            return False, "The preset contains an invalid setting name."
+        if allowed_keys is not None and k not in allowed_keys:
+            return False, f"“{k}” is not a setting RYTWEAKS knows for this game."
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)):
+            if isinstance(v, float) and (v != v or v in (float("inf"), float("-inf"))):
+                return False, f"“{k}” has an invalid number."
+            continue
+        if isinstance(v, str):
+            if len(v) > MAX_VALUE_LEN or "\n" in v or "\r" in v:
+                return False, f"The value of “{k}” is too long or has line breaks."
+            continue
+        return False, f"The value of “{k}” has an unsupported type."
+    return True, ""
+
+
+def user_presets(entry_id, data=None):
+    return (data or load_custom())["presets"].get(entry_id, {})
+
+
+def save_user_preset(entry_id, name, settings, replace=False):
+    """Create (or, with replace=True, overwrite) a user preset. Returns (status, message):
+    status is "ok", "clash" (name already used, nothing written) or "error"."""
+    ok, name = clean_name(name)
+    if not ok:
+        return "error", name
+    ok, msg = validate_settings(settings)
+    if not ok:
+        return "error", msg
+    data = load_custom()
+    store = data["presets"].setdefault(entry_id, {})
+    if name in store and not replace:
+        return "clash", f"You already have a preset called “{name}”."
+    store[name] = dict(settings)
+    save_custom(data)
+    return "ok", f"Saved preset “{name}”."
+
+
+def rename_user_preset(entry_id, old, new, replace=False):
+    ok, new = clean_name(new)
+    if not ok:
+        return "error", new
+    data = load_custom()
+    store = data["presets"].get(entry_id, {})
+    if old not in store:
+        return "error", "That preset no longer exists."
+    if new == old:
+        return "ok", "The name is unchanged."
+    if new in store and not replace:
+        return "clash", f"You already have a preset called “{new}”."
+    store[new] = store.pop(old)
+    save_custom(data)
+    return "ok", f"Renamed “{old}” to “{new}”."
+
+
+def duplicate_preset(entry_id, source, new_name, replace=False):
+    """Copy a user preset, or a built-in tier (source "Low", "High", ... of a built-in game),
+    into a new user preset. Built-in presets themselves are never changed."""
+    data = load_custom()
+    store = data["presets"].get(entry_id, {})
+    game = BY_ID.get(entry_id)
+    if source in store:
+        settings = store[source]
+    elif game and source in game.presets:
+        settings = game.presets[source]
+    else:
+        return "error", "That preset no longer exists."
+    return save_user_preset(entry_id, new_name, dict(settings), replace)
+
+
+def delete_user_preset(entry_id, name):
+    data = load_custom()
+    if data["presets"].get(entry_id, {}).pop(name, None) is None:
+        return False
+    save_custom(data)
+    return True
+
+
+def update_user_preset(entry_id, name, settings, file_keys=None):
+    """Replace the settings of an existing user preset. Keys the preset already had are kept
+    allowed; NEW keys must be ones the engine knows for this game (or exist in the user's file)."""
+    data = load_custom()
+    store = data["presets"].get(entry_id, {})
+    if name not in store:
+        return False, "That preset no longer exists."
+    allowed = set(known_keys(entry_id, file_keys)) | set(store[name])
+    ok, msg = validate_settings(settings, allowed)
+    if not ok:
+        return False, msg
+    store[name] = dict(settings)
+    save_custom(data)
+    return True, f"Saved the changes to “{name}”."
+
+
+# ---- export / import
+
+def export_preset_text(entry_id, name):
+    """JSON text for a user preset, or None if it doesn't exist."""
+    preset = user_presets(entry_id).get(name)
+    if preset is None:
+        return None
+    return json.dumps({"format": PRESET_FORMAT, "version": PRESET_VERSION, "game": entry_id,
+                       "name": name, "settings": preset}, indent=2, ensure_ascii=False)
+
+
+def export_preset(entry_id, name, path):
+    text = export_preset_text(entry_id, name)
+    if text is None:
+        return False, "That preset no longer exists."
+    try:
+        Path(path).write_text(text, encoding="utf-8")
+    except OSError as e:
+        return False, f"Couldn't write the file: {e}"
+    return True, f"Exported “{name}” to {path}."
+
+
+def parse_preset_file(raw, entry_id):
+    """Validate an exported preset (bytes or str). Returns (ok, message, name, settings)."""
+    if isinstance(raw, str):
+        raw = raw.encode("utf-8")
+    if len(raw) > MAX_IMPORT_BYTES:
+        return False, f"That file is too big to be a preset (limit {MAX_IMPORT_BYTES // 1024} KB).", None, None
+    try:
+        data = json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, ValueError):
+        return False, "That file isn't a valid RYTWEAKS preset (it isn't readable JSON).", None, None
+    if not isinstance(data, dict) or data.get("format") != PRESET_FORMAT:
+        return False, "That file isn't a RYTWEAKS preset export.", None, None
+    version = data.get("version")
+    if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+        return False, "The preset file has no valid version.", None, None
+    if version > PRESET_VERSION:
+        return False, "That preset was made by a newer RYTWEAKS. Update RYTWEAKS to import it.", None, None
+    if data.get("game") != entry_id:
+        return False, (f"That preset is for “{data.get('game')}”, not for the game you have selected."), None, None
+    ok, name = clean_name(data.get("name"))
+    if not ok:
+        return False, name, None, None
+    ok, msg = validate_settings(data.get("settings"))
+    if not ok:
+        return False, msg, None, None
+    return True, "", name, dict(data["settings"])
+
+
+def import_preset(entry_id, path, new_name=None, replace=False):
+    """Read, validate and save an exported preset. Returns (status, message, name); status is
+    "ok", "clash" (a preset with that name exists; nothing written, ask the user to rename or
+    replace) or "error"."""
+    try:
+        if os.path.getsize(path) > MAX_IMPORT_BYTES:
+            return "error", f"That file is too big to be a preset (limit {MAX_IMPORT_BYTES // 1024} KB).", None
+        raw = Path(path).read_bytes()
+    except OSError as e:
+        return "error", f"Couldn't read the file: {e}", None
+    ok, msg, name, settings = parse_preset_file(raw, entry_id)
+    if not ok:
+        return "error", msg, None
+    if new_name is not None:
+        name = new_name
+    status, msg = save_user_preset(entry_id, name, settings, replace)
+    return status, msg.replace("Saved preset", "Imported preset") if status == "ok" else msg, name

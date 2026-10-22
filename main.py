@@ -41,22 +41,22 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
-    # Show Splash Screen
-    splash = RytweaksSplash()
-    splash.show()
-    app.processEvents()
-    
-    # Initialize Main Window
-    window = MainWindow()
-    
-    # Smooth Transition from Splash to Main Window
-    splash.finish(window)
-    # Started by "Start with Windows" with "Start minimized" on
+    # Started by "Start with Windows" with "Start minimized" on: no splash, just the taskbar
     if "--minimized" in sys.argv:
+        window = MainWindow()
         window.showMinimized()
-    else:
-        window.show()
-    
+        sys.exit(app.exec())
+
+    # Chip-scan splash plays while the window really loads (no added waiting)
+    splash = RytweaksSplash()
+    splash.start()
+    try:
+        window = MainWindow(progress=splash.pump)
+    except Exception:
+        splash.abort()       # never leave the splash stuck on screen
+        raise
+    splash.finish(window)
+
     sys.exit(app.exec())
 
 if __name__ == "__main__":
