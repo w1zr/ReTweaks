@@ -30,6 +30,9 @@ HOMEPAGES = {
     "Startpage": "https://www.startpage.com/",
 }
 CUSTOM = "Custom"
+NEWTAB_HOST = "rytweaks.newtab"                    # RYTWEAKS start page (core/browser_newtab.py)
+NEWTAB_URL = f"https://{NEWTAB_HOST}/index.html"
+NEWTAB_PRIVATE_URL = f"https://{NEWTAB_HOST}/private.html"
 DEFAULT_ENGINE = "Google"
 HISTORY_LIMIT = 5000
 
@@ -101,6 +104,10 @@ def to_url(text, engine=DEFAULT_ENGINE, custom=""):
         scheme = "http" if host == "localhost" or re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host) else "https"
         return f"{scheme}://{t}"
     return search_url(t, engine, custom)
+
+
+def is_newtab(url):
+    return urlsplit(url or "").netloc.lower() == NEWTAB_HOST
 
 
 def display_title(title, url):
@@ -190,7 +197,7 @@ class BrowserData:
             return any(b["url"] == url for b in self.bookmarks)
 
     def add_bookmark(self, title, url):
-        if not url or not url.lower().startswith(("http://", "https://")):
+        if not url or not url.lower().startswith(("http://", "https://")) or is_newtab(url):
             return False
         with self._lock:
             if any(b["url"] == url for b in self.bookmarks):
@@ -220,7 +227,7 @@ class BrowserData:
     # ---- history
     def add_history(self, title, url, private=False):
         """Records a visit. Private tabs and non-web pages are never recorded."""
-        if private or not url or not url.lower().startswith(("http://", "https://")):
+        if private or not url or not url.lower().startswith(("http://", "https://")) or is_newtab(url):
             return False
         with self._lock:
             now = int(time.time())

@@ -104,8 +104,9 @@ class EdgeView(QWidget):
     fullscreenChanged = Signal(bool)
     ready = Signal()
 
-    def __init__(self, engine, env_holder, private=False, parent=None):
+    def __init__(self, engine, env_holder, private=False, parent=None, newtab_folder=None):
         super().__init__(parent)
+        self.newtab_folder = newtab_folder
         self.setAttribute(Qt.WA_NativeWindow, True)
         self.setAttribute(Qt.WA_DontCreateNativeAncestors, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
@@ -164,6 +165,12 @@ class EdgeView(QWidget):
         s.IsStatusBarEnabled = True
         s.AreDefaultContextMenusEnabled = True
         s.IsZoomControlEnabled = True
+        if self.newtab_folder:
+            try:   # RYTWEAKS start page: https://rytweaks.newtab/ -> local folder
+                wv.SetVirtualHostNameToFolderMapping(bd.NEWTAB_HOST, self.newtab_folder,
+                                                     self.engine.C.CoreWebView2HostResourceAccessKind.Allow)
+            except Exception:
+                traceback.print_exc()
         self._on(wv, "DocumentTitleChanged", lambda *_: self._title())
         self._on(wv, "SourceChanged", lambda *_: self._source())
         self._on(wv, "HistoryChanged", lambda *_: self.navStateChanged.emit())

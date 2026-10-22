@@ -96,3 +96,27 @@ def test_unique_path(tmp_path):
     (tmp_path / "a.zip").write_text("x")
     (tmp_path / "a (1).zip").write_text("x")
     assert bd.unique_path(tmp_path, "a.zip").endswith("a (2).zip")
+
+
+def test_start_page_is_not_history_or_bookmark(tmp_path):
+    d = bd.BrowserData(tmp_path / "b.json")
+    assert bd.is_newtab(bd.NEWTAB_URL) and bd.is_newtab(bd.NEWTAB_PRIVATE_URL)
+    assert not d.add_history("New tab", bd.NEWTAB_URL)
+    assert not d.add_bookmark("New tab", bd.NEWTAB_URL)
+
+
+def test_start_page_render_escapes_and_uses_engine(tmp_path):
+    from core import browser_newtab as n
+    from core import themes
+    t = themes.get_theme("Midnight")
+    page = n.render(t, "DuckDuckGo", "", [{"title": "<script>x</script>", "url": "https://e.com/?a=\"b"},
+                                          {"title": "bad", "url": "javascript:alert(1)"}])
+    assert "RYTWEAKS" in page and "<svg" in page
+    assert "<script>x</script>" not in page and "&lt;script&gt;" in page
+    assert "javascript:alert" not in page
+    assert '"https://duckduckgo.com/?q={q}"' in page
+    page = n.render(t, bd.CUSTOM, "https://kagi.com/search?q=%s")
+    assert '"https://kagi.com/search?q={q}"' in page
+    assert "Private tab" in n.render(t, private=True)
+    folder = n.write(tmp_path / "nt", t)
+    assert (tmp_path / "nt" / "index.html").exists() and (tmp_path / "nt" / "private.html").exists()

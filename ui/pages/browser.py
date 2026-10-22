@@ -1,5 +1,6 @@
 # ui/pages/browser.py
-"""Browser (v1.5): RYTWEAKS's own browser frame around Microsoft's Edge engine (WebView2).
+"""Browser (v1.5): the RYTWEAKS browser: its own frame, logo and start page around Microsoft's Edge
+engine (WebView2).
 
 Tabs, private tabs, address bar that also searches (Google, DuckDuckGo, Brave Search, Bing,
 Startpage or your own), bookmarks, history and downloads. The engine starts the first time this page
@@ -130,6 +131,8 @@ class BrowserPage(Page):
         self.downloads = []
         self.panel_mode = None
         self._started = False
+        self._theme = None
+        self.newtab_folder = None
 
         root = QWidget()
         root.setObjectName("browserRoot")
@@ -143,6 +146,15 @@ class BrowserPage(Page):
         sl = QHBoxLayout(strip)
         sl.setContentsMargins(10, 8, 10, 0)
         sl.setSpacing(6)
+        from ui.widgets.brand import ChipLogo
+        brand = QWidget()
+        bl = QHBoxLayout(brand)
+        bl.setContentsMargins(4, 0, 10, 4)
+        bl.setSpacing(8)
+        self.brand_logo = ChipLogo(20)
+        bl.addWidget(self.brand_logo)
+        bl.addWidget(label("RYTWEAKS", "browserBrand"))
+        sl.addWidget(brand)
         self.tabbar = QTabBar()
         self.tabbar.setObjectName("browserTabs")
         self.tabbar.setTabsClosable(False)      # own themed close buttons (see _add_close)
@@ -331,6 +343,8 @@ class BrowserPage(Page):
             self.engine = be.load()
             from ui.widgets.edge_view import EnvironmentHolder
             self.env_holder = EnvironmentHolder(self.engine, be.user_data_dir())
+            self.newtab_folder = os.path.join(be.user_data_dir(), "newtab")
+            self._refresh_newtab()
         except be.EngineUnavailable as e:
             return self._engine_failed(str(e))
         except Exception as e:
@@ -363,7 +377,7 @@ class BrowserPage(Page):
         if self.engine is None:
             return None
         from ui.widgets.edge_view import EdgeView
-        v = EdgeView(self.engine, self.env_holder, private=private)
+        v = EdgeView(self.engine, self.env_holder, private=private, newtab_folder=self.newtab_folder)
         self.stack.addWidget(v)
         self.views.append(v)
         i = self.tabbar.addTab("Private · New tab" if private else "New tab")
@@ -382,7 +396,7 @@ class BrowserPage(Page):
         if activate:
             self.tabbar.setCurrentIndex(i)
             self.stack.setCurrentWidget(v)
-        v.start(url=None if adopt else (url or self.home_url()), adopt=adopt)
+        v.start(url=None if adopt else (url or self.home_url(private)), adopt=adopt)
         if activate and not url and not adopt:
             QTimer.singleShot(50, self.focus_address)
         return v
@@ -484,13 +498,30 @@ class BrowserPage(Page):
         if v:
             (v.stop if v.loading else v.reload)()
 
-    def home_url(self):
-        return bd.homepage(self.cfg["browser_search_engine"], self.cfg["browser_custom_search"])
+    def home_url(self, private=False):
+        """New tabs and Home open the RYTWEAKS start page (logo + search + bookmark tiles)."""
+        return bd.NEWTAB_PRIVATE_URL if private else bd.NEWTAB_URL
+
+    def _refresh_newtab(self):
+        """Rewrites the start page with the current theme, search engine and bookmarks."""
+        if not self.newtab_folder:
+            return
+        try:
+            from core import browser_newtab
+            browser_newtab.write(self.newtab_folder, self._theme or getattr(self.ctx, "theme", None) or {},
+                                 self.cfg["browser_search_engine"], self.cfg["browser_custom_search"],
+                                 self.data.bookmarks)
+        except Exception as e:
+            self._show_msg(f"Couldn't update the start page: {e}")
+            return
+        for v in self.views:                 # tabs sitting on the start page show the change
+            if bd.is_newtab(v.url):
+                v.reload()
 
     def go_home(self):
         v = self.current()
         if v:
-            v.navigate(self.home_url())
+            v.navigate(self.home_url(v.private))
 
     def _go_address(self):
         url = bd.to_url(self.address.text(), self.cfg["browser_search_engine"], self.cfg["browser_custom_search"])
@@ -505,7 +536,7 @@ class BrowserPage(Page):
 
     def _set_address(self, url):
         if not self.address.hasFocus():
-            self.address.setText(url or "")
+            self.address.setText("" if bd.is_newtab(url) else (url or ""))
             self.address.setCursorPosition(0)
         self._update_star()
 
@@ -551,6 +582,7 @@ class BrowserPage(Page):
         elif not self.data.add_bookmark(v.title, v.url):
             self._show_msg("Only web pages (http/https) can be bookmarked.")
         self._update_star()
+        self._refresh_newtab()
         if self.panel_mode == "bookmarks":
             self._fill_panel()
 
@@ -657,12 +689,14 @@ class BrowserPage(Page):
         if ok:
             self.data.rename_bookmark(url, title)
             self._fill_panel()
+            self._refresh_newtab()
 
     def _delete_bookmark(self):
         url = self._selected()
         if url and self.data.remove_bookmark(url):
             self._fill_panel()
             self._update_star()
+            self._refresh_newtab()
 
     # ------------------------------------------------------------ downloads
     def _download(self, v, payload):
@@ -767,6 +801,7 @@ class BrowserPage(Page):
             self._set("browser_custom_search", url.strip())
         self._set("browser_search_engine", name)
         self._update_placeholder()
+        self._refresh_newtab()
         self._show_msg(f"Search engine: {'your custom search' if name == bd.CUSTOM else name}")
 
     def clear_history(self):
@@ -809,6 +844,10 @@ class BrowserPage(Page):
 
     # ------------------------------------------------------------ theme and shutdown
     def on_theme(self, t):
+        self._theme = t
+        if self._started:
+            self._refresh_newtab()
+        self.brand_logo.update()
         self.setStyleSheet(f"""
             QWidget#browserStrip, QWidget#browserNav {{ background-color: {t['sidebar']}; }}
             QWidget#browserNav {{ border-bottom: 1px solid {t['border']}; }}
@@ -833,6 +872,7 @@ class BrowserPage(Page):
             QListWidget#browserList {{ background: {t['bg']}; border: 1px solid {t['border']}; border-radius: 8px; }}
             QListWidget#browserList::item {{ padding: 6px; border-bottom: 1px solid {t['border']}; }}
             QListWidget#browserList::item:selected {{ background: {t['card_hover']}; color: {t['text']}; }}
+            QLabel#browserBrand {{ color: {t['text']}; font-weight: 700; letter-spacing: 2px; font-size: 12px; }}
             QLabel#browserMsg {{ background: {t['card']}; color: {t['subtext']}; border-bottom: 1px solid {t['border']}; }}
         """)
 
