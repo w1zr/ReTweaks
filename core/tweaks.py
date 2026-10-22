@@ -398,7 +398,7 @@ TWEAKS = [
 ]
 
 # v1.4.3: more tweaks, grouped by category (see core/tweaks_catalog.py)
-from core.tweaks_catalog import CATEGORY_ORDER, EXISTING_CATEGORY, more_tweaks  # noqa: E402
+from core.tweaks_catalog import CATEGORY_ORDER, EXISTING_CATEGORY, KEYWORDS, more_tweaks  # noqa: E402,F401
 
 for _t in TWEAKS:
     _t.category = EXISTING_CATEGORY.get(_t.id, "Gaming")

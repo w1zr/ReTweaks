@@ -17,7 +17,7 @@ def _xbox_original():
     return ok, msg
 
 
-PROFILES = {
+_EXISTING = {
     "Max Performance": {
         "description": "For gaming sessions. Turns on Game Mode, switches to the Ultimate "
                        "Performance power plan and stops Xbox Game Bar recording in the background. "
@@ -27,63 +27,6 @@ PROFILES = {
             ("Ultimate Performance power plan", W.enable_ultimate_power_plan),
             ("Stop Xbox background recording", lambda: T["xbox_capture"].apply(False)),
         ],
-    },
-    "Esports": {
-        "description": "For competitive games where input feel matters most. Game Mode, Ultimate "
-                       "Performance, raw mouse movement (no acceleration), no Xbox background recording, no "
-                       "Sticky Keys pop-ups mid-game, no Store apps in the background, no tip "
-                       "notifications and no surprise update restarts while you're signed in.",
-        "steps": [
-            ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
-            ("Ultimate Performance power plan", W.enable_ultimate_power_plan),
-            ("Stop Xbox background recording", lambda: T["xbox_capture"].apply(False)),
-            ("Turn off mouse acceleration", lambda: T["mouse_accel"].apply(False)),
-            ("Turn off Sticky/Filter/Toggle Keys pop-ups", lambda: T["sticky_keys_popup"].apply(False)),
-            ("Stop Store apps running in the background", lambda: T["background_apps"].apply(False)),
-            ("Turn off tips notifications", lambda: T["tips"].apply(False)),
-            ("No automatic restart while signed in", lambda: T["update_restart"].apply(True)),
-        ],
-    },
-    "Max FPS": {
-        "description": "Everything in Esports, plus lighter visuals: no transparency, no window "
-                       "animations, faster menus, and Windows' optimizations for windowed and borderless "
-                       "games. Windows looks plainer. Measure with the FPS test; no FPS gain is promised.",
-        "steps": [
-            ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
-            ("Ultimate Performance power plan", W.enable_ultimate_power_plan),
-            ("Stop Xbox background recording", lambda: T["xbox_capture"].apply(False)),
-            ("Turn off mouse acceleration", lambda: T["mouse_accel"].apply(False)),
-            ("Turn off Sticky/Filter/Toggle Keys pop-ups", lambda: T["sticky_keys_popup"].apply(False)),
-            ("Stop Store apps running in the background", lambda: T["background_apps"].apply(False)),
-            ("Turn off tips notifications", lambda: T["tips"].apply(False)),
-            ("No automatic restart while signed in", lambda: T["update_restart"].apply(True)),
-            ("Turn off transparency effects", lambda: T["transparency"].apply(False)),
-            ("Turn off window animations", lambda: T["animations"].apply(False)),
-            ("Faster menus", lambda: T["menu_delay"].apply(True)),
-            ("Turn on optimizations for windowed games", lambda: T["windowed_games"].apply(True)),
-        ],
-    },
-    "Balanced": {
-        "description": "Good everyday setup for a PC you game and work on. Game Mode, the Balanced "
-                       "power plan, no Store apps in the background, no tip notifications and no "
-                       "surprise update restarts. Looks and animations stay as they are.",
-        "steps": [
-            ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
-            ("Balanced power plan", W.set_balanced_power_plan),
-            ("Stop Store apps running in the background", lambda: T["background_apps"].apply(False)),
-            ("Turn off tips notifications", lambda: T["tips"].apply(False)),
-            ("No automatic restart while signed in", lambda: T["update_restart"].apply(True)),
-        ],
-    },
-    "Privacy": {
-        "description": "Turns off the advertising ID, tailored experiences, optional diagnostic data, "
-                       "activity history, web results in Start, online speech, inking and typing "
-                       "personalization, and Windows' suggestions, tips and automatic app installs. Leaves "
-                       "services alone (those are on the Tweaks page). Each can be undone there.",
-        "steps": [(f"Turn off {T[i].name[0].lower() + T[i].name[1:]}", (lambda i=i: T[i].apply(False)))
-                  for i in ("ad_id", "tailored", "diag_data", "activity_history", "web_search_start",
-                            "online_speech", "inking_typing", "suggested_content", "start_suggestions",
-                            "tips", "lockscreen_tips", "silent_apps")],
     },
     "Windows Default": {
         "description": "Puts the main gaming settings back: Game Mode on (the Windows default), the Balanced power "
@@ -96,6 +39,112 @@ PROFILES = {
         ],
     },
 }
+
+
+# ---------------------------------------------------------------- presets (v1.4.3)
+# Each preset is a list of INDIVIDUAL tweaks set On or Off (plus an optional power plan). Every one of
+# them is a normal tweak on the Tweaks page with its own Undo, and "Undo everything" puts all back.
+# None of these presets promises an FPS gain; measure with the FPS test.
+
+_E = {"game_mode": True, "update_restart": True,
+      "xbox_capture": False, "mouse_accel": False, "sticky_keys_popup": False, "background_apps": False,
+      "tips": False, "notification_banners": False, "narrator_shortcut": False, "power_throttling": False}
+
+PRESETS = {
+    "Esports": {
+        "description": "For competitive games where input feel matters most: raw mouse movement, no "
+                       "pop-ups or accidental shortcuts mid-match, nothing slowed down in the background, "
+                       "no surprise update restarts.",
+        "power": "ultimate", "tweaks": dict(_E)},
+    "Max FPS": {
+        "description": "Everything in Esports, plus lighter Windows visuals and less running in the "
+                       "background. Windows looks plainer.",
+        "power": "ultimate",
+        "tweaks": {**_E, "transparency": False, "animations": False, "menu_delay": True,
+                   "windowed_games": True, "edge_background": False}},
+    "Balanced": {
+        "description": "Good everyday setup for a PC you game and work on. Windows keeps its normal look "
+                       "and the Balanced power plan.",
+        "power": "balanced",
+        "tweaks": {"game_mode": True, "update_restart": True, "transparency": True, "animations": True,
+                   "background_apps": False, "tips": False}},
+    "Low-end PC": {
+        "description": "For PCs that get low FPS: turns off visual extras and things that run in the "
+                       "background, so more of a weak CPU and GPU is left for the game. Laptops will use "
+                       "more battery.",
+        "power": "ultimate",
+        "tweaks": {"game_mode": True, "windowed_games": True, "menu_delay": True, "xbox_capture": False,
+                   "transparency": False, "animations": False, "background_apps": False,
+                   "edge_background": False, "widgets": False, "tips": False, "start_suggestions": False,
+                   "silent_apps": False, "power_throttling": False}},
+    "High quality": {
+        "description": "For a strong PC where you want Windows to look its best: all visual effects "
+                       "on, Game Mode and windowed-game optimizations on, Balanced power plan. Set the "
+                       "in-game graphics on the Game presets page.",
+        "power": "balanced",
+        "tweaks": {"game_mode": True, "transparency": True, "animations": True, "windowed_games": True}},
+    "Ultra quality": {
+        "description": "High quality plus the Ultimate Performance plan and hardware-accelerated GPU "
+                       "scheduling (needed for NVIDIA DLSS Frame Generation on RTX 40 and newer). "
+                       "Restart after applying.",
+        "power": "ultimate",
+        "tweaks": {"game_mode": True, "transparency": True, "animations": True, "windowed_games": True,
+                   "hags": True, "power_throttling": False}},
+    "Streamer": {
+        "description": "For streaming or recording with OBS or similar: no notification pop-ups on "
+                       "stream, no Xbox recording competing with your recorder, no accidental "
+                       "accessibility shortcuts, no update restarts while live.",
+        "power": "ultimate",
+        "tweaks": {"game_mode": True, "update_restart": True, "xbox_capture": False,
+                   "notification_banners": False, "tips": False, "sticky_keys_popup": False,
+                   "narrator_shortcut": False, "power_throttling": False}},
+    "Privacy": {
+        "description": "Turns off what Windows collects for ads and suggestions. Leaves services alone "
+                       "(those are on the Tweaks page).",
+        "power": None,
+        "tweaks": {i: False for i in ("ad_id", "tailored", "diag_data", "activity_history",
+                                       "web_search_start", "online_speech", "inking_typing",
+                                       "suggested_content", "start_suggestions", "tips",
+                                       "lockscreen_tips", "silent_apps", "recall")}},
+}
+
+_POWER = {"ultimate": ("Ultimate Performance power plan", lambda: W.enable_ultimate_power_plan()),
+          "balanced": ("Balanced power plan", lambda: W.set_balanced_power_plan())}
+
+
+def _steps(preset):
+    steps = []
+    if preset.get("power"):
+        steps.append(_POWER[preset["power"]])
+    for tid, on in preset["tweaks"].items():
+        steps.append((f"{T[tid].name}: {'On' if on else 'Off'}", (lambda t=T[tid], v=on: t.apply(v))))
+    return steps
+
+
+PROFILES = {name: {"description": p["description"], "steps": _steps(p)} for name, p in PRESETS.items()}
+PROFILES.update(_EXISTING)       # Max Performance and Windows Default stay exactly as before
+
+
+def preview(name):
+    """What a preset would change, read from Windows: [(label, current, target, changes)]."""
+    p = PRESETS.get(name)
+    if p is None:
+        return [(step, "", "", True) for step, _ in PROFILES[name]["steps"]]
+    out = []
+    if p.get("power"):
+        label, _ = _POWER[p["power"]]
+        cur = W.get_active_power_plan()
+        want = "Ultimate Performance" if p["power"] == "ultimate" else "Balanced"
+        out.append((label, cur, want, want.lower() not in str(cur).lower()))
+    for tid, on in p["tweaks"].items():
+        t = T[tid]
+        try:
+            cur = t.get_state()
+        except Exception:
+            cur = "Unknown"
+        want = "On" if on else "Off"
+        out.append((t.name, cur, want, cur != want))
+    return out
 
 
 def apply_profile(name):

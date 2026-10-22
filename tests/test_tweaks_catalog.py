@@ -118,3 +118,48 @@ def test_sfc_parsing_handles_utf16_spacing(monkeypatch):
     R.stdout = "Windows Resource Protection found corrupt files but was unable to fix some of them."
     ok, msg = quick_actions.sfc_scan()
     assert not ok and "DISM" in msg
+
+
+def test_every_preset_uses_real_individual_tweaks():
+    for name, p in profiles.PRESETS.items():
+        assert p["tweaks"], name
+        for tid, on in p["tweaks"].items():
+            assert tid in tw.BY_ID and isinstance(on, bool), (name, tid)
+        assert p.get("power") in (None, "ultimate", "balanced")
+    for name in ("Esports", "Max FPS", "Balanced", "Low-end PC", "High quality", "Ultra quality",
+                 "Streamer", "Privacy", "Max Performance", "Windows Default"):
+        assert name in profiles.PROFILES
+
+
+def test_preview_reports_only_real_changes(tmp_path, monkeypatch):
+    setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(profiles.W, "get_active_power_plan", staticmethod(lambda: "Balanced"))
+    items = profiles.preview("Streamer")
+    by = {lbl: (cur, want, ch) for lbl, cur, want, ch in items}
+    assert by["Ultimate Performance power plan"] == ("Balanced", "Ultimate Performance", True)
+    assert by["Notification banners"][1] == "Off" and by["Notification banners"][2]
+    tw.BY_ID["notification_banners"].apply(False)
+    by = {lbl: (cur, want, ch) for lbl, cur, want, ch in profiles.preview("Streamer")}
+    assert by["Notification banners"] == ("Off", "Off", False)
+
+
+def test_applying_a_preset_then_undo_everything_restores(tmp_path, monkeypatch):
+    reg = setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(profiles.W, "enable_ultimate_power_plan", staticmethod(lambda: (True, "ok")))
+    res = profiles.apply_profile("Max FPS")
+    assert all(ok for _, ok, _ in res), res
+    assert tw.BY_ID["transparency"].get_state() == "Off"
+    for t in tw.changed_tweaks():
+        assert t.undo()[0]
+    assert reg.d == {}                      # nothing existed before, so everything is removed again
+
+
+def test_new_tweaks_and_search_keywords():
+    for tid in ("power_throttling", "mmcss_reserve", "notification_banners", "narrator_shortcut",
+                "edge_background", "key_repeat_fast", "game_bar_button", "recall", "clock_seconds"):
+        assert tid in tw.BY_ID
+    mm = tw.BY_ID["mmcss_reserve"]
+    assert list(mm.values_off.values())[0][1] == 10      # Microsoft's minimum (below 10 is clamped to 20)
+    for tid in tw.KEYWORDS:
+        assert tid in tw.BY_ID
+    assert "sticky" in tw.KEYWORDS["sticky_keys_popup"]

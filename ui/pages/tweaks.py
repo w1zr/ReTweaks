@@ -4,7 +4,8 @@ with safe (Standard) ones first and Advanced ones marked. Each row shows the set
 current state, its trade-off, and has its own Undo. Plus restore point and Undo everything."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
+                               QWidget)
 
 from core import tweaks as T
 from core.optimizer import WindowsOptimizer as W
@@ -87,7 +88,33 @@ class TweaksPage(Page):
         self.content.addLayout(top)
         self.content.addWidget(self.top_msg)
 
+        # ---- Search and presets (v1.4.3)
+        bar = QHBoxLayout()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Search tweaks, e.g. sticky keys, mouse, telemetry, notifications…")
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self.filter_rows)
+        bar.addWidget(self.search, 1)
+        bar.addSpacing(12)
+        bar.addWidget(label("Preset", "cardLine"))
+        from core.profiles import PROFILES
+        self.preset = QComboBox()
+        self.preset.addItems(list(PROFILES.keys()))
+        last = self.ctx.settings.get("last_preset") if isinstance(getattr(self.ctx, "settings", None), dict) else None
+        if last in PROFILES:
+            self.preset.setCurrentText(last)
+        bar.addWidget(self.preset)
+        self.b_preset = set_role(QPushButton("Preview and apply"), "primary")
+        self.b_preset.setToolTip("Shows which tweaks the preset turns on or off before changing anything.")
+        self.b_preset.clicked.connect(self.apply_preset)
+        bar.addWidget(self.b_preset)
+        self.content.addLayout(bar)
+        self.match_msg = label("", "muted")
+        self.match_msg.setVisible(False)
+        self.content.addWidget(self.match_msg)
+
         self.rows = []
+        self.cards = []            # (card, [(row, separator or None)])
         intros = {
             "Gaming": "Responsiveness and gaming features. None of these promise more FPS; test with the FPS test.",
             "Privacy": "What Windows collects and sends, and the ads and suggestions it shows.",
@@ -99,6 +126,7 @@ class TweaksPage(Page):
         for cat in T.CATEGORY_ORDER:
             card = Card(cat)
             card.body.addWidget(label(intros.get(cat, ""), "muted", wrap=True))
+            entries = []
             first = True
             if cat == "Gaming":
                 row = TweakRow(self, "Power plan",
@@ -111,12 +139,16 @@ class TweaksPage(Page):
                                 ("Restore previous", W.restore_previous_power_plan)])
                 card.body.addWidget(row)
                 self.rows.append(row)
+                row.search_text = "power plan ultimate performance balanced battery cpu"
+                entries.append((row, None))
                 first = False
             items = [t for t in T.TWEAKS if getattr(t, "category", "Gaming") == cat]
             items.sort(key=lambda t: 0 if t.level == T.STANDARD else 1)   # safe ones first
             for t in items:
+                sep = None
                 if not first:
-                    card.body.addWidget(_sep())
+                    sep = _sep()
+                    card.body.addWidget(sep)
                 first = False
                 badges = (["Advanced"] if t.level == T.ADVANCED else []) + \
                          (["Admin"] if t.admin else []) + \
@@ -127,10 +159,17 @@ class TweaksPage(Page):
                                 ("Undo", t.undo)], badges)
                 card.body.addWidget(row)
                 self.rows.append(row)
+                row.search_text = " ".join((t.name, t.description, t.tradeoff, cat, " ".join(badges),
+                                            T.KEYWORDS.get(t.id, ""))).lower()
+                entries.append((row, sep))
             self.content.addWidget(card)
+            self.cards.append((card, entries))
 
         # ---- Essentials: one-click actions with real results
         ess = Card("Essentials")
+        self.ess = ess
+        self.ess_text = ("essentials dns cache flush windows update download cache sfc system file checker "
+                         "repair scannow corrupt")
         ess.body.addWidget(label("Quick maintenance actions. Each one shows its real result when it finishes.",
                                  "muted", wrap=True))
         self.quick_msg = label("", "cardLine", wrap=True)
@@ -208,6 +247,41 @@ class TweaksPage(Page):
                 != QMessageBox.Yes:
             return
         self._quick(btn, "System File Checker (running, 5–20 min)", Q.sfc_scan)
+
+    # ------------------------------------------------------------ search and presets
+
+    def filter_rows(self, text):
+        words = text.lower().split()
+        total = 0
+        for card, entries in self.cards:
+            shown = 0
+            for row, sep in entries:
+                hit = all(w in row.search_text for w in words)
+                row.setVisible(hit)
+                if sep is not None:
+                    sep.setVisible(hit and shown > 0)
+                shown += hit
+            # the first visible row never gets a line above it
+            card.setVisible(shown > 0)
+            total += shown
+        ess_hit = all(w in self.ess_text for w in words)
+        self.ess.setVisible(ess_hit)
+        if words:
+            self.match_msg.setText(f"{total} tweak{'s' if total != 1 else ''} match “{text.strip()}”."
+                                   + ("" if total or ess_hit else " Try another word."))
+        self.match_msg.setVisible(bool(words))
+
+    def apply_preset(self):
+        from ui.widgets import preset_apply
+        name = self.preset.currentText()
+        self.b_preset.setEnabled(False)
+
+        def finished(results):
+            self.b_preset.setEnabled(True)
+            if results:
+                self.on_shown()            # re-read every row from Windows
+
+        preset_apply.start(self, name, self.top_msg.setText, finished)
 
     def on_shown(self):
         for row in self.rows:
