@@ -84,5 +84,10 @@ jobs:
           if ($tag -notmatch '^v\d+(\.\d+)*$') { throw "Release tag must look like v1.3 (got '$tag')." }
           $notes = "release-notes/$tag.md"
           if (-not (Test-Path $notes)) { throw "Missing $notes - add release notes before releasing." }
+          # Re-releasing the same version (owner's choice, e.g. a fix right after publishing): remove the
+          # old release and its tag first, so the tag and files come from the commit just built.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { gh release delete $tag --cleanup-tag --yes }
+          $global:LASTEXITCODE = 0
           # --target creates the tag on the exact commit that was just built
           gh release create $tag dist/RYTWEAKS.exe dist/RYTWEAKS.zip dist/RYTWEAKS.exe.sha256 --target "${{ github.sha }}" --title "RYTWEAKS $tag" --notes-file $notes --latest
