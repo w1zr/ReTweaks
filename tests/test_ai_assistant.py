@@ -164,3 +164,31 @@ def test_decode_blob_and_unavailable():
         assert AI.load_key() is None
         with pytest.raises(AI.AIError):
             AI.save_key("k")
+
+
+def test_save_and_load_key_like_pywin32(monkeypatch):
+    """Mimics pywin32: CredWrite only accepts text for the blob and CredRead returns UTF-16-LE bytes."""
+    store = {}
+
+    class FakeCred:
+        CRED_TYPE_GENERIC = 1
+        CRED_PERSIST_LOCAL_MACHINE = 2
+
+        @staticmethod
+        def CredWrite(cred, flags):
+            if not isinstance(cred["CredentialBlob"], str):
+                raise TypeError("Objects of type 'bytes' can not be converted to Unicode.")
+            store[cred["TargetName"]] = cred["CredentialBlob"].encode("utf-16-le")
+
+        @staticmethod
+        def CredRead(target, kind, flags):
+            return {"CredentialBlob": store[target]}
+
+        @staticmethod
+        def CredDelete(target, kind, flags):
+            del store[target]
+
+    monkeypatch.setattr(AI, "win32cred", FakeCred)
+    AI.save_key("  my-test-key  ")
+    assert AI.load_key() == "my-test-key"
+    assert AI.delete_key() and AI.load_key() is None
