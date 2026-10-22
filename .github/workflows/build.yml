@@ -4,6 +4,9 @@
 #   downloadable "artifact" (Actions tab -> the run -> Artifacts), for previewing.
 # - Pushing a tag like v1.2: builds the .exe and publishes the GitHub release, using
 #   release-notes/<tag>.md as the release text.
+# - Manual run (Actions tab -> Build RYTWEAKS -> Run workflow) with "release_tag" filled in,
+#   e.g. v1.3: builds from main, creates that tag and publishes the release the same way.
+#   Leave it empty to only build a preview .exe.
 name: Build RYTWEAKS
 
 on:
@@ -12,6 +15,11 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Version to release, e.g. v1.3 (leave empty to only build a preview)"
+        required: false
+        default: ""
 
 permissions:
   contents: write   # needed to create the release on tag pushes
@@ -42,12 +50,15 @@ jobs:
           path: dist/RYTWEAKS.exe
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG
+          if ($tag -notmatch '^v\d+(\.\d+)*$') { throw "Release tag must look like v1.3 (got '$tag')." }
           $notes = "release-notes/$tag.md"
-          if (-not (Test-Path $notes)) { throw "Missing $notes - add release notes before tagging." }
-          gh release create $tag dist/RYTWEAKS.exe --title "RYTWEAKS $tag" --notes-file $notes
+          if (-not (Test-Path $notes)) { throw "Missing $notes - add release notes before releasing." }
+          # --target creates the tag on the exact commit that was just built
+          gh release create $tag dist/RYTWEAKS.exe --target "${{ github.sha }}" --title "RYTWEAKS $tag" --notes-file $notes --latest
