@@ -5,6 +5,7 @@ import os
 import ctypes
 from multiprocessing import freeze_support
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from ui.main_window import MainWindow
 from ui.splash import RytweaksSplash
@@ -57,13 +58,22 @@ def _reopen(window):
         window.show_from_tray()
         return
     splash = RytweaksSplash()
-    window._reopen_splash = splash
+    window._reopen_splash = splash      # keeps the splash alive until its fade has fully finished
 
-    def show():
-        window.show_from_tray()
+    def finished():
+        window.setWindowOpacity(1.0)    # never leave the window see-through
         window._reopen_splash = None
+    splash.done.connect(finished)
+
+    def failsafe():
+        # If the animation is ever interrupted, the window must still end up fully visible
+        # (only acts when the animation never finished, so it can't undo a later close to the tray)
+        if window._reopen_splash is splash:
+            splash.abort()                      # emits done -> opacity 1
+            window.show_from_tray()
+    QTimer.singleShot(8000, failsafe)
     splash.start()
-    splash.finish(window, show=show)
+    splash.finish(window, show=window.show_from_tray)
 
 
 def _listen_for_show(window):
