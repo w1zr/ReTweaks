@@ -12,6 +12,8 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("v1.5.1 fixes", "Opening RYTWEAKS from the tray shows the window properly, Quit RYTWEAKS really closes "
+                     "it, and opening a new version while an older one runs offers to switch."),
     ("Browser", "A browser with RYTWEAKS's own design on Microsoft's Edge engine: tabs, private tabs, "
                 "bookmarks, history, downloads, and your choice of search engine."),
     ("Microphone and volume lock", "The Audio mixer now controls your microphone too, and can lock the speaker or "
