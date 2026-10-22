@@ -1,400 +1,255 @@
-# C:\pc_optimizer\core\hardware.py
+# core/hardware.py
+"""Static hardware inventory (things that don't change while the app runs).
+
+Everything is collected with ONE PowerShell call plus DXGI for the GPU list, instead of
+launching PowerShell once per component. Values that Windows does not expose on a given
+PC are returned as None, and the UI shows "Not available on this PC". Nothing here
+guesses or hardcodes a value for a specific model.
+
+Live values (loads, clocks, temps) are in core/telemetry.py.
+"""
 
 import platform
 import psutil
-import subprocess
-import json
-import os
 
-try:
-    import cpuinfo
-except ImportError:
-    cpuinfo = None
+from core import gpu_dxgi
+from core.winutil import IS_WINDOWS, run_powershell_json, as_list, is_admin
 
-class HardwareMonitor:
-    _cache = {}
+UNAVAILABLE = None  # the UI turns None into "Not available on this PC"
 
-    @staticmethod
-    def get_cpu_info(use_cache=True):
-        if use_cache and 'cpu' in HardwareMonitor._cache:
-            return HardwareMonitor._cache['cpu']
-        
-        info = {
-            'name': 'Unavailable',
-            'arch': platform.machine(),
-            'cores_physical': psutil.cpu_count(logical=False) or 1,
-            'cores_logical': psutil.cpu_count(logical=True) or 1,
-            'current_freq': 'Unavailable',
-            'base_freq': 'Unavailable',
-            'max_freq': 'Unavailable',
-            'utilization': 0.0,
-            'l3_cache': 'Unavailable',
-            'socket': 'Unavailable',
-            'virtualization': 'Unavailable'
-        }
-        try:
-            if cpuinfo:
-                cpu_data = cpuinfo.get_cpu_info()
-                info['name'] = cpu_data.get('brand_raw', platform.processor())
-                if 'l3_cache_size' in cpu_data:
-                    info['l3_cache'] = f"{cpu_data['l3_cache_size'] / (1024**2):.1f} MB"
-            else:
-                info['name'] = platform.processor()
+# SMBIOS memory type codes (Win32_PhysicalMemory.SMBIOSMemoryType), from the SMBIOS spec.
+SMBIOS_MEMORY_TYPES = {
+    20: "DDR", 21: "DDR2", 24: "DDR3", 26: "DDR4", 27: "LPDDR", 28: "LPDDR2",
+    29: "LPDDR3", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5",
+}
 
-            freq = psutil.cpu_freq()
-            if freq:
-                info['current_freq'] = f"{freq.current:.1f} MHz"
-                info['base_freq'] = f"{freq.min:.1f} MHz" if freq.min else "Unavailable"
-                info['max_freq'] = f"{freq.max:.1f} MHz" if freq.max else "Unavailable"
+# Board serial numbers are deliberately NOT collected: users attach hardware reports to
+# public GitHub issues, and a serial number identifies their exact PC.
+_STATIC_SCRIPT = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$r = [ordered]@{}
 
-            info['utilization'] = psutil.cpu_percent(interval=0.1)
-        except Exception as e:
-            info['error'] = str(e)
+try { $r.os = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber, OSArchitecture } catch {}
+try { $r.computer = Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer, Model, SystemType } catch {}
+try { $r.cpu = @(Get-CimInstance Win32_Processor | Select-Object Name, Manufacturer, NumberOfCores, NumberOfLogicalProcessors, MaxClockSpeed, L2CacheSize, L3CacheSize, SocketDesignation, VirtualizationFirmwareEnabled) } catch {}
+try { $r.board = Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer, Product } catch {}
+try { $r.bios = Get-CimInstance Win32_BIOS | Select-Object Manufacturer, SMBIOSBIOSVersion, @{n='ReleaseDate';e={ if ($_.ReleaseDate) { $_.ReleaseDate.ToString('yyyy-MM-dd') } }} } catch {}
+try { $r.ram_sticks = @(Get-CimInstance Win32_PhysicalMemory | Select-Object Capacity, Speed, ConfiguredClockSpeed, SMBIOSMemoryType, Manufacturer, PartNumber, DeviceLocator, BankLabel) } catch {}
+try { $r.ram_slots = (Get-CimInstance Win32_PhysicalMemoryArray | Measure-Object -Property MemoryDevices -Sum).Sum } catch {}
+try { $r.video = @(Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, @{n='DriverDate';e={ if ($_.DriverDate) { $_.DriverDate.ToString('yyyy-MM-dd') } }}, PNPDeviceID, CurrentHorizontalResolution, CurrentVerticalResolution, CurrentRefreshRate) } catch {}
+try {
+  $r.disks = @(Get-PhysicalDisk | Select-Object DeviceId, FriendlyName, Size,
+    @{n='MediaType';e={"$($_.MediaType)"}}, @{n='BusType';e={"$($_.BusType)"}}, @{n='Health';e={"$($_.HealthStatus)"}})
+} catch {}
+try { $r.partitions = @(Get-Partition | Where-Object DriveLetter | Select-Object DiskNumber, @{n='DriveLetter';e={"$($_.DriveLetter)"}}) } catch {}
+try {
+  $r.monitors = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID | ForEach-Object {
+    [PSCustomObject]@{
+      Name = (($_.UserFriendlyName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join '')
+      Maker = (($_.ManufacturerName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join '')
+      Year = $_.YearOfManufacture
+    } })
+} catch {}
+try { $r.audio = @(Get-CimInstance Win32_SoundDevice | Select-Object Name, Manufacturer, Status) } catch {}
+try { $r.net = @(Get-NetAdapter | Where-Object { $_.HardwareInterface } | Select-Object Name, InterfaceDescription, @{n='Status';e={"$($_.Status)"}}, LinkSpeed) } catch {}
 
-        HardwareMonitor._cache['cpu'] = info
-        return info
+$r | ConvertTo-Json -Depth 4 -Compress
+"""
 
-    @staticmethod
-    def get_gpu_info():
-        gpus = []
-        
-        # 1. Try NVIDIA NVML first for precise telemetry
-        try:
-            import pynvml
-            pynvml.nvmlInit()
-            device_count = pynvml.nvmlDeviceGetCount()
-            for i in range(device_count):
-                handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-                name = pynvml.nvmlDeviceGetName(handle)
-                if isinstance(name, bytes):
-                    name = name.decode('utf-8')
-                
-                mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-                vram_gb = round(mem_info.total / (1024**3), 1)
-                
-                util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
-                
-                try:
-                    power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0
-                    power_str = f"{power:.1f} W"
-                except Exception:
-                    power_str = "Unavailable"
-                    
-                try:
-                    fan = pynvml.nvmlDeviceGetFanSpeed(handle)
-                    fan_str = f"{fan}%"
-                except Exception:
-                    fan_str = "Unavailable"
-                    
-                try:
-                    core_clock = pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_GRAPHICS)
-                    mem_clock = pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
-                    core_clock_str = f"{core_clock} MHz"
-                    mem_clock_str = f"{mem_clock} MHz"
-                except Exception:
-                    core_clock_str, mem_clock_str = "Unavailable", "Unavailable"
 
-                driver_version = pynvml.nvmlSystemGetDriverVersion()
-                if isinstance(driver_version, bytes):
-                    driver_version = driver_version.decode('utf-8')
+def _clean(value):
+    """Trim strings and turn empty / placeholder values into None."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        v = value.strip()
+        if not v or v.lower() in {"to be filled by o.e.m.", "default string", "system product name",
+                                  "system manufacturer", "not applicable", "none", "unknown"}:
+            return None
+        return v
+    return value
 
-                gpus.append({
-                    'name': name,
-                    'manufacturer': 'NVIDIA',
-                    'vram': f"{vram_gb} GB",
-                    'utilization': f"{util.gpu}%",
-                    'temperature': f"{temp}°C",
-                    'core_clock': core_clock_str,
-                    'mem_clock': mem_clock_str,
-                    'power': power_str,
-                    'fan_speed': fan_str,
-                    'driver_version': driver_version,
-                    'driver_date': 'Unavailable',
-                    'resolution': 'Unavailable',
-                    'status': 'OK'
-                })
-        except Exception:
-            pass
 
-        # 2. PowerShell Registry 64-bit QWORD Query (Bypasses WMI 4GB limitation globally for all GPUs)
-        if not gpus and platform.system() == "Windows":
-            try:
-                cmd = '''powershell -NoProfile -Command "$adapters = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue | Where-Object {$_.PSChildName -match '^\\d{4}$'}; $res = foreach ($a in $adapters) { $desc = $a.GetValue('DriverDesc'); $mem = $a.GetValue('HardwareInformation.qwMemorySize'); if(-not $mem){$mem = $a.GetValue('HardwareInformation.MemorySize')}; if($desc -and $mem){ [PSCustomObject]@{ Name = $desc; VRAM = $mem } } }; if($res){ $res | ConvertTo-Json }"'''
-                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                if output.strip():
-                    data = json.loads(output)
-                    if isinstance(data, dict):
-                        data = [data]
-                    
-                    for gpu in data:
-                        name = gpu.get('Name') or "Unknown GPU"
-                        name_lower = name.lower()
-                        
-                        if any(v in name_lower for v in ['meta', 'virtual', 'parsec', 'displaylink', 'remote desktop', 'indirect', 'vmware', 'hyper-v']):
-                            continue
-                            
-                        vram_bytes = int(gpu.get('VRAM', 0) or 0)
-                        vram_gb = round(vram_bytes / (1024**3), 1)
-                        vram_str = f"{vram_gb} GB" if vram_gb > 0 else "Unavailable"
-                        
-                        manufacturer = "Unknown"
-                        if "nvidia" in name_lower or "geforce" in name_lower:
-                            manufacturer = "NVIDIA"
-                        elif "amd" in name_lower or "radeon" in name_lower:
-                            manufacturer = "AMD"
-                        elif "intel" in name_lower:
-                            manufacturer = "Intel"
+def _gb(num_bytes, digits=1):
+    if not num_bytes:
+        return None
+    return round(float(num_bytes) / (1024 ** 3), digits)
 
-                        gpus.append({
-                            'name': name,
-                            'manufacturer': manufacturer,
-                            'vram': vram_str,
-                            'utilization': 'Unavailable',
-                            'temperature': 'Unavailable',
-                            'core_clock': 'Unavailable',
-                            'mem_clock': 'Unavailable',
-                            'power': 'Unavailable',
-                            'fan_speed': 'Unavailable',
-                            'driver_version': 'Unavailable',
-                            'driver_date': 'Unavailable',
-                            'resolution': 'Unavailable',
-                            'status': 'OK'
-                        })
-            except Exception as e:
-                print(f"Registry 64-bit VRAM query error: {e}")
 
-        # 3. Final WMI fallback if registry query returned nothing
-        if not gpus and platform.system() == "Windows":
-            try:
-                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM, DriverVersion, DriverDate, Status | ConvertTo-Json"'
-                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                if output.strip():
-                    data = json.loads(output)
-                    if isinstance(data, dict):
-                        data = [data]
-                    for gpu in data:
-                        name = gpu.get('Name') or "Unknown GPU"
-                        adapter_ram = int(gpu.get('AdapterRAM', 0) or 0)
-                        vram_gb = round(adapter_ram / (1024**3), 1)
-                        gpus.append({
-                            'name': name,
-                            'manufacturer': 'Unknown',
-                            'vram': f"{vram_gb} GB" if vram_gb > 0 else "Unavailable",
-                            'utilization': 'Unavailable',
-                            'temperature': 'Unavailable',
-                            'core_clock': 'Unavailable',
-                            'mem_clock': 'Unavailable',
-                            'power': 'Unavailable',
-                            'fan_speed': 'Unavailable',
-                            'driver_version': gpu.get('DriverVersion') or 'Unavailable',
-                            'driver_date': gpu.get('DriverDate') or 'Unavailable',
-                            'resolution': 'Unavailable',
-                            'status': 'OK'
-                        })
-            except Exception:
-                pass
+def parse_static(raw):
+    """Turn the PowerShell JSON (dict) into the structure the UI uses.
 
-        if not gpus:
+    Kept separate from the PowerShell call so it can be unit tested with saved output
+    from different PCs (see tests/).
+    """
+    raw = raw or {}
+    out = {}
+
+    os_info = raw.get("os") or {}
+    out["os"] = {
+        "name": _clean(os_info.get("Caption")) or f"{platform.system()} {platform.release()}",
+        "version": _clean(os_info.get("Version")) or platform.version(),
+        "build": _clean(os_info.get("BuildNumber")),
+        "arch": _clean(os_info.get("OSArchitecture")) or platform.machine(),
+    }
+
+    comp = raw.get("computer") or {}
+    out["computer"] = {
+        "manufacturer": _clean(comp.get("Manufacturer")),
+        "model": _clean(comp.get("Model")),
+    }
+
+    cpus = as_list(raw.get("cpu"))
+    cpu = cpus[0] if cpus else {}
+    l2 = cpu.get("L2CacheSize")  # KB
+    l3 = cpu.get("L3CacheSize")  # KB
+    out["cpu"] = {
+        "name": _clean(cpu.get("Name")) or _clean(platform.processor()),
+        "manufacturer": _clean(cpu.get("Manufacturer")),
+        "sockets": len(cpus) or 1,
+        "cores": sum(int(c.get("NumberOfCores") or 0) for c in cpus) or psutil.cpu_count(logical=False),
+        "threads": sum(int(c.get("NumberOfLogicalProcessors") or 0) for c in cpus) or psutil.cpu_count(logical=True),
+        "base_mhz": cpu.get("MaxClockSpeed") or None,
+        "l2_mb": round(l2 / 1024, 1) if l2 else None,
+        "l3_mb": round(l3 / 1024, 1) if l3 else None,
+        "socket": _clean(cpu.get("SocketDesignation")),
+        "virtualization": (None if cpu.get("VirtualizationFirmwareEnabled") is None
+                           else ("Enabled" if cpu.get("VirtualizationFirmwareEnabled") else "Disabled")),
+    }
+
+    board = raw.get("board") or {}
+    bios = raw.get("bios") or {}
+    out["motherboard"] = {
+        "manufacturer": _clean(board.get("Manufacturer")),
+        "model": _clean(board.get("Product")),
+        "bios_vendor": _clean(bios.get("Manufacturer")),
+        "bios_version": _clean(bios.get("SMBIOSBIOSVersion")),
+        "bios_date": _clean(bios.get("ReleaseDate")),
+    }
+
+    sticks = []
+    for s in as_list(raw.get("ram_sticks")):
+        type_code = s.get("SMBIOSMemoryType")
+        sticks.append({
+            "slot": _clean(s.get("DeviceLocator")) or _clean(s.get("BankLabel")),
+            "size_gb": _gb(s.get("Capacity"), 0),
+            "type": SMBIOS_MEMORY_TYPES.get(type_code) if type_code else None,
+            # Win32_PhysicalMemory reports these in MT/s (what RAM is sold as, e.g. DDR4-3200)
+            "rated_mts": s.get("Speed") or None,
+            "running_mts": s.get("ConfiguredClockSpeed") or None,
+            "maker": _clean(s.get("Manufacturer")),
+            "part": _clean(s.get("PartNumber")),
+        })
+    types = sorted({s["type"] for s in sticks if s["type"]})
+    running = sorted({s["running_mts"] for s in sticks if s["running_mts"]})
+    slots_total = raw.get("ram_slots")
+    out["ram"] = {
+        "total_gb": _gb(psutil.virtual_memory().total, 1),  # usable (some is reserved for iGPU/firmware)
+        "installed_gb": sum(s["size_gb"] or 0 for s in sticks) or None,
+        "type": "/".join(types) if types else None,
+        # All sticks normally run at one speed; if Windows reports several, show the lowest
+        "running_mts": running[0] if running else None,
+        "sticks": sticks,
+        "slots_used": len(sticks) or None,
+        # Some laptops/VMs report 0 or nonsense; only trust it if it's >= sticks found
+        "slots_total": slots_total if slots_total and slots_total >= len(sticks) else None,
+    }
+
+    # Storage: physical disks + which drive letters live on them
+    letters = {}
+    for p in as_list(raw.get("partitions")):
+        letters.setdefault(str(p.get("DiskNumber")), []).append(f"{p.get('DriveLetter')}:")
+    disks = []
+    for d in as_list(raw.get("disks")):
+        dev_id = str(d.get("DeviceId"))
+        media = _clean(d.get("MediaType"))
+        disks.append({
+            "name": _clean(d.get("FriendlyName")) or f"Disk {dev_id}",
+            "size_gb": _gb(d.get("Size"), 0),
+            "media": None if media == "Unspecified" else media,
+            "bus": _clean(d.get("BusType")),
+            "health": _clean(d.get("Health")),  # Healthy / Warning / Unhealthy, straight from Windows
+            "letters": sorted(letters.get(dev_id, [])),
+        })
+    out["disks"] = disks
+
+    out["video_controllers"] = [{
+        "name": _clean(v.get("Name")),
+        "driver_version": _clean(v.get("DriverVersion")),
+        "driver_date": _clean(v.get("DriverDate")),
+        "pnp_id": _clean(v.get("PNPDeviceID")),
+    } for v in as_list(raw.get("video"))]
+
+    out["monitors"] = [{
+        "name": _clean(m.get("Name")),
+        "maker": _clean(m.get("Maker")),
+        "year": m.get("Year") or None,
+    } for m in as_list(raw.get("monitors"))]
+
+    out["audio"] = [{
+        "name": _clean(a.get("Name")),
+        "manufacturer": _clean(a.get("Manufacturer")),
+        "status": _clean(a.get("Status")),
+    } for a in as_list(raw.get("audio"))]
+
+    out["network"] = [{
+        "name": _clean(n.get("Name")),
+        "description": _clean(n.get("InterfaceDescription")),
+        "status": _clean(n.get("Status")),
+        "link_speed": _clean(n.get("LinkSpeed")),
+    } for n in as_list(raw.get("net"))]
+
+    return out
+
+
+def merge_gpus(dxgi_adapters, video_controllers):
+    """Combine the DXGI GPU list (correct 64-bit VRAM, any vendor) with driver info from WMI."""
+    gpus = []
+    unused = list(video_controllers or [])
+    for a in dxgi_adapters or []:
+        match = None
+        for v in unused:
+            if v.get("name") and v["name"].lower() == a["name"].lower():
+                match = v
+                break
+        if match:
+            unused.remove(match)
+        gpus.append({
+            **a,
+            "driver_version": (match or {}).get("driver_version"),
+            "driver_date": (match or {}).get("driver_date"),
+        })
+    if not gpus:
+        # DXGI unavailable (very old Windows / remote session): fall back to WMI names only.
+        # VRAM is left unknown on purpose: WMI's AdapterRAM is capped at 4 GB.
+        for v in video_controllers or []:
+            if not v.get("name"):
+                continue
             gpus.append({
-                'name': 'Standard Display Adapter',
-                'manufacturer': 'Generic',
-                'vram': 'Unavailable',
-                'utilization': 'Unavailable',
-                'temperature': 'Unavailable',
-                'core_clock': 'Unavailable',
-                'mem_clock': 'Unavailable',
-                'power': 'Unavailable',
-                'fan_speed': 'Unavailable',
-                'driver_version': 'Unavailable',
-                'driver_date': 'Unavailable',
-                'resolution': 'Unavailable',
-                'status': 'Basic'
+                "name": v["name"], "vendor": gpu_dxgi.vendor_from_name(v["name"]),
+                "vram_gb": None, "luid": None,
+                "driver_version": v.get("driver_version"), "driver_date": v.get("driver_date"),
             })
-        return gpus
+    return gpus
 
-    @staticmethod
-    def get_ram_info():
-        info = {}
-        try:
-            mem = psutil.virtual_memory()
-            info['total'] = f"{mem.total / (1024**3):.2f} GB"
-            info['available'] = f"{mem.available / (1024**3):.2f} GB"
-            info['used'] = f"{mem.used / (1024**3):.2f} GB"
-            info['percent'] = mem.percent
-            info['type'] = 'Unavailable'
-            info['speed'] = 'Unavailable'
-            info['slots_populated'] = 'Unavailable'
-        except Exception as e:
-            info['error'] = str(e)
-        return info
 
-    @staticmethod
-    def get_motherboard_info():
-        mb_info = {
-            'manufacturer': 'Unavailable',
-            'model': 'Unavailable',
-            'serial': 'Unavailable',
-            'bios_version': 'Unavailable',
-            'bios_date': 'Unavailable'
-        }
-        if platform.system() == "Windows":
-            try:
-                cmd = 'powershell -NoProfile -Command "$board = Get-CimInstance Win32_BaseBoard; $bios = Get-CimInstance Win32_BIOS; [PSCustomObject]@{ Manufacturer = $board.Manufacturer; Model = $board.Product; Serial = $board.SerialNumber; BiosVersion = $bios.SMBIOSBIOSVersion; BiosDate = $bios.ReleaseDate } | ConvertTo-Json"'
-                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                if output.strip():
-                    data = json.loads(output)
-                    mb_info['manufacturer'] = data.get('Manufacturer', 'Unavailable').strip()
-                    mb_info['model'] = data.get('Model', 'Unavailable').strip()
-                    mb_info['serial'] = data.get('Serial', 'Unavailable').strip()
-                    mb_info['bios_version'] = data.get('BiosVersion', 'Unavailable').strip()
-                    mb_info['bios_date'] = data.get('BiosDate', 'Unavailable').strip()
-            except Exception:
-                pass
-        return mb_info
+def scan_static():
+    """Collect all static hardware info. Slow (1–5 s): call it from a worker thread."""
+    raw = run_powershell_json(_STATIC_SCRIPT, timeout=60) if IS_WINDOWS else None
+    data = parse_static(raw if isinstance(raw, dict) else {})
+    data["gpus"] = merge_gpus(gpu_dxgi.list_adapters(), data["video_controllers"])
+    data["is_admin"] = is_admin()
+    return data
 
-    @staticmethod
-    def get_disk_info():
-        disks = []
-        try:
-            smart_map = {}
-            if platform.system() == "Windows":
-                try:
-                    cmd = 'powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object DeviceId, OperationalStatus, HealthStatus | ConvertTo-Json"'
-                    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                    if output.strip():
-                        s_data = json.loads(output)
-                        if isinstance(s_data, dict):
-                            s_data = [s_data]
-                        for d in s_data:
-                            health = d.get('HealthStatus')
-                            status_str = "Healthy (SMART OK)" if health == 0 or health == "Healthy" else f"Status: {health}"
-                            smart_map[str(d.get('DeviceId'))] = status_str
-                except Exception:
-                    pass
 
-            for partition in psutil.disk_partitions(all=False):
-                try:
-                    usage = psutil.disk_usage(partition.mountpoint)
-                    disks.append({
-                        'device': partition.device,
-                        'mountpoint': partition.mountpoint,
-                        'fstype': partition.fstype,
-                        'total': f"{usage.total / (1024**3):.2f} GB",
-                        'used': f"{usage.used / (1024**3):.2f} GB",
-                        'free': f"{usage.free / (1024**3):.2f} GB",
-                        'percent': usage.percent,
-                        'health': 'Healthy (SMART OK)'
-                    })
-                except PermissionError:
-                    continue
-        except Exception as e:
-            disks.append({'error': str(e)})
-        return disks
-
-    @staticmethod
-    def get_monitors_info():
-        monitors = []
-        if platform.system() == "Windows":
-            try:
-                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_DesktopMonitor | Select-Object Name, DeviceID, Status | ConvertTo-Json"'
-                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                if output.strip():
-                    data = json.loads(output)
-                    if isinstance(data, dict):
-                        data = [data]
-                    for m in data:
-                        monitors.append({
-                            'name': m.get('Name') or 'Display Device',
-                            'resolution': 'Active',
-                            'status': m.get('Status') or 'OK'
-                        })
-            except Exception:
-                pass
-        if not monitors:
-            monitors.append({'name': 'Primary Display', 'resolution': 'Active', 'status': 'OK'})
-        return monitors
-
-    @staticmethod
-    def get_network_info():
-        nets = []
-        try:
-            addrs = psutil.net_if_addrs()
-            stats = psutil.net_if_stats()
-            for intface, addr_list in addrs.items():
-                is_up = stats[intface].isup if intface in stats else False
-                speed = f"{stats[intface].speed} Mbps" if intface in stats and stats[intface].speed > 0 else "Unknown"
-                for addr in addr_list:
-                    if addr.family == 2:
-                        nets.append({
-                            'interface': intface,
-                            'ip': addr.address,
-                            'netmask': addr.netmask,
-                            'status': 'Connected' if is_up else 'Disconnected',
-                            'speed': speed
-                        })
-        except Exception:
-            pass
-        return nets
-
-    @staticmethod
-    def get_audio_info():
-        audio_devs = []
-        if platform.system() == "Windows":
-            try:
-                cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_SoundDevice | Select-Object Name, Manufacturer, Status | ConvertTo-Json"'
-                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8")
-                if output.strip():
-                    data = json.loads(output)
-                    if isinstance(data, dict):
-                        data = [data]
-                    for aud in data:
-                        audio_devs.append({
-                            'name': aud.get('Name') or 'Audio Device',
-                            'status': aud.get('Status') or 'OK',
-                            'manufacturer': aud.get('Manufacturer') or 'Unknown'
-                        })
-            except Exception:
-                pass
-        if not audio_devs:
-            audio_devs.append({'name': 'Standard Audio Device', 'status': 'OK', 'manufacturer': 'Unknown'})
-        return audio_devs
-
-    @staticmethod
-    def get_system_info():
-        is_admin = False
-        try:
-            if platform.system() == "Windows":
-                import ctypes
-                is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-        except Exception:
-            pass
-
-        return {
-            'system': platform.system(),
-            'release': platform.release(),
-            'version': platform.version(),
-            'machine': platform.machine(),
-            'node': platform.node(),
-            'processor': platform.processor(),
-            'is_admin': is_admin
-        }
-
-    @staticmethod
-    def get_running_processes():
-        procs = []
-        try:
-            for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
-                try:
-                    pinfo = p.info
-                    procs.append({
-                        'pid': pinfo.get('pid'),
-                        'name': pinfo.get('name', 'Unknown'),
-                        'cpu': f"{pinfo.get('cpu_percent', 0.0):.1f}%",
-                        'memory': f"{pinfo.get('memory_percent', 0.0):.1f}%"
-                    })
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-        except Exception:
-            pass
-        return sorted(procs, key=lambda x: float(x['cpu'].replace('%','')) if isinstance(x['cpu'], str) else 0, reverse=True)[:50]
+def get_system_info():
+    """Kept for compatibility with older code."""
+    return {
+        'system': platform.system(),
+        'release': platform.release(),
+        'version': platform.version(),
+        'machine': platform.machine(),
+        'node': platform.node(),
+        'processor': platform.processor(),
+        'is_admin': is_admin(),
+    }

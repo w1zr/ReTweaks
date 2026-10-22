@@ -1,6 +1,10 @@
-customtkinter>=5.2.0
+# Runtime
+PySide6>=6.5
 psutil>=5.9.0
-wmi>=1.5.1
-pycaw>=2024.1.0
-comtypes>=1.1.14
+pywin32>=306; sys_platform == "win32"  # Windows performance counters (GPU/CPU load), WMI, file info
+nvidia-ml-py>=12.535.0                  # "pynvml" module: NVIDIA temps/clocks/power; harmless on other GPUs
+
+# Build / dev tools
 PyInstaller>=6.0.0
+Pillow>=10.0.0                          # only used by create_logo.py
+pytest>=8.0                             # run: python -m pytest tests
