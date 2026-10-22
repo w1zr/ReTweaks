@@ -11,13 +11,13 @@ def test_versions():
 
 def test_sha256_file_formats():
     h = "a" * 64
-    assert parse_sha256_file(f"{h}  RYTWEAKS.exe\r\n") == h
+    assert parse_sha256_file(f"{h}  RETWEAKS.exe\r\n") == h
     assert parse_sha256_file(h.upper()) == h
     assert parse_sha256_file("garbage") is None
 
 
 def test_download_hosts_are_restricted():
-    assert _allowed("https://github.com/w1zr/rytweaks/releases/download/v1.3/RYTWEAKS.exe")
+    assert _allowed("https://github.com/w1zr/retweaks/releases/download/v1.3/RETWEAKS.exe")
     assert not _allowed("http://github.com/x")          # not https
-    assert not _allowed("https://evil.example.com/RYTWEAKS.exe")
+    assert not _allowed("https://evil.example.com/RETWEAKS.exe")
     assert not _allowed(None)

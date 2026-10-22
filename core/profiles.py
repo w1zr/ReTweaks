@@ -30,7 +30,7 @@ _EXISTING = {
     },
     "Windows Default": {
         "description": "Puts the main gaming settings back: Game Mode on (the Windows default), the Balanced power "
-                       "plan, and Xbox Game Bar background recording back to how it was before RYTWEAKS. "
+                       "plan, and Xbox Game Bar background recording back to how it was before RETWEAKS. "
                        "To undo every other change, use “Undo everything” on the Tweaks page.",
         "steps": [
             ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),

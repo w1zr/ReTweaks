@@ -1,5 +1,5 @@
 # ui/pages/hardware.py
-"""Everything RYTWEAKS detected, one card per component, plus the hardware report export."""
+"""Everything RETWEAKS detected, one card per component, plus the hardware report export."""
 
 from PySide6.QtGui import QGuiApplication
 import csv
@@ -178,7 +178,7 @@ class HardwarePage(Page):
 
     def export(self, ext):
         name, _ = QFileDialog.getSaveFileName(self, "Export hardware report",
-                                              f"rytweaks_hardware_report.{ext}", f"*.{ext}")
+                                              f"retweaks_hardware_report.{ext}", f"*.{ext}")
         if not name:
             return
         try:

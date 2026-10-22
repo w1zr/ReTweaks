@@ -67,7 +67,7 @@ def test_specs_empty_and_unknown_vram():
 def test_body_has_system_instruction_and_pages():
     body = AI.build_request_body([{"role": "user", "text": "hi"}])
     sys_text = body["systemInstruction"]["parts"][0]["text"]
-    assert "RYTWEAKS" in sys_text and "anti-cheat" in sys_text and "guaranteed" in sys_text
+    assert "RETWEAKS" in sys_text and "anti-cheat" in sys_text and "guaranteed" in sys_text
     for page in AI.PAGE_NAMES:
         assert page in sys_text
     assert body["contents"] == [{"role": "user", "parts": [{"text": "hi"}]}]

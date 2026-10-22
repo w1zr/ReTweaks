@@ -112,8 +112,8 @@ def store(tmp_path, monkeypatch):
 
 
 def test_old_presets_still_load(store):
-    (store / "RYTWEAKS").mkdir()
-    (store / "RYTWEAKS" / "custom_presets.json").write_text(
+    (store / "RETWEAKS").mkdir()
+    (store / "RETWEAKS" / "custom_presets.json").write_text(
         _json.dumps({"files": [], "presets": {"fortnite": {"Mine": {"bUseVSync": "False"}}}}))
     assert gp.user_presets("fortnite") == {"Mine": {"bUseVSync": "False"}}
 
@@ -167,8 +167,8 @@ def _good(**over):
 
 @_pytest.mark.parametrize("raw,part", [
     ("not json", "valid"),
-    (_json.dumps([1]), "isn't a RYTWEAKS"),
-    (_json.dumps(_good(format="other")), "isn't a RYTWEAKS"),
+    (_json.dumps([1]), "isn't a RETWEAKS"),
+    (_json.dumps(_good(format="other")), "isn't a RETWEAKS"),
     (_json.dumps(_good(game="apex")), "apex"),
     (_json.dumps(_good(version=99)), "newer"),
     (_json.dumps(_good(version="1")), "version"),

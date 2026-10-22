@@ -54,7 +54,7 @@ class NetworkPage(Page):
         btns.addWidget(auto)
         self.buttons.append(auto)
         self.btn_restore = QPushButton("Restore previous")
-        self.btn_restore.setToolTip("Puts back the DNS this adapter had before RYTWEAKS first changed it.")
+        self.btn_restore.setToolTip("Puts back the DNS this adapter had before RETWEAKS first changed it.")
         self.btn_restore.clicked.connect(self.restore_previous)
         btns.addWidget(self.btn_restore)
         self.buttons.append(self.btn_restore)
@@ -76,14 +76,14 @@ class NetworkPage(Page):
         custom.addWidget(b_custom)
         custom.addStretch()
         card.body.addLayout(custom)
-        card.body.addWidget(label("Changing DNS needs administrator rights. RYTWEAKS saves your previous DNS "
+        card.body.addWidget(label("Changing DNS needs administrator rights. RETWEAKS saves your previous DNS "
                                   "the first time it changes an adapter.", "muted", wrap=True))
         self.content.addWidget(card)
 
         # ---- DNS speed test
         speed = Card("DNS speed test")
         speed.body.addWidget(label("Tests Cloudflare, Google, Quad9, your current DNS and any custom servers "
-                                   "typed above. RYTWEAKS never changes your DNS from these results: you pick "
+                                   "typed above. RETWEAKS never changes your DNS from these results: you pick "
                                    "and apply.", "muted", wrap=True))
         row = QHBoxLayout()
         self.b_dns_test = set_role(QPushButton("Run DNS speed test"), "primary")

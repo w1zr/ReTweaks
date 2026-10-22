@@ -1,0 +1,57 @@
+# One-time job (owner request 2026-10-22): rename every existing release from RYTWEAKS to RETWEAKS.
+# For each release: title "RETWEAKS vX", notes from release-notes/vX.md, and the files
+# RYTWEAKS.exe / .zip / .exe.sha256 re-uploaded as RETWEAKS.exe / .zip / .exe.sha256
+# (same program bytes; the .sha256 is recomputed and checked). Old-named files are deleted only
+# after the new ones are uploaded. Run it from Actions -> "Rename old releases" -> Run workflow.
+name: Rename old releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rename releases and their files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for tag in $(gh release list -R "$REPO" --limit 100 --json tagName --jq '.[].tagName'); do
+            echo "::group::$tag"
+            work=$(mktemp -d)
+            names=$(gh release view "$tag" -R "$REPO" --json assets --jq '.assets[].name')
+            if echo "$names" | grep -qx 'RYTWEAKS.exe'; then
+              gh release download "$tag" -R "$REPO" -p 'RYTWEAKS.exe' -D "$work"
+              mv "$work/RYTWEAKS.exe" "$work/RETWEAKS.exe"
+              if echo "$names" | grep -qx 'RYTWEAKS.exe.sha256'; then
+                gh release download "$tag" -R "$REPO" -p 'RYTWEAKS.exe.sha256' -D "$work"
+                expected=$(grep -oiE '[0-9a-f]{64}' "$work/RYTWEAKS.exe.sha256" | head -1 | tr 'A-F' 'a-f')
+                actual=$(sha256sum "$work/RETWEAKS.exe" | cut -d' ' -f1)
+                if [ "$expected" != "$actual" ]; then echo "::error::$tag checksum mismatch"; exit 1; fi
+              fi
+              echo "$(sha256sum "$work/RETWEAKS.exe" | cut -d' ' -f1)  RETWEAKS.exe" > "$work/RETWEAKS.exe.sha256"
+              (cd "$work" && zip -q -9 RETWEAKS.zip RETWEAKS.exe)
+              upload="$work/RETWEAKS.exe $work/RETWEAKS.exe.sha256"
+              if echo "$names" | grep -qx 'RYTWEAKS.zip'; then upload="$upload $work/RETWEAKS.zip"; fi
+              gh release upload "$tag" -R "$REPO" $upload --clobber
+              for old in RYTWEAKS.exe RYTWEAKS.exe.sha256 RYTWEAKS.zip; do
+                if echo "$names" | grep -qx "$old"; then gh release delete-asset "$tag" "$old" -R "$REPO" -y; fi
+              done
+            fi
+            notes="release-notes/$tag.md"
+            if [ -f "$notes" ]; then
+              gh release edit "$tag" -R "$REPO" --title "RETWEAKS $tag" --notes-file "$notes"
+            else
+              gh release edit "$tag" -R "$REPO" --title "RETWEAKS $tag"
+            fi
+            echo "::notice::$tag renamed: $(gh release view "$tag" -R "$REPO" --json assets --jq '[.assets[].name]|join(", ")')"
+            rm -rf "$work"
+            echo "::endgroup::"
+          done

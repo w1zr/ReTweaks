@@ -1,5 +1,5 @@
 # ui/pages/about.py
-"""About RYTWEAKS and what's new in this version."""
+"""About RETWEAKS and what's new in this version."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout
@@ -8,19 +8,21 @@ from core.version import APP_NAME, __version__
 from ui.widgets.brand import ChipLogo
 from ui.widgets.common import Card, Page, label
 
-REPO_URL = "https://github.com/w1zr/rytweaks"
+REPO_URL = "https://github.com/w1zr/retweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
-    ("v1.5.1 fixes", "Opening RYTWEAKS from the tray shows the window properly, Quit RYTWEAKS really closes "
+    ("New name: RETWEAKS", "RYTWEAKS is now RETWEAKS, with the ReTweaks wordmark. Your settings, browser data, "
+                           "AI key and Start with Windows moved over automatically."),
+    ("v1.5.1 fixes", "Opening RETWEAKS from the tray shows the window properly, Quit RETWEAKS really closes "
                      "it, and opening a new version while an older one runs offers to switch."),
-    ("Browser", "A browser with RYTWEAKS's own design on Microsoft's Edge engine: tabs, private tabs, "
+    ("Browser", "A browser with RETWEAKS's own design on Microsoft's Edge engine: tabs, private tabs, "
                 "bookmarks, history, downloads, and your choice of search engine."),
     ("Microphone and volume lock", "The Audio mixer now controls your microphone too, and can lock the speaker or "
                                    "mic volume so apps can't change it."),
     ("Stretched resolution", "Set a stretched desktop resolution like 1720×1080 on Display & drivers (like NVIDIA "
                              "Control Panel), with a 15-second Keep test and one-click Back to native."),
-    ("Tray", "Optionally keep RYTWEAKS running in the system tray when you close the window (Settings → Behavior)."),
+    ("Tray", "Optionally keep RETWEAKS running in the system tray when you close the window (Settings → Behavior)."),
     ("Built-in FPS overlay", "The in-game overlay reads Windows' own frame events, so it no longer needs "
                              "PresentMon. Nothing is injected into the game."),
     ("44 new tweaks and search", "Now 53 individual tweaks in five groups (Gaming, Privacy, Interface, "
@@ -31,7 +33,7 @@ WHATS_NEW = [
     ("Essentials", "Clear the DNS cache, clear the Windows Update download cache (shows the size first) "
                    "and check and repair system files (SFC), from the Tweaks page."),
     ("Theme maker", "Pick every color yourself, preview it live, save it, and share it as a code."),
-    ("Discord status", "Show \"Optimizing with RYTWEAKS\" or the game you're playing on Discord (off until "
+    ("Discord status", "Show \"Optimizing with RETWEAKS\" or the game you're playing on Discord (off until "
                        "you turn it on in Settings)."),
     ("Themes", "Seven full-UI themes: Midnight, Super Black, Galaxy, Ocean, Ember, Forest and Light. "
                "Pick one in Settings → Appearance."),
@@ -43,7 +45,7 @@ WHATS_NEW = [
                  "a sliding accent bar and smooth page fades."),
     ("Health Check", "One scan of startup apps, temp files, power plan, disk health, free space, "
                      "pending restarts, Windows Update, Game Mode, refresh rate and RAM, with a Fix "
-                     "button where RYTWEAKS can help."),
+                     "button where RETWEAKS can help."),
     ("FPS test", "Real average FPS and 1% / 0.1% lows measured with Intel PresentMon, with saved runs "
                  "you can compare."),
     ("In-game FPS overlay", "Live FPS, 1% low and frame time over games in borderless or windowed "
@@ -98,7 +100,7 @@ class AboutPage(Page):
         self.content.addWidget(news)
 
         note = Card("Good to know")
-        note.body.addWidget(label("RYTWEAKS isn't code-signed, so Windows SmartScreen or antivirus may warn "
+        note.body.addWidget(label("RETWEAKS isn't code-signed, so Windows SmartScreen or antivirus may warn "
                                   "when you download it. Temperatures and fans need LibreHardwareMonitor "
                                   "running (see Settings).", "cardLine", wrap=True))
         self.content.addWidget(note)

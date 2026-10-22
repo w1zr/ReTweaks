@@ -107,7 +107,7 @@ class EdgeView(QWidget):
     def __init__(self, engine, env_holder, private=False, parent=None, newtab_folder=None):
         super().__init__(parent)
         self.newtab_folder = newtab_folder
-        self.dark = True                 # websites' preferred color scheme follows the RYTWEAKS theme
+        self.dark = True                 # websites' preferred color scheme follows the RETWEAKS theme
         self.setAttribute(Qt.WA_NativeWindow, True)
         self.setAttribute(Qt.WA_DontCreateNativeAncestors, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
@@ -168,7 +168,7 @@ class EdgeView(QWidget):
         s.IsZoomControlEnabled = True
         self.set_dark(self.dark)
         if self.newtab_folder:
-            try:   # RYTWEAKS start page: https://rytweaks.newtab/ -> local folder
+            try:   # RETWEAKS start page: https://retweaks.newtab/ -> local folder
                 wv.SetVirtualHostNameToFolderMapping(bd.NEWTAB_HOST, self.newtab_folder,
                                                      self.engine.C.CoreWebView2HostResourceAccessKind.Allow)
             except Exception:
@@ -368,7 +368,7 @@ class EdgeView(QWidget):
 
 
 def download_target(args, folder):
-    """Path RYTWEAKS saves a download to: the suggested name, made safe and unique, in `folder`."""
+    """Path RETWEAKS saves a download to: the suggested name, made safe and unique, in `folder`."""
     suggested = os.path.basename(str(args.ResultFilePath or "")) or "download"
     os.makedirs(folder, exist_ok=True)
     return bd.unique_path(folder, bd.safe_filename(suggested))

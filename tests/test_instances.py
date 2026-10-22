@@ -29,15 +29,15 @@ def fake_psutil(me, procs, alive=()):
 
 
 def setup(monkeypatch, alive_pids=()):
-    launcher = P(10, "RYTWEAKS.exe")
-    me = P(11, "RYTWEAKS.exe", parent=launcher)
-    stuck_a, stuck_b, other = P(20, "RYTWEAKS.exe"), P(21, "rytweaks.exe"), P(30, "python.exe")
+    launcher = P(10, "RETWEAKS.exe")
+    me = P(11, "RETWEAKS.exe", parent=launcher)
+    stuck_a, stuck_b, other = P(20, "RETWEAKS.exe"), P(21, "retweaks.exe"), P(30, "python.exe")
     procs = [launcher, me, stuck_a, stuck_b, other]
     alive = [p for p in procs if p.pid in alive_pids]
     monkeypatch.setitem(sys.modules, "psutil", fake_psutil(me, procs, alive))
     monkeypatch.setattr(winutil, "IS_WINDOWS", True)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", r"C:\Apps\RYTWEAKS.exe")
+    monkeypatch.setattr(sys, "executable", r"C:\Apps\RETWEAKS.exe")
     return launcher, me, stuck_a, stuck_b, other
 
 
@@ -96,7 +96,7 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
     from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     import main
-    name = "RYTWEAKS_test_" + str(os.getpid())
+    name = "RETWEAKS_test_" + str(os.getpid())
     monkeypatch.setattr(main, "_show_server_name", lambda: name)
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     client = ("import sys, os; sys.path.insert(0, %r); os.environ['QT_QPA_PLATFORM']='offscreen';"
@@ -151,7 +151,7 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
 
 
 def test_quit_from_tray_really_ends_the_process(tmp_path):
-    """Quit RYTWEAKS from the tray closes a *hidden* window. Qt doesn't quit by itself then, so the
+    """Quit RETWEAKS from the tray closes a *hidden* window. Qt doesn't quit by itself then, so the
     process kept running invisibly (holding the single-instance lock). Runs the real MainWindow in a
     separate process: hidden in the tray, Quit, and the process must exit."""
     import os

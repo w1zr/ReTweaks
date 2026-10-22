@@ -2,7 +2,7 @@
 """Built-in frame timing for the FPS overlay (v1.4.3): no PresentMon needed.
 
 Windows logs an event every time a program presents a frame (Event Tracing for Windows, ETW).
-RYTWEAKS starts its own real-time trace session, listens for those events and measures the time
+RETWEAKS starts its own real-time trace session, listens for those events and measures the time
 between one frame and the next, for the game you picked. Nothing is injected into the game; this
 is the same Windows data PresentMon reads.
 
@@ -16,7 +16,7 @@ graphics kernel's Present_Info is used instead and the overlay says so ("kernel"
 
 What is measured: time between presents (what PresentMon calls MsBetweenPresents), i.e. how
 often the game hands a frame to Windows. It does not measure when the frame reached the screen.
-Needs administrator rights (RYTWEAKS runs as admin).
+Needs administrator rights (RETWEAKS runs as admin).
 """
 
 import ctypes
@@ -27,7 +27,7 @@ from ctypes import POINTER, Structure, c_int32, c_int64, c_uint8, c_uint16, c_ui
 
 from core.overlay_fps import STALE_S, RollingMetrics, process_running
 
-SESSION_NAME = "RYTWEAKS_frames"
+SESSION_NAME = "RETWEAKS_frames"
 GAP_RESET_MS = 1000.0          # a pause longer than this (loading, alt-tab) is not a frame
 API_PREFERRED_S = 2.0          # if a process sent DXGI/D3D9 presents recently, ignore its kernel ones
 
@@ -198,8 +198,8 @@ ERROR_SUCCESS, ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS = 0, 5, 183
 ERROR_NO_SYSTEM_RESOURCES = 1450
 NAME_BYTES = 1024
 
-ADMIN_MSG = ("Windows refused to start the frame trace (access denied). Run RYTWEAKS as administrator "
-             "(right-click RYTWEAKS.exe → Run as administrator).")
+ADMIN_MSG = ("Windows refused to start the frame trace (access denied). Run RETWEAKS as administrator "
+             "(right-click RETWEAKS.exe → Run as administrator).")
 
 
 def _props_buffer():

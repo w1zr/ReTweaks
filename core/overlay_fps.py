@@ -18,7 +18,7 @@ from collections import deque
 
 from core import fps
 
-SESSION_NAME = "RYTWEAKS_overlay"   # the FPS test uses RYTWEAKS_FPS
+SESSION_NAME = "RETWEAKS_overlay"   # the FPS test uses RETWEAKS_FPS
 WINDOW_S = 10.0                     # span for the 1% low
 FPS_SPAN_MS = 1000.0                # "current FPS" = frames in the last second
 MIN_FRAMES_LOW = 100                # below this the 1% low is Unavailable
@@ -250,7 +250,7 @@ class OverlayStream:
 
     def start(self):
         cmd = build_command(self.exe, self.process_name)
-        self._dir = tempfile.mkdtemp(prefix="rytweaks_overlay_")
+        self._dir = tempfile.mkdtemp(prefix="retweaks_overlay_")
         err_path = os.path.join(self._dir, "stderr.txt")
         self._err = open(err_path, "wb")
         try:

@@ -59,14 +59,14 @@ def test_frame_roundtrip():
 
 def test_build_activity_variants_and_limits():
     idle = d.build_activity({"game": None}, True, 100)
-    assert idle["details"] == "Optimizing with RYTWEAKS" and idle["state"] == "Windows PC tweaks"
+    assert idle["details"] == "Optimizing with RETWEAKS" and idle["state"] == "Windows PC tweaks"
     g = d.build_activity({"game": "Fortnite"}, True, 100)
-    assert g["details"] == "Gaming: Fortnite" and g["state"] == "Boosted by RYTWEAKS"
+    assert g["details"] == "Gaming: Fortnite" and g["state"] == "Boosted by RETWEAKS"
     hidden = d.build_activity({"game": "Fortnite"}, False, 100)
     assert hidden["details"] == "Gaming" and "Fortnite" not in json.dumps(hidden)
     assert idle["timestamps"]["start"] == 100
-    assert idle["assets"] == {"large_image": "rytweaks", "large_text": "RYTWEAKS"}
-    assert idle["buttons"][0]["url"].startswith("https://github.com/w1zr/rytweaks")
+    assert idle["assets"] == {"large_image": "rytweaks", "large_text": "RETWEAKS"}
+    assert idle["buttons"][0]["url"].startswith("https://github.com/w1zr/retweaks")
     long = d.build_activity({"game": "X" * 500}, True, 1)
     for a in (idle, g, hidden, long):
         for k in ("details", "state"):

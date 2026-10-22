@@ -60,7 +60,7 @@ class PresetEditor(QDialog):
     def add_key(self):
         free = [k for k in self.allowed if k not in self.keys()]
         if not free:
-            QMessageBox.information(self, "Add a setting", "Every setting RYTWEAKS knows for this game is already in the preset.")
+            QMessageBox.information(self, "Add a setting", "Every setting RETWEAKS knows for this game is already in the preset.")
             return
         key, ok = QInputDialog.getItem(self, "Add a setting", "Setting:", free, 0, False)
         if ok and key:
@@ -83,7 +83,7 @@ class PresetEditor(QDialog):
 
 class GamesPage(Page):
     title = "Game presets"
-    subtitle = ("Pick a game and a preset. RYTWEAKS shows exactly what will change, backs up the game's "
+    subtitle = ("Pick a game and a preset. RETWEAKS shows exactly what will change, backs up the game's "
                 "settings file first, and only changes settings that already exist in it. Close the game first.")
 
     def __init__(self, ctx, parent=None):
@@ -161,7 +161,7 @@ class GamesPage(Page):
                 ("Duplicate…", self.duplicate_user_preset, "Make a copy of the selected preset of yours."),
                 ("Edit…", self.edit_user_preset, "Change the values in the selected preset."),
                 ("Export…", self.export_user_preset, "Save the selected preset to a .json file you can share."),
-                ("Import…", self.import_user_preset, "Add a preset from a .json file exported by RYTWEAKS."),
+                ("Import…", self.import_user_preset, "Add a preset from a .json file exported by RETWEAKS."),
                 ("Copy a built-in preset…", self.copy_builtin_preset,
                  "Built-in presets can't be changed, but you can copy one to edit.")):
             b = QPushButton(text)
@@ -537,7 +537,7 @@ class GamesPage(Page):
             return
         safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip() or "preset"
         path, _ = QFileDialog.getSaveFileName(self, "Export preset", os.path.join(os.path.expanduser("~"), f"{safe}.json"),
-                                              "RYTWEAKS preset (*.json)")
+                                              "RETWEAKS preset (*.json)")
         if not path:
             return
         ok, msg = gp.export_preset(self.entry_id, name, path)
@@ -549,7 +549,7 @@ class GamesPage(Page):
 
     def import_user_preset(self):
         path, _ = QFileDialog.getOpenFileName(self, "Import preset", os.path.expanduser("~"),
-                                              "RYTWEAKS preset (*.json);;All files (*)")
+                                              "RETWEAKS preset (*.json);;All files (*)")
         if not path:
             return
         status, msg, name = gp.import_preset(self.entry_id, path)

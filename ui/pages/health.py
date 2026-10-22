@@ -162,7 +162,7 @@ class HealthPage(Page):
             ok = QMessageBox.question(
                 self, "Switch power plan",
                 "Switch to the Windows High performance power plan?\n\n"
-                "RYTWEAKS saves your current plan first, so you can restore it from the Tweaks page. "
+                "RETWEAKS saves your current plan first, so you can restore it from the Tweaks page. "
                 "Laptops use more battery on this plan.")
             if ok != QMessageBox.Yes:
                 return

@@ -13,8 +13,8 @@ SAMPLE = json.dumps([
     {"Name": "Consolidator", "TaskPath": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\",
      "State": "Ready", "Author": "Microsoft", "UserId": "SYSTEM", "Triggers": ["Boot"],
      "Actions": [{"Execute": "%windir%\\system32\\wsqmcons.exe", "Arguments": None}]},
-    {"Name": "RYTWEAKS", "TaskPath": "\\", "State": "Ready", "Author": "PC\\ryder", "UserId": "PC\\ryder",
-     "Triggers": ["Logon"], "Actions": [{"Execute": "C:\\RYTWEAKS.exe", "Arguments": "--minimized"}]},
+    {"Name": "RETWEAKS", "TaskPath": "\\", "State": "Ready", "Author": "PC\\ryder", "UserId": "PC\\ryder",
+     "Triggers": ["Logon"], "Actions": [{"Execute": "C:\\RETWEAKS.exe", "Arguments": "--minimized"}]},
     {"Name": "NoTrigger", "TaskPath": "\\", "State": "Ready", "Triggers": [], "Actions": []},
 ])
 
@@ -23,7 +23,7 @@ def test_parse_hides_windows_tasks_by_default():
     entries = sm.parse_scheduled_tasks(SAMPLE)
     names = [e["task_name"] for e in entries]
     assert "Consolidator" not in names and "NoTrigger" not in names
-    assert set(names) == {"GoogleUpdateTaskMachineCore", "MyBackup", "RYTWEAKS"}
+    assert set(names) == {"GoogleUpdateTaskMachineCore", "MyBackup", "RETWEAKS"}
 
 
 def test_parse_includes_windows_tasks_when_asked():
@@ -44,7 +44,7 @@ def test_entry_fields():
 
 def test_own_autostart_task_is_managed():
     own = [x for x in sm.parse_scheduled_tasks(SAMPLE) if x["managed"]]
-    assert len(own) == 1 and own[0]["name"] == "RYTWEAKS (managed in Settings)"
+    assert len(own) == 1 and own[0]["name"] == "RETWEAKS (managed in Settings)"
 
 
 def test_single_object_and_bad_input():

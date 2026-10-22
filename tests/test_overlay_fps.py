@@ -4,7 +4,7 @@ from core import overlay_fps as of
 def test_command_uses_stdout_and_own_session():
     cmd = of.build_command("PresentMon.exe", "game.exe")
     assert "--output_stdout" in cmd and "--no_console_stats" in cmd
-    assert cmd[cmd.index("--session_name") + 1] == "RYTWEAKS_overlay"
+    assert cmd[cmd.index("--session_name") + 1] == "RETWEAKS_overlay"
     assert "--stop_existing_session" in cmd
     assert cmd[cmd.index("--process_name") + 1] == "game.exe"
     for bad in ("", "  ", None):

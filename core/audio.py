@@ -93,7 +93,7 @@ else:
         AVAILABLE = True
     except Exception as exc:  # ImportError or a comtypes load failure
         UNAVAILABLE_REASON = (f"The audio libraries (pycaw, comtypes) could not be loaded: "
-                              f"{exc}. Reinstall RYTWEAKS or run: pip install pycaw comtypes")
+                              f"{exc}. Reinstall RETWEAKS or run: pip install pycaw comtypes")
 
 
 @contextlib.contextmanager

@@ -124,7 +124,7 @@ class AssistantPage(Page):
         row.addStretch(1)
         self.setup.body.addLayout(row)
         self.setup.body.addWidget(label(
-            "Saved once in Windows Credential Manager on this PC, so you won't be asked again. RYTWEAKS "
+            "Saved once in Windows Credential Manager on this PC, so you won't be asked again. RETWEAKS "
             "contains no key. Free-tier chats may be reviewed by Google, so don't share personal info.",
             "muted", wrap=True))
         self.setup_status = label("", "muted", wrap=True)

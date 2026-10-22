@@ -1,5 +1,5 @@
 # ui/pages/logs.py
-"""Every change RYTWEAKS made this session, with its real result."""
+"""Every change RETWEAKS made this session, with its real result."""
 
 from PySide6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
 

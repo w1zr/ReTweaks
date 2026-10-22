@@ -29,7 +29,7 @@ class RuleCard(Card):
         self.prio = QComboBox()
         self.prio.addItems(R.PRIORITY_CHOICES)
         self.prio.setCurrentText(rule.get("priority") or R.PRIORITY_CHOICES[0])
-        self.prio.setToolTip("Applied when the program starts, while RYTWEAKS is open. "
+        self.prio.setToolTip("Applied when the program starts, while RETWEAKS is open. "
                              "“High” can make other apps less responsive.")
         row.addWidget(self.prio)
         row.addStretch()
@@ -69,7 +69,7 @@ class RulesPage(Page):
     title = "Program rules"
     subtitle = ("Pick any game or program (.exe) and choose how Windows should run it. Graphics card and "
                 "fullscreen settings are saved in Windows. Priority and auto game mode work while "
-                "RYTWEAKS is open (Settings → start with Windows, minimized).")
+                "RETWEAKS is open (Settings → start with Windows, minimized).")
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
@@ -110,9 +110,9 @@ class RulesPage(Page):
         card.body.addWidget(label(
             "While a game from the list above is running (one with auto game mode or a CPU priority set), "
             "temporarily lower the CPU priority of only the programs you pick here, then put it back when the "
-            "game closes (or RYTWEAKS closes). If you change a program's priority yourself in the meantime, "
-            "RYTWEAKS leaves it alone. System-critical programs, anti-cheat services, programs that have their "
-            "own rule above and RYTWEAKS itself are never lowered. This never closes or pauses anything.",
+            "game closes (or RETWEAKS closes). If you change a program's priority yourself in the meantime, "
+            "RETWEAKS leaves it alone. System-critical programs, anti-cheat services, programs that have their "
+            "own rule above and RETWEAKS itself are never lowered. This never closes or pauses anything.",
             "muted", wrap=True))
         self.calm_switch = QCheckBox("Enable background calming")
         self.calm_switch.setChecked(enabled)

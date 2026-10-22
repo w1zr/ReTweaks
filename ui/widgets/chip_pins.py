@@ -1,5 +1,5 @@
 # ui/widgets/chip_pins.py
-"""The RYTWEAKS chip logo with one pin per Health Check result."""
+"""The RETWEAKS chip logo with one pin per Health Check result."""
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QVariantAnimation
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen

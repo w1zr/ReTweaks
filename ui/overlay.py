@@ -1,6 +1,6 @@
 # ui/overlay.py
 """The in-game FPS overlay window: click-through, never takes focus, always on top.
-Nothing is injected into the game; this is an ordinary top-level window of RYTWEAKS."""
+Nothing is injected into the game; this is an ordinary top-level window of RETWEAKS."""
 
 import sys
 

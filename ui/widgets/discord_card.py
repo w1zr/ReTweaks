@@ -14,13 +14,13 @@ class DiscordCard(Card):
         self.ctx = ctx
         self.presence = presence
         s = ctx.settings
-        self.enable = QCheckBox("Show RYTWEAKS on my Discord status")
+        self.enable = QCheckBox("Show RETWEAKS on my Discord status")
         self.enable.setChecked(bool(s.get("discord_status", False)))
         self.show_game = QCheckBox("Show which game I'm playing")
         self.show_game.setChecked(bool(s.get("discord_show_game", True)))
         self.show_game.setEnabled(self.enable.isChecked())
         self.status_line = label("", "cardLine", wrap=True)
-        note = label("Your Discord friends can see this. RYTWEAKS only talks to the Discord app on this PC.",
+        note = label("Your Discord friends can see this. RETWEAKS only talks to the Discord app on this PC.",
                      "muted", wrap=True)
         for w in (self.enable, self.show_game, self.status_line, note):
             self.body.addWidget(w)

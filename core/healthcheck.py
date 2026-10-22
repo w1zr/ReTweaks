@@ -1,5 +1,5 @@
 # core/healthcheck.py
-"""RYTWEAKS Health Check: independent, read-only checks of real Windows state.
+"""RETWEAKS Health Check: independent, read-only checks of real Windows state.
 
 Every check returns a dict:
     {id, name, status: "good"|"warn"|"bad"|"unavailable", detail, fix_id, fix_label}
@@ -109,7 +109,7 @@ def classify_game_mode(state):
     s = (state or "").strip()
     if not s or s == "Not Windows":
         return NA, "Windows did not report the Game Mode state."
-    return GOOD, f"Game Mode: {s}. Shown for information only; RYTWEAKS never forces it on because it can lower FPS on some PCs."
+    return GOOD, f"Game Mode: {s}. Shown for information only; RETWEAKS never forces it on because it can lower FPS on some PCs."
 
 
 def classify_refresh(current_hz, max_hz, label="Display"):

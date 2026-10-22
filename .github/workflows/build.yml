@@ -1,13 +1,13 @@
-# Builds RYTWEAKS.exe on a Windows server (CLAUDE.md section 16).
+# Builds RETWEAKS.exe on a Windows server (CLAUDE.md section 16).
 #
 # - Pull requests / main / manual run: builds the .exe and attaches it to the run as a
 #   downloadable "artifact" (Actions tab -> the run -> Artifacts), for previewing.
 # - Pushing a tag like v1.2: builds the .exe and publishes the GitHub release, using
 #   release-notes/<tag>.md as the release text.
-# - Manual run (Actions tab -> Build RYTWEAKS -> Run workflow) with "release_tag" filled in,
+# - Manual run (Actions tab -> Build RETWEAKS -> Run workflow) with "release_tag" filled in,
 #   e.g. v1.3: builds from main, creates that tag and publishes the release the same way.
 #   Leave it empty to only build a preview .exe.
-name: Build RYTWEAKS
+name: Build RETWEAKS
 
 on:
   pull_request:
@@ -51,27 +51,27 @@ jobs:
         continue-on-error: true      # needs a desktop session; reported, not blocking
         run: python tools/browser_smoke.py
 
-      - name: Build RYTWEAKS.exe
+      - name: Build RETWEAKS.exe
         run: python build.py
 
       - name: SHA-256 checksum (used by the in-app updater to verify downloads)
         shell: pwsh
         run: |
-          $h = (Get-FileHash dist/RYTWEAKS.exe -Algorithm SHA256).Hash.ToLower()
-          "$h  RYTWEAKS.exe" | Out-File -Encoding ascii dist/RYTWEAKS.exe.sha256
-          Get-Content dist/RYTWEAKS.exe.sha256
+          $h = (Get-FileHash dist/RETWEAKS.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  RETWEAKS.exe" | Out-File -Encoding ascii dist/RETWEAKS.exe.sha256
+          Get-Content dist/RETWEAKS.exe.sha256
 
       - name: Zip copy (for people who prefer downloading a .zip)
         shell: pwsh
-        run: Compress-Archive -Path dist/RYTWEAKS.exe -DestinationPath dist/RYTWEAKS.zip -Force
+        run: Compress-Archive -Path dist/RETWEAKS.exe -DestinationPath dist/RETWEAKS.zip -Force
 
       - name: Upload .exe for preview
         uses: actions/upload-artifact@v4
         with:
-          name: RYTWEAKS-exe
+          name: RETWEAKS-exe
           path: |
-            dist/RYTWEAKS.exe
-            dist/RYTWEAKS.exe.sha256
+            dist/RETWEAKS.exe
+            dist/RETWEAKS.exe.sha256
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
@@ -90,4 +90,4 @@ jobs:
           if ($LASTEXITCODE -eq 0) { gh release delete $tag --cleanup-tag --yes }
           $global:LASTEXITCODE = 0
           # --target creates the tag on the exact commit that was just built
-          gh release create $tag dist/RYTWEAKS.exe dist/RYTWEAKS.zip dist/RYTWEAKS.exe.sha256 --target "${{ github.sha }}" --title "RYTWEAKS $tag" --notes-file $notes --latest
+          gh release create $tag dist/RETWEAKS.exe dist/RETWEAKS.zip dist/RETWEAKS.exe.sha256 --target "${{ github.sha }}" --title "RETWEAKS $tag" --notes-file $notes --latest

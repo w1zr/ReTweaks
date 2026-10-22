@@ -1,15 +1,15 @@
 # core/app_rules.py
 """Per-program rules ("choose your own .exe") and auto game mode.
 
-Saved Windows settings for a program (they stay even when RYTWEAKS is closed):
+Saved Windows settings for a program (they stay even when RETWEAKS is closed):
 - GPU preference: the same value Windows Settings → System → Display → Graphics writes
   (HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences, "GpuPreference=2;" = high performance).
 - Disable fullscreen optimizations: the same value as the checkbox on the .exe's
   Properties → Compatibility tab (AppCompatFlags\\Layers, DISABLEDXMAXIMIZEDWINDOWEDMODE).
 
-While the program runs (only while RYTWEAKS is open; it can start minimized with Windows):
+While the program runs (only while RETWEAKS is open; it can start minimized with Windows):
 - CPU priority: set when the program starts. Some anti-cheat protected games don't allow
-  this; RYTWEAKS reports that instead of pretending it worked.
+  this; RETWEAKS reports that instead of pretending it worked.
 - Performance power plan: switched on when the program starts and switched back to your
   previous plan when the last watched program closes.
 
@@ -35,7 +35,7 @@ ULTIMATE_GUID = "8c5e7fda-e8bf-496d-815a-8813f8763104"
 
 
 def _store():
-    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "app_rules.json"
+    return Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "app_rules.json"
 
 
 def load_rules():
@@ -57,7 +57,7 @@ def save_rules(rules):
 def new_rule(exe_path):
     return {"exe": os.path.normpath(exe_path), "name": Path(exe_path).stem,
             "gpu": None, "fso_off": False, "priority": PRIORITY_CHOICES[0], "boost": False,
-            "backup": {}}  # original registry values, saved before RYTWEAKS first changes them
+            "backup": {}}  # original registry values, saved before RETWEAKS first changes them
 
 
 # ---------------------------------------------------------------- saved Windows settings
@@ -205,10 +205,10 @@ def _load_saved_plan():
 CALM_LEVELS = {"Below normal": ("BELOW_NORMAL_PRIORITY_CLASS", 0x4000),
                "Idle": ("IDLE_PRIORITY_CLASS", 0x40)}
 CALM_DEFAULT = "Below normal"
-# Never lowered, whatever the user types: system-critical processes and RYTWEAKS itself.
+# Never lowered, whatever the user types: system-critical processes and RETWEAKS itself.
 PROTECTED = frozenset({"csrss", "wininit", "winlogon", "services", "lsass", "smss", "svchost", "dwm",
-                       "explorer", "audiodg", "system", "registry", "msmpeng", "rytweaks",
-                       "rytweaks.old", "system idle process", "memory compression", "secure system",
+                       "explorer", "audiodg", "system", "registry", "msmpeng", "retweaks",
+                       "retweaks.old", "rytweaks", "rytweaks.old", "system idle process", "memory compression", "secure system",
                        # anti-cheat services: never touched (CLAUDE.md section 9)
                        "easyanticheat", "easyanticheat_eos", "beservice", "beservice_x64", "vgc", "vgtray",
                        "faceit", "faceitservice", "esportal", "gameguard", "nprotect", "xigncode",
@@ -237,7 +237,7 @@ def validate_calm_name(name):
     if not n:
         return False, "Type a program name such as discord or chrome (no folders)."
     if n in PROTECTED:
-        return False, f"{n} is protected: RYTWEAKS never lowers system-critical programs or itself."
+        return False, f"{n} is protected: RETWEAKS never lowers system-critical programs or itself."
     return True, n
 
 
@@ -284,7 +284,7 @@ def save_calm_config(cfg):
 
 
 def load_calm_records():
-    """Programs that are lowered right now (or were when RYTWEAKS last closed)."""
+    """Programs that are lowered right now (or were when RETWEAKS last closed)."""
     recs = _read_state().get("calm")
     return [r for r in recs if isinstance(r, dict) and {"pid", "name", "create_time", "original", "set"} <= set(r)] \
         if isinstance(recs, list) else []
@@ -349,7 +349,7 @@ def calm_restore(get_process, records, only=None):
                 continue                                    # gone, or the PID now belongs to another program
             if p.nice() != rec["set"]:
                 events.append(f"Background calming: {rec['name']} (PID {rec['pid']}) was changed by you, "
-                              "so RYTWEAKS left its priority alone.")
+                              "so RETWEAKS left its priority alone.")
                 continue
             p.nice(rec["original"])
             events.append(f"Background calming: {rec['name']} (PID {rec['pid']}) restored to its original priority.")
@@ -378,7 +378,7 @@ class AutoGameMode:
     def __init__(self):
         self.running = {}           # exe path -> set of pids we've handled
         # Plan to restore when the last boosted program exits. Saved to disk too, so it's
-        # restored on the next start if RYTWEAKS was closed or crashed during a game.
+        # restored on the next start if RETWEAKS was closed or crashed during a game.
         self.saved_plan = _load_saved_plan()
         # Programs lowered by background calming; also on disk, so a crash can be undone.
         self.calm_records = load_calm_records()
@@ -441,7 +441,7 @@ class AutoGameMode:
         watched = {os.path.normcase(r["exe"]): r for r in rules
                    if r.get("boost") or r.get("priority") not in (None, PRIORITY_CHOICES[0])}
         if not watched and not self.running:
-            return self.restore_power()  # e.g. a plan left boosted after RYTWEAKS closed mid-game
+            return self.restore_power()  # e.g. a plan left boosted after RETWEAKS closed mid-game
         seen = {}
         for p in psutil.process_iter(["pid", "exe"]):
             try:
@@ -462,7 +462,7 @@ class AutoGameMode:
                     current = _active_plan()
                     if current is None:
                         events.append("Couldn't read your current power plan, so it wasn't changed "
-                                      "(RYTWEAKS must be able to switch it back).")
+                                      "(RETWEAKS must be able to switch it back).")
                         self.running[exe] = pids
                         continue
                     r = run(["powercfg", "-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61",
@@ -496,7 +496,7 @@ class AutoGameMode:
         return events
 
     def restore(self):
-        """Put the power plan and calmed priorities back (called when RYTWEAKS closes)."""
+        """Put the power plan and calmed priorities back (called when RETWEAKS closes)."""
         return self.restore_power() + self.calm_restore_all()
 
     def restore_power(self):

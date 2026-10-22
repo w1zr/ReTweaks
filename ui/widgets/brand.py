@@ -1,5 +1,5 @@
 # ui/widgets/brand.py
-"""The RYTWEAKS chip logo, drawn with QPainter so it stays sharp at every size.
+"""The RETWEAKS chip logo, drawn with QPainter so it stays sharp at every size.
 
 Geometry matches assets/brand/logo-chip.svg (a 120 x 120 viewBox): a rounded chip outline,
 12 pins (3 per side) and a stylized R. The logo is always grey/white, whatever the theme
@@ -394,7 +394,7 @@ def galaxy_backdrop_path():
     import random
     from pathlib import Path
     from PySide6.QtGui import QImage, QRadialGradient
-    folder = Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS"
+    folder = Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS"
     path = folder / "galaxy_backdrop_v1.png"
     if path.exists():
         return str(path)

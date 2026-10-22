@@ -171,10 +171,10 @@ class ThemeMakerCard(Card):
     def copy_code(self):
         code = T.export_code(self._name() or "My theme", self.colors)
         QGuiApplication.clipboard().setText(code)
-        self.msg.setText("Share code copied. Anyone can paste it into Import code… in their RYTWEAKS.")
+        self.msg.setText("Share code copied. Anyone can paste it into Import code… in their RETWEAKS.")
 
     def import_code(self):
-        code, ok = QInputDialog.getText(self, "Import theme", "Paste a RYTWEAKS theme code (starts with RYT1-):")
+        code, ok = QInputDialog.getText(self, "Import theme", "Paste a RETWEAKS theme code (starts with RYT1-):")
         if not ok or not code.strip():
             return
         good, name_or_msg, colors = T.parse_code(code)

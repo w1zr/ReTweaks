@@ -20,7 +20,7 @@ from core.version import APP_NAME, __version__
 from ui.widgets.common import Card, Page, label, set_role
 
 LHM_URL = "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases"
-REPO_URL = "https://github.com/w1zr/rytweaks"
+REPO_URL = "https://github.com/w1zr/retweaks"
 INTERVALS = {"Every second": 1.0, "Every 2 seconds": 2.0, "Every 5 seconds": 5.0}
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -30,7 +30,7 @@ def open_report_issue(ctx):
     text = report_to_text(build_report(ctx.static, ctx.last_sample, ctx.sources))
     QGuiApplication.clipboard().setText(text)
     body = ("**What happened?**\n\n\n**What did you expect?**\n\n\n"
-            "**Hardware report:** RYTWEAKS copied it to your clipboard. Paste it below (Ctrl+V).\n\n")
+            "**Hardware report:** RETWEAKS copied it to your clipboard. Paste it below (Ctrl+V).\n\n")
     url = f"{REPO_URL}/issues/new?title={quote(f'[v{__version__}] ')}&body={quote(body)}"
     QDesktopServices.openUrl(QUrl(url))
 
@@ -93,7 +93,7 @@ class SettingsPage(Page):
         row.addWidget(self.banner_style)
         row.addStretch()
         look.body.addLayout(row)
-        look.body.addWidget(label("Banners only animate while the Dashboard is open and RYTWEAKS isn't minimized. "
+        look.body.addWidget(label("Banners only animate while the Dashboard is open and RETWEAKS isn't minimized. "
                                   "CPU cores and Load wave show real live readings; Circuit and Galaxy are "
                                   "decoration.", "muted", wrap=True))
         self.content.addWidget(look)
@@ -134,10 +134,10 @@ class SettingsPage(Page):
         row.addStretch()
         beh.body.addLayout(row)
 
-        self.autostart = QCheckBox("Start RYTWEAKS when I sign in to Windows")
+        self.autostart = QCheckBox("Start RETWEAKS when I sign in to Windows")
         self.autostart.setEnabled(autostart.available())
         if not autostart.available():
-            self.autostart.setToolTip("Only available in RYTWEAKS.exe.")
+            self.autostart.setToolTip("Only available in RETWEAKS.exe.")
         self.autostart.toggled.connect(self.toggle_autostart)
         beh.body.addWidget(self.autostart)
         self.minimized = QCheckBox("Start minimized when started with Windows")
@@ -145,8 +145,8 @@ class SettingsPage(Page):
         self.minimized.toggled.connect(self.toggle_minimized)
         beh.body.addWidget(self.minimized)
         self.tray = QCheckBox("Keep running in the system tray when I close the window")
-        self.tray.setToolTip("Closing the window hides RYTWEAKS next to the clock instead of quitting, so the "
-                             "volume lock and auto game mode keep working. Right-click the tray icon → Quit RYTWEAKS "
+        self.tray.setToolTip("Closing the window hides RETWEAKS next to the clock instead of quitting, so the "
+                             "volume lock and auto game mode keep working. Right-click the tray icon → Quit RETWEAKS "
                              "to close it fully.")
         self.tray.setChecked(bool(s.get("tray_on_close", True)))
         self.tray.toggled.connect(self.toggle_tray)
@@ -158,7 +158,7 @@ class SettingsPage(Page):
         # ---------------- Updates
         upd = Card("Updates")
         upd.body.addWidget(label(f"You have {APP_NAME} v{__version__}.", "cardLine"))
-        self.auto_check = QCheckBox("Check for updates when RYTWEAKS starts (asks before downloading anything)")
+        self.auto_check = QCheckBox("Check for updates when RETWEAKS starts (asks before downloading anything)")
         self.auto_check.setChecked(bool(s.get("check_updates", True)))
         self.auto_check.toggled.connect(lambda v: ctx.set_setting("check_updates", v))
         upd.body.addWidget(self.auto_check)
@@ -190,12 +190,12 @@ class SettingsPage(Page):
         sensors.body.addWidget(self.lhm_status)
         help_ = label(
             "Windows has no built-in way for apps to read CPU temperature, fan speeds or motherboard "
-            "sensors. That needs a hardware driver, which RYTWEAKS does not install. Instead:<br><br>"
+            "sensors. That needs a hardware driver, which RETWEAKS does not install. Instead:<br><br>"
             f"1. Download <a href='{LHM_URL}'>LibreHardwareMonitor</a> (free, open source).<br>"
             "2. Run it as administrator and leave it open (it can start minimized).<br>"
             "3. In LibreHardwareMonitor, turn on <b>Options → Remote Web Server → Run</b> "
             "(keep the default port 8085).<br>"
-            "4. RYTWEAKS finds it within a few seconds and shows temperatures and fans.<br><br>"
+            "4. RETWEAKS finds it within a few seconds and shows temperatures and fans.<br><br>"
             "Step 3 is needed for LibreHardwareMonitor 0.9.5 and newer. Older versions "
             "(0.9.4 and before) are detected without it.<br>"
             "NVIDIA GPU temperature works without LibreHardwareMonitor, through the NVIDIA driver.",
@@ -279,10 +279,10 @@ class SettingsPage(Page):
         self.ctx.set_setting("tray_on_close", bool(on))
         self.ctx.apply_tray(bool(on))
         if on and (self.ctx.tray is None or not self.ctx.tray.isVisible()):
-            self.beh_msg.setText("Windows didn't give RYTWEAKS a tray icon, so closing the window still quits.")
+            self.beh_msg.setText("Windows didn't give RETWEAKS a tray icon, so closing the window still quits.")
         else:
-            self.beh_msg.setText("Closing the window now keeps RYTWEAKS running in the tray." if on else
-                                 "Closing the window now quits RYTWEAKS.")
+            self.beh_msg.setText("Closing the window now keeps RETWEAKS running in the tray." if on else
+                                 "Closing the window now quits RETWEAKS.")
         self.ctx.log_action("Settings", "Keep running in the tray " + ("on" if on else "off"), "OK")
 
     def toggle_minimized(self, value):
@@ -327,8 +327,8 @@ class SettingsPage(Page):
             return
         if QMessageBox.question(
                 self, "Install update",
-                f"Download {info['version']} from GitHub, check it, and restart RYTWEAKS?\n\n"
-                "Your settings are kept. The current version is saved as RYTWEAKS.old.exe.") != QMessageBox.Yes:
+                f"Download {info['version']} from GitHub, check it, and restart RETWEAKS?\n\n"
+                "Your settings are kept. The current version is saved as RETWEAKS.old.exe.") != QMessageBox.Yes:
             return
         self.b_install.setEnabled(False)
         self.upd_bar.setValue(0)
@@ -363,7 +363,7 @@ class SettingsPage(Page):
         self.upd_bar.setValue(100)
         ok, msg = updater.install_and_restart(value)
         self.upd_msg.setText(msg)
-        self._ctx_progress(msg if not ok else "Installing and restarting RYTWEAKS…", None if not ok else 100,
+        self._ctx_progress(msg if not ok else "Installing and restarting RETWEAKS…", None if not ok else 100,
                            busy=ok)
         self.ctx.log_action("Update", self.update_info["version"], "Success" if ok else "Failed", "" if ok else msg)
         if ok:

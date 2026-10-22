@@ -37,7 +37,7 @@ class FpsPage(Page):
         # ---- PresentMon location
         c = Card("PresentMon")
         c.body.addWidget(Notice(
-            "RYTWEAKS does not include PresentMon. Download the PresentMon console app from the "
+            "RETWEAKS does not include PresentMon. Download the PresentMon console app from the "
             f"<a href=\"{fps.RELEASES_URL}\">official releases page</a> and select PresentMon.exe "
             "below. It needs administrator rights."))
         row = QHBoxLayout()
@@ -372,7 +372,7 @@ class FpsPage(Page):
         self.ov_source.addItem("Built-in (no download needed)", "builtin")
         self.ov_source.addItem("PresentMon (uses the path above)", "presentmon")
         self.ov_source.setCurrentIndex(of.SOURCES.index(cfg["overlay_source"]))
-        self.ov_source.setToolTip("Built-in: RYTWEAKS reads Windows' own frame events, the same data "
+        self.ov_source.setToolTip("Built-in: RETWEAKS reads Windows' own frame events, the same data "
                                   "PresentMon uses. It measures the time between frames the game sends "
                                   "to Windows.")
         srow.addWidget(label("Frame data"))

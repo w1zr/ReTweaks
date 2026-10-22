@@ -79,7 +79,7 @@ def as_list(value):
 
 
 def elevated_as_other_user():
-    """True if RYTWEAKS was started as administrator using a DIFFERENT account's password.
+    """True if RETWEAKS was started as administrator using a DIFFERENT account's password.
     Then "current user" settings would change that other account, not the person at the PC."""
     if not IS_WINDOWS:
         return False
@@ -96,13 +96,13 @@ def elevated_as_other_user():
 
 
 def single_instance():
-    """Returns a handle if this is the only RYTWEAKS running, or None if another one is."""
+    """Returns a handle if this is the only RETWEAKS running, or None if another one is."""
     if not IS_WINDOWS:
         return True
     try:
         import ctypes
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)   # reliable GetLastError from ctypes
-        handle = k32.CreateMutexW(None, False, "Local\\RYTWEAKS_single_instance")
+        handle = k32.CreateMutexW(None, False, "Local\\RETWEAKS_single_instance")
         if ctypes.get_last_error() == 183:   # ERROR_ALREADY_EXISTS
             # CreateMutexW still opened the existing mutex: close our handle, otherwise this process
             # itself keeps the mutex alive and a later retry (after the other copy closed) fails.
@@ -115,10 +115,10 @@ def single_instance():
 
 
 def other_instances():
-    """Other running copies of this RYTWEAKS .exe (e.g. one stuck while closing), as psutil processes.
+    """Other running copies of this RETWEAKS .exe (e.g. one stuck while closing), as psutil processes.
     Only works for the built .exe: when running from source every copy is just python.exe, so nothing
     is returned rather than risk closing an unrelated Python program. Our own process and our own
-    one-file launcher (the parent RYTWEAKS.exe that PyInstaller starts first) are never included."""
+    one-file launcher (the parent RETWEAKS.exe that PyInstaller starts first) are never included."""
     if not IS_WINDOWS or not getattr(sys, "frozen", False):
         return []
     try:
@@ -145,7 +145,7 @@ def close_other_instances(timeout=5.0):
     """Force-closes other_instances(). Returns (ok, message) after checking they really exited."""
     procs = other_instances()
     if not procs:
-        return False, "No other RYTWEAKS process was found."
+        return False, "No other RETWEAKS process was found."
     try:
         import psutil
         for p in procs:
@@ -155,11 +155,11 @@ def close_other_instances(timeout=5.0):
                 pass
         gone, alive = psutil.wait_procs(procs, timeout=timeout)
         if alive:
-            return False, (f"{len(alive)} RYTWEAKS process(es) could not be closed. Restart the PC, "
-                           "or run 'taskkill /F /IM RYTWEAKS.exe' in an administrator PowerShell.")
-        return True, f"Closed {len(gone)} stuck RYTWEAKS process(es)."
+            return False, (f"{len(alive)} RETWEAKS process(es) could not be closed. Restart the PC, "
+                           "or run 'taskkill /F /IM RETWEAKS.exe' in an administrator PowerShell.")
+        return True, f"Closed {len(gone)} stuck RETWEAKS process(es)."
     except Exception as e:
-        return False, f"Couldn't close the other RYTWEAKS: {e}"
+        return False, f"Couldn't close the other RETWEAKS: {e}"
 
 
 def is_admin():

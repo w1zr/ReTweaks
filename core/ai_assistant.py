@@ -23,7 +23,7 @@ TERMS_URL = "https://ai.google.dev/terms"
 DEFAULT_MODEL = "gemini-3.8-flash"
 FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 
-CRED_TARGET = "RYTWEAKS/GeminiAPIKey"
+CRED_TARGET = "RETWEAKS/GeminiAPIKey"
 TIMEOUT_S = 60
 MAX_HISTORY = 20  # messages (user + assistant) sent as `contents`
 MAX_OUTPUT_TOKENS = 2048
@@ -34,7 +34,7 @@ PAGE_NAMES = ["Dashboard", "Hardware", "Health Check", "FPS test", "Display & dr
               "Settings"]
 
 SYSTEM_INSTRUCTION = (
-    "You are the RYTWEAKS PC help assistant, built into RYTWEAKS, a Windows PC diagnostics and "
+    "You are the RETWEAKS PC help assistant, built into RETWEAKS, a Windows PC diagnostics and "
     "optimization app. Help with Windows PC performance, gaming, hardware questions and the "
     "user's specific PC.\n"
     "Rules:\n"
@@ -44,11 +44,11 @@ SYSTEM_INSTRUCTION = (
     "measured.\n"
     "- Recommend safe, reversible steps first. Warn clearly before anything risky, such as BIOS "
     "changes, registry edits or overclocking, and explain how to undo it.\n"
-    "- Prefer pointing to RYTWEAKS features when one fits. RYTWEAKS pages: "
+    "- Prefer pointing to RETWEAKS features when one fits. RETWEAKS pages: "
     + ", ".join(PAGE_NAMES) + ".\n"
     "- Refuse requests for cheating or bypassing anti-cheat, and say briefly why.\n"
     "- You give advice only. You cannot run commands or change settings; the user does that, "
-    "for example in RYTWEAKS.\n"
+    "for example in RETWEAKS.\n"
     "- Keep answers short and practical: a few bullet points or short steps. Use Markdown."
 )
 
@@ -138,7 +138,7 @@ def _cred_write(target, blob, comment):
     cred.CredentialBlobSize = len(blob)
     cred.CredentialBlob = ctypes.cast(buf, ctypes.POINTER(ctypes.c_ubyte))
     cred.Persist = CRED_PERSIST_LOCAL_MACHINE
-    cred.UserName = "RYTWEAKS"
+    cred.UserName = "RETWEAKS"
     if not _advapi.CredWriteW(ctypes.byref(cred), 0):
         raise _win_error("Saving to Windows Credential Manager")
 
@@ -179,7 +179,7 @@ def save_key(key):
     key = (key or "").strip()
     if not key:
         raise AIError("The key is empty.")
-    _cred_write(CRED_TARGET, key.encode("utf-16-le"), "RYTWEAKS Gemini API key")
+    _cred_write(CRED_TARGET, key.encode("utf-16-le"), "RETWEAKS Gemini API key")
     if read_key_checked() != key:
         raise AIError("Windows saved the key but returned something different when it was read back.")
 
@@ -382,7 +382,7 @@ def build_request_body(history, specs_text=None):
 def parse_response(data):
     """Text of the first candidate. Raises AIError with a friendly message otherwise."""
     if not isinstance(data, dict):
-        raise AIError("Google sent a reply RYTWEAKS couldn't read.")
+        raise AIError("Google sent a reply RETWEAKS couldn't read.")
     block = (data.get("promptFeedback") or {}).get("blockReason")
     cands = data.get("candidates") or []
     if not cands:
@@ -423,7 +423,7 @@ def parse_error(http_status, body_text="", key=None):
                 "make a new one at aistudio.google.com/apikey.")
     if "location" in low and ("not supported" in low or "region" in low):
         return ("The Gemini API isn't available in your region with this key. Google decides "
-                "this, so RYTWEAKS can't work around it.")
+                "this, so RETWEAKS can't work around it.")
     if http_status == 403:
         return ("Google refused the request (403). The key may not have permission for this "
                 "model, or the API isn't offered in your region. Details: "
@@ -432,7 +432,7 @@ def parse_error(http_status, body_text="", key=None):
         return ("You've hit the free-tier limit for now (requests per minute or per day). "
                 "Wait a bit and try again, or pick another model in the list.")
     if http_status in (500, 502, 503, 504) or "unavailable" in low:
-        return ("Google's free Gemini service is busy right now (" + str(http_status) + "). RYTWEAKS "
+        return ("Google's free Gemini service is busy right now (" + str(http_status) + "). RETWEAKS "
                 "already retried and tried the other free models. Try again in a minute.")
     if http_status == 404:
         return ("Google doesn't know this model name. Press Refresh models and pick one from "
@@ -483,7 +483,7 @@ def _request(method, url, key, body=None, timeout=TIMEOUT_S):
             raise AIError("Google didn't answer within 60 seconds. Try again.")
         raise AIError("Couldn't reach Google. Check your internet connection.")
     except ValueError:
-        raise AIError("Google sent a reply RYTWEAKS couldn't read.")
+        raise AIError("Google sent a reply RETWEAKS couldn't read.")
 
 
 def generate(key, model, history, specs_text=None, timeout=TIMEOUT_S):
