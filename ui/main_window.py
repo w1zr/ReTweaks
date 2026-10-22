@@ -417,8 +417,13 @@ class MainWindow(QMainWindow):
                 self.tray = QSystemTrayIcon(icon, self)
                 self.tray.setToolTip("RYTWEAKS")
                 menu = QMenu(self)
-                menu.addAction("Open RYTWEAKS", self.show_from_tray)
+                # Rounded, themed menu (v1.5): frameless + translucent so the rounded corners show
+                menu.setWindowFlags(menu.windowFlags() | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+                menu.setAttribute(Qt.WA_TranslucentBackground, True)
+                head = menu.addAction(icon, "RYTWEAKS")
+                head.setEnabled(False)
                 menu.addSeparator()
+                menu.addAction("Open RYTWEAKS", self.show_from_tray)
                 menu.addAction("Quit RYTWEAKS", self.quit_from_tray)
                 self.tray.setContextMenu(menu)
                 self.tray.activated.connect(
