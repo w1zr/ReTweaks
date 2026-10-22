@@ -19,6 +19,8 @@ WHATS_NEW = [
                      "button where RYTWEAKS can help."),
     ("FPS test", "Real average FPS and 1% / 0.1% lows measured with Intel PresentMon, with saved runs "
                  "you can compare."),
+    ("In-game FPS overlay", "Live FPS, 1% low and frame time over games in borderless or windowed "
+                            "fullscreen. Nothing is injected into the game."),
     ("Display & drivers", "Shows whether each monitor runs at its highest refresh rate, and your "
                           "GPU driver version and age."),
     ("Audio mixer", "Master volume, output devices and per-app volume."),

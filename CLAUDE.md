@@ -49,7 +49,7 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
 - `core/profiles.py` — System profiles (bundles of real tweaks).
 - `core/startup_manager.py`, `core/storage_manager.py`, `core/themes.py`, `core/report.py` — Startup apps (including scheduled tasks), Storage Explorer, disk space analyzer and cleanup, theme tokens, hardware report export.
-- v1.4 modules: `core/healthcheck.py` (Health Check), `core/fps.py` (PresentMon FPS runs), `core/sensorlog.py` (sensor CSV logging), `core/display.py` (refresh rate + GPU driver info), `core/audio.py` (audio mixer), `core/autoclicker.py`, `core/funtools.py` (polling-rate / CPS / reaction tests), `core/ai_assistant.py` (Gemini AI Assistant). Background calming lives in `core/app_rules.py`.
+- v1.4 modules: `core/healthcheck.py` (Health Check), `core/fps.py` (PresentMon FPS runs), `core/sensorlog.py` (sensor CSV logging), `core/display.py` (refresh rate + GPU driver info), `core/audio.py` (audio mixer), `core/autoclicker.py`, `core/funtools.py` (polling-rate / CPS / reaction tests), `core/ai_assistant.py` (Gemini AI Assistant), `core/overlay_fps.py` + `ui/overlay.py` (in-game FPS overlay: a separate click-through topmost window fed by PresentMon; never inject into a game process). Background calming lives in `core/app_rules.py`.
 - `ui/main_window.py` — App shell: sidebar navigation, page stack, background workers, settings, change log.
 - `ui/pages/` — One file per page (Dashboard, Hardware, Health Check, FPS test, Display & drivers, Tweaks, Profiles, Game presets, Program rules, Startup apps, Network, Storage & cleanup, Audio mixer, Auto clicker, AI Assistant, Snapshots, Fun tools, Logs, About, Settings).
 - `ui/widgets/brand.py` — The chip logo drawn with QPainter, `ChipLoader` (mini scanning loader, only during real work), `EmptyState`, and the thin-line sidebar icons. `ui/widgets/chip_pins.py` — Health Check chip.
@@ -311,6 +311,7 @@ Gemini was removed in v1.2 and brought back in v1.4 as the **AI Assistant** tab,
 - Some preset keys could not be confirmed for every game version (for example the Fortnite rendering-mode key, Bedrock graphics mode). The engine only changes keys already present in the user's file, so wrong names are skipped, never added.
 - Startup-app "Impact" was a guess based on where the entry came from, so v1.2 removed that column.
 - v1.4 was written and unit-tested on Linux. Everything that touches Windows (audio, clicks, display mode changes, PresentMon, Credential Manager, scheduled tasks, priorities, raw mouse input) still needs testing on a real Windows PC before release.
+- The FPS overlay only shows over borderless/windowed-fullscreen games; exclusive fullscreen draws over it. It must never be changed to inject into game processes (anti-cheat).
 - The FPS test needs the user to download Intel PresentMon (2.x console app); RYTWEAKS doesn't bundle it.
 - Audio output switching uses pycaw's SetDefaultDevice (the undocumented IPolicyConfig interface), so it's labelled as such and falls back to Windows Sound settings.
 - The sidebar header is wordmark-only; the owner hasn't picked between the two header options on the design canvas yet.
