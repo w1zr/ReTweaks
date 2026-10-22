@@ -46,9 +46,8 @@ def is_newer(remote, local=__version__):
     return bool(r and l and r > l)
 
 
-def _get(url, timeout=15):
-    req = urllib.request.Request(url, headers={"User-Agent": f"RYTWEAKS/{__version__}",
-                                               "Accept": "application/vnd.github+json"})
+def _get(url, timeout=15, accept="application/vnd.github+json"):
+    req = urllib.request.Request(url, headers={"User-Agent": f"RYTWEAKS/{__version__}", "Accept": accept})
     return urllib.request.urlopen(req, timeout=timeout)
 
 
@@ -91,13 +90,13 @@ def download_update(info, progress=None):
     if not (_allowed(exe_url) and _allowed(sha_url)):
         return False, "Refusing to download from an unexpected address."
     try:
-        with _get(sha_url) as resp:
+        with _get(sha_url, accept="application/octet-stream") as resp:
             expected = parse_sha256_file(resp.read().decode("utf-8", "replace"))
         if not expected:
             return False, "The release's checksum file is not readable."
         dest = os.path.join(tempfile.gettempdir(), f"RYTWEAKS_update_{info.get('version', 'new')}.exe")
         digest = hashlib.sha256()
-        with _get(exe_url, timeout=60) as resp, open(dest, "wb") as f:
+        with _get(exe_url, timeout=60, accept="application/octet-stream") as resp, open(dest, "wb") as f:
             total = int(resp.headers.get("Content-Length") or 0)
             done = 0
             while True:
@@ -117,6 +116,25 @@ def download_update(info, progress=None):
         return False, f"Download failed: {e}"
 
 
+def UPDATE_STATUS_FILE():
+    from pathlib import Path
+    base = Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS"
+    base.mkdir(parents=True, exist_ok=True)
+    return str(base / "update_status.txt")
+
+
+def read_update_status():
+    """'OK', 'FAILED' or None. Reads and clears the result the update script left behind."""
+    path = UPDATE_STATUS_FILE()
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            value = f.read().strip()
+        os.remove(path)
+        return value or None
+    except OSError:
+        return None
+
+
 def can_self_update():
     """True only when running as the packaged RYTWEAKS.exe (not from python main.py)."""
     return IS_WINDOWS and getattr(sys, "frozen", False)
@@ -132,22 +150,37 @@ def install_and_restart(new_exe):
     def q(path):  # PowerShell single-quoted string (handles ' and non-English characters)
         return "'" + path.replace("'", "''") + "'"
 
-    # Wait for this process to exit, keep a backup, swap in the new exe, start it.
-    # If the swap fails, the backup is put back so the user is never left without the app.
+    # A --onefile exe runs as TWO processes: the bootloader (parent) and Python (this one).
+    # The parent keeps RYTWEAKS.exe open until it has cleaned up its temp folder, so wait
+    # for both. Then rename the old exe to RYTWEAKS.old.exe (retrying while Windows still has
+    # it locked), move the new one in, and start it. If anything fails, put the old exe back
+    # and write a note that RYTWEAKS shows on its next start, so it never claims success falsely.
+    status = os.path.join(os.path.dirname(UPDATE_STATUS_FILE()), "update_status.txt")
     ps = (
-        f"Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue; "
-        f"Copy-Item -LiteralPath {q(current)} -Destination {q(backup)} -Force; "
-        f"try {{ Move-Item -LiteralPath {q(new_exe)} -Destination {q(current)} -Force -ErrorAction Stop }} "
-        f"catch {{ Copy-Item -LiteralPath {q(backup)} -Destination {q(current)} -Force }}; "
+        f"Wait-Process -Id {os.getpid()},{os.getppid()} -Timeout 90 -ErrorAction SilentlyContinue; "
+        f"$ok = $false; "
+        f"for ($i = 0; $i -lt 40 -and -not $ok; $i++) {{ "
+        f"  try {{ "
+        f"    if (Test-Path -LiteralPath {q(backup)}) {{ Remove-Item -LiteralPath {q(backup)} -Force -ErrorAction Stop }}; "
+        f"    Rename-Item -LiteralPath {q(current)} -NewName 'RYTWEAKS.old.exe' -ErrorAction Stop; "
+        f"    try {{ Move-Item -LiteralPath {q(new_exe)} -Destination {q(current)} -Force -ErrorAction Stop; $ok = $true }} "
+        f"    catch {{ Rename-Item -LiteralPath {q(backup)} -NewName {q(os.path.basename(current))}; throw }} "
+        f"  }} catch {{ Start-Sleep -Milliseconds 500 }} "
+        f"}}; "
+        f"if ($ok) {{ Set-Content -LiteralPath {q(status)} -Value 'OK' }} "
+        f"else {{ Set-Content -LiteralPath {q(status)} -Value 'FAILED' }}; "
         f"Start-Process -FilePath {q(current)}"
     )
     try:
         import base64
         import subprocess
         encoded = base64.b64encode(ps.encode("utf-16-le")).decode("ascii")
+        # PYINSTALLER_RESET_ENVIRONMENT: the restarted exe must unpack fresh instead of
+        # reusing this run's temp folder, which is being deleted (PyInstaller 6.9+).
+        env = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
         subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                           "-EncodedCommand", encoded],
-                         creationflags=CREATE_NO_WINDOW, close_fds=True)
+                         creationflags=CREATE_NO_WINDOW, close_fds=True, env=env)
         return True, "Installing the update. RYTWEAKS will restart in a few seconds."
     except Exception as e:
         return False, f"Couldn't start the installer: {e}"

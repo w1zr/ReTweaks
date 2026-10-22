@@ -9,7 +9,7 @@ the packaged .exe.
 
 import sys
 
-from core.winutil import IS_WINDOWS, run
+from core.winutil import IS_WINDOWS, run, run_powershell
 
 TASK_NAME = "RYTWEAKS"
 
@@ -31,9 +31,22 @@ def set_enabled(enable, minimized=True):
     if not available():
         return False, "Start with Windows only works in RYTWEAKS.exe."
     if enable:
-        target = f'"{sys.executable}"' + (" --minimized" if minimized else "")
-        r = run(["schtasks", "/Create", "/TN", TASK_NAME, "/TR", target, "/SC", "ONLOGON",
-                 "/RL", "HIGHEST", "/F"], timeout=20)
+        # Register-ScheduledTask instead of schtasks: schtasks tasks don't start on battery,
+        # are stopped when a laptop is unplugged and are killed after 72 hours.
+        exe = sys.executable.replace("'", "''")
+        arg = "-Argument '--minimized' " if minimized else ""
+        out = run_powershell(
+            "try { "
+            f"$a = New-ScheduledTaskAction -Execute '{exe}' {arg}; "
+            "$t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME; "
+            "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
+            "-ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew; "
+            "$p = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest; "
+            f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s -Principal $p "
+            "-Force -ErrorAction Stop | Out-Null; 'OK' } catch { $_.Exception.Message }", timeout=40).strip()
+        if out != "OK":
+            return False, out or "Task Scheduler refused the change."
+        return True, "RYTWEAKS will start when you sign in."
     else:
         if not is_enabled():
             return True, "RYTWEAKS won't start with Windows."

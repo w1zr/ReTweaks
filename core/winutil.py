@@ -75,6 +75,38 @@ def as_list(value):
     return [value]
 
 
+def elevated_as_other_user():
+    """True if RYTWEAKS was started as administrator using a DIFFERENT account's password.
+    Then "current user" settings would change that other account, not the person at the PC."""
+    if not IS_WINDOWS:
+        return False
+    try:
+        import psutil
+        me = psutil.Process().username().lower()
+        session_users = set()
+        for p in psutil.process_iter(["name", "username"]):
+            if (p.info.get("name") or "").lower() == "explorer.exe" and p.info.get("username"):
+                session_users.add(p.info["username"].lower())
+        return bool(session_users) and me not in session_users
+    except Exception:
+        return False
+
+
+def single_instance():
+    """Returns a handle if this is the only RYTWEAKS running, or None if another one is."""
+    if not IS_WINDOWS:
+        return True
+    try:
+        import ctypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)   # reliable GetLastError from ctypes
+        handle = k32.CreateMutexW(None, False, "Local\\RYTWEAKS_single_instance")
+        if ctypes.get_last_error() == 183:   # ERROR_ALREADY_EXISTS
+            return None
+        return handle
+    except Exception:
+        return True
+
+
 def is_admin():
     if not IS_WINDOWS:
         return False

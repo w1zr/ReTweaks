@@ -10,6 +10,13 @@ from core.tweaks import BY_ID as T
 
 # Steps use core.tweaks so "Undo" / "Undo everything" can put the original settings back.
 
+def _xbox_original():
+    ok, msg = T["xbox_capture"].undo()
+    if not ok and "Nothing to undo" in msg:
+        return True, "Already at your original setting."
+    return ok, msg
+
+
 PROFILES = {
     "Max Performance": {
         "description": "For gaming sessions. Turns on Game Mode, switches to the Ultimate "
@@ -22,12 +29,12 @@ PROFILES = {
         ],
     },
     "Windows Default": {
-        "description": "Puts these settings back the way Windows ships them: Game Mode on, "
-                       "Balanced power plan, Xbox Game Bar background recording allowed.",
+        "description": "Puts these settings back: Game Mode on (the Windows default), the Balanced power "
+                       "plan, and Xbox Game Bar background recording back to how it was before RYTWEAKS.",
         "steps": [
             ("Turn on Game Mode", lambda: T["game_mode"].apply(True)),
             ("Balanced power plan", W.set_balanced_power_plan),
-            ("Allow Xbox background recording", lambda: T["xbox_capture"].apply(True)),
+            ("Xbox background recording back to your original setting", _xbox_original),
         ],
     },
 }

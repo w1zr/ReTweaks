@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout
 
 from core import tweaks as T
 from core.optimizer import WindowsOptimizer as W
-from core.winutil import is_admin
+from core.winutil import elevated_as_other_user, is_admin
 from ui.widgets.common import Card, Notice, Page, label, set_role, set_status_style
 
 
@@ -68,6 +68,11 @@ class TweaksPage(Page):
                 "RYTWEAKS isn't running as administrator, so tweaks marked “Admin” will fail. "
                 "Right-click RYTWEAKS.exe → Run as administrator."))
 
+        if elevated_as_other_user():
+            self.content.addWidget(Notice(
+                "RYTWEAKS was started with a different administrator account than the one signed in. "
+                "Tweaks for “your” settings would change that other account instead. Sign in to the "
+                "administrator account, or make your account an administrator, then start RYTWEAKS again."))
         top = QHBoxLayout()
         self.b_restore = QPushButton("Create restore point")
         self.b_restore.setToolTip("Windows System Restore point, so you can roll back the whole PC.")

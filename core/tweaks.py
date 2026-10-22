@@ -14,6 +14,7 @@ trade-off, whether it needs administrator rights, and whether a restart is neede
 import ctypes
 import json
 import os
+import threading
 from pathlib import Path
 
 from core.winutil import IS_WINDOWS, run, run_powershell
@@ -60,6 +61,10 @@ class _WinReg:
 
 
 REG = _WinReg()
+
+# Tweaks run on background threads; this stops two of them from writing the backup file
+# at the same time (which could lose a saved original value).
+_LOCK = threading.RLock()
 REG_SZ, REG_DWORD = 1, 4
 
 
@@ -129,9 +134,16 @@ class Tweak:
         _save_backups(backups)
 
     def apply(self, on):
+        with _LOCK:
+            return self._apply(on)
+
+    def _values_for(self, on):
+        return self.values_on if on else self.values_off
+
+    def _apply(self, on):
         try:
             self._backup_once()
-            for (path, name), (typ, data) in (self.values_on if on else self.values_off).items():
+            for (path, name), (typ, data) in self._values_for(on).items():
                 REG.set(path, name, typ, data)
             if self.after_change:
                 self.after_change()
@@ -144,6 +156,10 @@ class Tweak:
         return True, f"{self.name}: {'on' if on else 'off'}.{note}"
 
     def undo(self):
+        with _LOCK:
+            return self._undo()
+
+    def _undo(self):
         backups = load_backups()
         entry = backups.get(self.id)
         if not entry:
@@ -229,11 +245,48 @@ class WindowedGamesTweak(Tweak):
                 return "On" if v.strip() == "1" else "Off"
         return "Windows default"
 
-    def apply(self, on):
-        value = _merge_dx(on)()
-        self.values_on = {(DX_PATH, DX_NAME): (REG_SZ, value)}
-        self.values_off = self.values_on
-        return super().apply(on)
+    def _values_for(self, on):
+        return {(DX_PATH, DX_NAME): (REG_SZ, _merge_dx(on)())}
+
+
+class AccessibilityShortcutsTweak(Tweak):
+    """Only flips the "shortcut is active" bit (0x4, SKF_HOTKEYACTIVE / FKF_HOTKEYACTIVE /
+    TKF_HOTKEYACTIVE) in each Flags value, so a user's own Sticky/Filter/Toggle Keys settings
+    (including having the feature itself turned on) are kept."""
+
+    DEFAULTS = {"StickyKeys": "510", "Keyboard Response": "126", "ToggleKeys": "62"}
+
+    def __init__(self):
+        keys = {(ACCESS + "\\" + k, "Flags"): (REG_SZ, None) for k in self.DEFAULTS}
+        super().__init__(
+            "sticky_keys_popup", "Sticky/Filter/Toggle Keys shortcut pop-ups", STANDARD,
+            "When on, pressing Shift 5 times (or holding it) opens an accessibility pop-up, which can kick "
+            "you out of a game. Turning it off only removes the shortcut, not the features.",
+            "You can still turn these features on from Settings → Accessibility.",
+            keys, keys, restart="signout")
+
+    def _flags(self, path):
+        cur = REG.get(path, "Flags")
+        try:
+            return int(cur[1]) if cur else int(self.DEFAULTS[path.rsplit("\\", 1)[1]])
+        except (TypeError, ValueError):
+            return int(self.DEFAULTS[path.rsplit("\\", 1)[1]])
+
+    def _values_for(self, on):
+        out = {}
+        for (path, name) in self.keys():
+            flags = self._flags(path)
+            out[(path, name)] = (REG_SZ, str(flags | 0x4 if on else flags & ~0x4))
+        return out
+
+    def get_state(self):
+        try:
+            if all(REG.get(p, n) is None for p, n in self.keys()):
+                return "Windows default"
+            hot = [bool(self._flags(p) & 0x4) for p, _ in self.keys()]
+        except Exception:
+            return "Unknown"
+        return "On" if all(hot) else ("Off" if not any(hot) else "Custom")
 
 
 class CommandTweak(Tweak):
@@ -250,7 +303,7 @@ class CommandTweak(Tweak):
         if r.returncode != 0:
             raise PermissionError((r.stderr or r.stdout).strip())
 
-    def apply(self, on):
+    def _apply(self, on):
         try:
             self._backup_once()
             self._run(on)
@@ -260,14 +313,15 @@ class CommandTweak(Tweak):
             return False, str(e)
         return True, f"{self.name}: {'on' if on else 'off'}."
 
-    def undo(self):
+    def _undo(self):
         backups = load_backups()
         entry = backups.get(self.id)
         if not entry:
             return False, "Nothing to undo: RYTWEAKS hasn't changed this setting."
         prev = entry["values"][0][2]
         try:
-            self._run(bool(prev and prev[1]))   # missing value = Windows default (on)
+            # value missing before = Windows default, which is ON
+            self._run(True if prev is None else bool(prev[1]))
         except Exception as e:
             return False, str(e) or "Windows refused the change."
         del backups[self.id]
@@ -308,17 +362,7 @@ TWEAKS = [
           "Same switch as Settings → Personalization → Colors.",
           {(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency"): (REG_DWORD, 1)},
           {(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency"): (REG_DWORD, 0)}),
-    Tweak("sticky_keys_popup", "Sticky/Filter/Toggle Keys shortcut pop-ups", STANDARD,
-          "When on, pressing Shift 5 times (or holding it) opens an accessibility pop-up, which can kick "
-          "you out of a game. Turning it off only removes the shortcut, not the features.",
-          "You can still turn these features on from Settings → Accessibility.",
-          {(ACCESS + r"\StickyKeys", "Flags"): (REG_SZ, "510"),
-           (ACCESS + r"\Keyboard Response", "Flags"): (REG_SZ, "126"),
-           (ACCESS + r"\ToggleKeys", "Flags"): (REG_SZ, "62")},
-          {(ACCESS + r"\StickyKeys", "Flags"): (REG_SZ, "506"),
-           (ACCESS + r"\Keyboard Response", "Flags"): (REG_SZ, "122"),
-           (ACCESS + r"\ToggleKeys", "Flags"): (REG_SZ, "58")},
-          restart="signout"),
+    AccessibilityShortcutsTweak(),
     WindowedGamesTweak(),
     Tweak("hags", "Hardware-accelerated GPU scheduling (HAGS)", ADVANCED,
           "Lets the GPU manage its own memory scheduling. Can lower latency on newer GPUs; on others it "

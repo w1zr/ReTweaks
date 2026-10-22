@@ -61,3 +61,24 @@ def test_windowed_games_keeps_other_directx_options(tmp_path, monkeypatch):
 def test_set_dx_option_replaces_existing():
     assert tw.set_dx_option("SwapEffectUpgradeEnable=0;A=1;", "SwapEffectUpgradeEnable", "1") == \
         "SwapEffectUpgradeEnable=1;A=1;"
+
+
+def test_accessibility_only_flips_shortcut_bit(tmp_path, monkeypatch):
+    reg = setup(tmp_path, monkeypatch)
+    t = tw.BY_ID["sticky_keys_popup"]
+    sticky = (tw.ACCESS + "\\StickyKeys", "Flags")
+    reg.set(*sticky, tw.REG_SZ, "511")            # user has Sticky Keys itself turned ON
+    t.apply(False)
+    assert reg.get(*sticky)[1] == "507"           # 511 & ~4: feature stays on, shortcut off
+    t.undo()
+    assert reg.get(*sticky)[1] == "511"
+
+
+def test_hibernation_undo_when_value_was_missing_turns_it_back_on(tmp_path, monkeypatch):
+    setup(tmp_path, monkeypatch)
+    t = tw.BY_ID["hibernation"]
+    calls = []
+    monkeypatch.setattr(t, "_run", lambda on: calls.append(on))
+    t.apply(False)
+    t.undo()
+    assert calls == [False, True]

@@ -59,9 +59,11 @@ def test_apply_backs_up_and_keeps_utf16_and_lock(tmp_path, monkeypatch):
     assert "sg.ShadowQuality=0" in f.read_bytes().decode("utf-16")
     assert gp.is_read_only(str(f))                               # lock kept
     backups = gp.list_backups("fortnite")
-    assert len(backups) == 1 and "sg.ShadowQuality=3" in backups[0]["file"].read_bytes().decode("utf-16")
+    assert len(backups) == 2                                     # the pinned original + this change
+    assert all("sg.ShadowQuality=3" in b["file"].read_bytes().decode("utf-16") for b in backups)
+    original = next(b for b in backups if b["pinned"])
     os.chmod(f, stat.S_IREAD | stat.S_IWRITE)
-    ok, _ = gp.restore_backup("fortnite", backups[0])
+    ok, _ = gp.restore_backup("fortnite", original)
     assert ok and "sg.ShadowQuality=3" in f.read_bytes().decode("utf-16")
 
 
@@ -76,3 +78,22 @@ def test_refuses_while_game_running(tmp_path, monkeypatch):
 def test_every_builtin_tier_is_complete():
     for g in gp.GAMES:
         assert set(g.presets) == set(gp.TIERS), g.id
+
+
+def test_original_backup_is_never_pruned(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setattr(gp, "game_running", lambda gid: False)
+    f = tmp_path / "options.txt"
+    f.write_text("renderDistance:12\n")
+    for i in range(15):
+        gp.apply_changes("minecraft_java", str(f), "colon", {"renderDistance": 2 + i})
+    backups = gp.list_backups("minecraft_java")
+    assert len(backups) == gp.MAX_BACKUPS + 1
+    original = next(b for b in backups if b["pinned"])
+    assert original["file"].read_text() == "renderDistance:12\n"
+
+
+def test_quoted_values_stay_quoted():
+    new, applied, _ = gp.FORMATS["colon"].write('renderClouds:"true"\nmaxFps:120\n',
+                                                {"renderClouds": "false", "maxFps": 260})
+    assert 'renderClouds:"false"' in new and "maxFps:260" in new

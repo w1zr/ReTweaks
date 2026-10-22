@@ -113,7 +113,12 @@ def get_stylesheet(theme_name="Midnight", custom_accent=None):
         selection-background-color: {t['card_hover']}; color: {t['text']}; }}
     QTextEdit, QPlainTextEdit {{ background-color: {t['card']}; border: 1px solid {t['border']};
         border-radius: 8px; color: {t['text']}; padding: 6px; }}
-    QCheckBox {{ background: transparent; }}
+    QCheckBox {{ background: transparent; spacing: 8px; }}
+    QCheckBox::indicator {{ width: 16px; height: 16px; border: 1px solid {t['muted']}; border-radius: 4px;
+                            background-color: {t['input']}; }}
+    QCheckBox::indicator:hover {{ border-color: {t['accent']}; }}
+    QCheckBox::indicator:checked {{ background-color: {t['accent']}; border-color: {t['accent']}; }}
+    QCheckBox::indicator:disabled {{ border-color: {t['border']}; }}
 
     /* Tables */
     QTableWidget {{ background-color: {t['card']}; alternate-background-color: {t['bg']};

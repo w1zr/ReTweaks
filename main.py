@@ -26,6 +26,15 @@ def main():
         pass
 
     app = QApplication(sys.argv)
+
+    # Only one RYTWEAKS at a time (two copies would fight over auto game mode and settings)
+    from core.winutil import single_instance
+    instance_lock = single_instance()
+    if instance_lock is None:
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar "
+                                "(it may have started minimized with Windows).")
+        sys.exit(0)
     
     # Apply app icon globally across all windows
     icon_path = resource_path("assets/icon.ico")

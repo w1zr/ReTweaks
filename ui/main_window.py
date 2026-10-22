@@ -22,6 +22,7 @@ from core.version import APP_NAME, __version__
 from core.winutil import is_admin
 from ui.pages.dashboard import DashboardPage
 from ui.pages.games import GamesPage
+from ui.pages.rules import RulesPage
 from ui.pages.hardware import HardwarePage
 from ui.pages.logs import LogsPage
 from ui.pages.network import NetworkPage
@@ -33,12 +34,13 @@ from ui.pages.storage import StoragePage
 from ui.pages.tweaks import TweaksPage
 from ui.widgets import common
 from ui.widgets.common import label, set_role
-from ui.workers import StaticScanWorker, TelemetryWorker
+from ui.workers import AutoGameWorker, StaticScanWorker, TelemetryWorker
 
 # (section, [(button text, page class), ...])
 NAV = [
     ("MONITOR", [("Dashboard", DashboardPage), ("Hardware", HardwarePage)]),
     ("OPTIMIZE", [("Tweaks", TweaksPage), ("Profiles", ProfilesPage), ("Game presets", GamesPage),
+                  ("Program rules", RulesPage),
                   ("Startup apps", StartupPage), ("Network", NetworkPage)]),
     ("TOOLS", [("Storage && cleanup", StoragePage), ("Snapshots", SnapshotPage), ("Logs", LogsPage)]),
 ]
@@ -95,6 +97,21 @@ class MainWindow(QMainWindow):
         self._select(names.index(start) if start in names else 0)
         self.start_static_scan()
         self.start_telemetry()
+        self.rules_page = next(p for p in self.pages if isinstance(p, RulesPage))
+        self._auto = AutoGameWorker()
+        self._auto.event.connect(self.rules_page.on_auto_event)
+        self._auto.start()
+        from core import updater
+        result = updater.read_update_status()   # left behind by the in-app updater
+        if result == "OK":
+            self.log_action("Update", f"Installed v{__version__}", "Success")
+            self.settings_page.upd_msg.setText(f"Updated to v{__version__}. The previous version is saved as "
+                                               "RYTWEAKS.old.exe next to RYTWEAKS.exe.")
+        elif result == "FAILED":
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Update", "The update couldn't be installed (Windows kept the file locked), "
+                                f"so you're still on v{__version__}. Try again from Settings → Updates, or "
+                                "download it from the release page.")
         if self.settings.get("check_updates", True):
             # quiet: only says something if an update exists
             self.settings_page.check_updates(quiet=True)
@@ -262,6 +279,9 @@ class MainWindow(QMainWindow):
         if self._telemetry:
             self._telemetry.stop()
             self._telemetry.wait()
+        if getattr(self, "_auto", None):
+            self._auto.stop()        # also switches the power plan back if a game was boosted
+            self._auto.wait()
         if self._scan_worker:
             self._scan_worker.wait()
         for p in self.pages:

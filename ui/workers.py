@@ -75,3 +75,31 @@ class TaskWorker(QThread):
             self.done.emit(self.fn(*self.args))
         except Exception as e:
             self.done.emit((False, str(e)))
+
+
+class AutoGameWorker(QThread):
+    """Auto game mode: checks every few seconds whether a watched program started or closed."""
+    event = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._running = True
+
+    def stop(self):
+        self._running = False
+
+    def run(self):
+        from core.app_rules import AutoGameMode, load_rules
+        mode = AutoGameMode()
+        while self._running:
+            try:
+                for e in mode.poll(load_rules()):
+                    self.event.emit(e)
+            except Exception:
+                traceback.print_exc()
+            for _ in range(60):          # 3 seconds, in small steps so closing is instant
+                if not self._running:
+                    break
+                self.msleep(50)
+        for e in mode.restore():         # RYTWEAKS is closing: put the power plan back
+            self.event.emit(e)
