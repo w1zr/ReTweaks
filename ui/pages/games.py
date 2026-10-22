@@ -5,7 +5,7 @@ plus presets for any settings file the user picks. Always previews, backs up, an
 import os
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QHeaderView,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout, QHeaderView,
                                QInputDialog, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
                                QVBoxLayout)
 
@@ -174,6 +174,43 @@ class GamesPage(Page):
         self.preset_card.body.addLayout(row)
         self.content.addWidget(self.preset_card)
 
+        # ---- Fortnite stretched resolution (v1.5)
+        self.stretch_card = Card("Stretched resolution (Fortnite)")
+        self.stretch_card.body.addWidget(label(
+            "Plays Fortnite at a narrower resolution stretched to fill your screen, e.g. 1720×1080 on a "
+            "1920×1080 monitor. Characters look wider; you don't see more of the map. Sets Fortnite to "
+            "Fullscreen (stretching doesn't work in borderless). A backup is saved first.", "muted", wrap=True))
+        srow = QHBoxLayout()
+        self.stretch_size = QComboBox()
+        for w, h in gp.STRETCH_SIZES:
+            self.stretch_size.addItem(f"{w} × {h}", (w, h))
+        srow.addWidget(label("Resolution", "cardLine"))
+        srow.addWidget(self.stretch_size)
+        self.b_stretch = set_role(QPushButton("Apply stretched"), "primary")
+        self.b_stretch.clicked.connect(self.apply_stretch)
+        self.b_native = QPushButton("Back to native")
+        self.b_native.clicked.connect(self.apply_native)
+        srow.addWidget(self.b_stretch)
+        srow.addWidget(self.b_native)
+        srow.addStretch()
+        self.stretch_card.body.addLayout(srow)
+        self.stretch_lock = QCheckBox("Lock the file afterwards so Fortnite doesn't reset it (recommended)")
+        self.stretch_lock.setChecked(True)
+        self.stretch_card.body.addWidget(self.stretch_lock)
+        self.stretch_now = label("", "cardLine")
+        self.stretch_card.body.addWidget(self.stretch_now)
+        self.stretch_card.body.addWidget(label(
+            "To fill the screen instead of showing black bars, your graphics card must stretch:\n"
+            "• NVIDIA Control Panel → Change resolution → Customize → Create Custom Resolution (same width × "
+            "height, your refresh rate). Then Adjust desktop size and position → Scaling: Full-screen, "
+            "Perform scaling on: GPU, tick Override.\n"
+            "• AMD Software → Display → turn on GPU Scaling, Scaling Mode: Full panel; add the resolution under "
+            "Custom Resolutions.\n"
+            "• Intel Graphics Command Center → Display → Scale: Stretch.\n"
+            "Epic locks competitive modes (Arena and tournaments) to 16:9 since April 2019, so stretched only "
+            "applies in regular matches. Back to native, or Restore under Backups, undoes it.", "muted", wrap=True))
+        self.content.addWidget(self.stretch_card)
+
         # ---- custom editor
         self.custom_card = Card("Custom")
         self.custom_card.body.addWidget(label(
@@ -244,6 +281,7 @@ class GamesPage(Page):
             self.note.setVisible(bool(game.note))
             self.b_remove.hide()
             self.b_lock.setVisible(game.lockable)
+            self.stretch_card.setVisible(game.id == "fortnite")
             for b in self.tier_buttons:
                 b.show()
             self.tier_help.show()
@@ -255,6 +293,7 @@ class GamesPage(Page):
             self.note.show()
             self.b_remove.show()
             self.b_lock.show()
+            self.stretch_card.hide()
             for b in self.tier_buttons:
                 b.hide()
             self.tier_help.hide()
@@ -275,6 +314,13 @@ class GamesPage(Page):
         if ok:
             self.b_lock.setText("Unlock file" if gp.is_read_only(self.path) else "Lock file (read-only)")
         self.custom_card.setVisible(ok)
+        self.b_stretch.setEnabled(ok)
+        self.b_native.setEnabled(ok)
+        cur = gp.current_resolution(self.path, self.fmt) if ok and self.entry_id == "fortnite" else None
+        nat = self._native_size()
+        self.stretch_now.setText((f"Fortnite's resolution now: {cur[0]} × {cur[1]}" if cur else
+                                  "Fortnite's resolution: Unavailable (not in the file yet)") +
+                                 (f" · Your screen: {nat[0]} × {nat[1]}" if nat else ""))
         self.load_table()
         self.load_user_presets()
         self.load_backups()
@@ -338,7 +384,7 @@ class GamesPage(Page):
         self.refresh_file()
 
     # ------------------------------------------------------------ apply
-    def _confirm_and_apply(self, title, changes):
+    def _confirm_and_apply(self, title, changes, on_ok=None):
         if not changes:
             return
         try:
@@ -365,9 +411,42 @@ class GamesPage(Page):
                                 "Success" if ok else "Failed", "" if ok else msg)
             if not ok:
                 QMessageBox.warning(self, title, msg)
+            elif on_ok:
+                on_ok()
             self.refresh_file()
 
         self.run_task(gp.apply_changes, game_id, self.path, self.fmt, changes, on_done=done)
+
+    # ------------------------------------------------------------ stretched resolution (v1.5)
+    def _native_size(self):
+        """The primary screen's resolution in real pixels (what 'native' means)."""
+        from PySide6.QtGui import QGuiApplication
+        scr = QGuiApplication.primaryScreen()
+        if not scr:
+            return None
+        r = scr.devicePixelRatio()
+        return int(round(scr.size().width() * r)), int(round(scr.size().height() * r))
+
+    def _lock_after(self):
+        if self.stretch_lock.isChecked() and self.path and not gp.is_read_only(self.path):
+            try:
+                gp.set_read_only(self.path, True)
+                self.ctx.log_action("Game presets", f"Lock {self.path}", "Success")
+                self.msg.setText(self.msg.text() + " The file is locked so Fortnite keeps it; unlock it to "
+                                 "save changes you make in Fortnite's menu.")
+            except Exception as e:
+                self.msg.setText(self.msg.text() + f" Couldn't lock the file: {e}")
+
+    def apply_stretch(self):
+        w, h = self.stretch_size.currentData()
+        self._confirm_and_apply(f"Stretched resolution {w}×{h}", gp.resolution_changes(w, h), self._lock_after)
+
+    def apply_native(self):
+        nat = self._native_size()
+        if not nat:
+            self.msg.setText("Couldn't read your screen's resolution.")
+            return
+        self._confirm_and_apply(f"Native resolution {nat[0]}×{nat[1]}", gp.resolution_changes(*nat))
 
     def apply_tier(self, tier):
         game = gp.BY_ID.get(self.entry_id)

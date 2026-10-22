@@ -12,6 +12,13 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("Browser", "A browser with RYTWEAKS's own design on Microsoft's Edge engine: tabs, private tabs, "
+                "bookmarks, history, downloads, and your choice of search engine."),
+    ("Microphone and volume lock", "The Audio mixer now controls your microphone too, and can lock the speaker or "
+                                   "mic volume so apps can't change it."),
+    ("Fortnite stretched resolution", "Apply a stretched resolution like 1720×1080 from Game presets, with a backup "
+                                      "first and one-click Back to native."),
+    ("Tray", "Optionally keep RYTWEAKS running in the system tray when you close the window (Settings → Behavior)."),
     ("Built-in FPS overlay", "The in-game overlay reads Windows' own frame events, so it no longer needs "
                              "PresentMon. Nothing is injected into the game."),
     ("44 new tweaks and search", "Now 53 individual tweaks in five groups (Gaming, Privacy, Interface, "

@@ -5,6 +5,8 @@ pywin32>=306; sys_platform == "win32"  # Windows performance counters (GPU/CPU l
 nvidia-ml-py>=12.535.0                  # "pynvml" module: NVIDIA temps/clocks/power; harmless on other GPUs
 pycaw>=20240210; sys_platform == "win32"   # Audio mixer (Windows Core Audio)
 comtypes>=1.4.0; sys_platform == "win32"   # used by pycaw
+pythonnet>=3.0.5; sys_platform == "win32"  # Browser (v1.5): talks to the Edge engine (WebView2) via .NET Framework 4.8
+pywebview>=5.0; sys_platform == "win32"    # Browser: only its bundled WebView2 SDK DLLs are used (~1 MB)
 
 # Build / dev tools
 PyInstaller>=6.0.0

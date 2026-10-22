@@ -133,21 +133,32 @@ def _is_active(dev):
         return "active" in str(state).lower()
 
 
-def _default_render_id():
-    """Id of the default playback device. New pycaw returns an AudioDevice (.id), old
-    pycaw returned the raw IMMDevice (.GetId())."""
-    spk = AudioUtilities.GetSpeakers()
-    if spk is None:
+RENDER, CAPTURE = 0, 1       # EDataFlow: eRender (speakers), eCapture (microphones)
+
+
+def _default_id(flow=RENDER):
+    """Id of the default playback (or recording) device. New pycaw returns an AudioDevice (.id),
+    old pycaw returned the raw IMMDevice (.GetId())."""
+    dev = AudioUtilities.GetSpeakers() if flow == RENDER else AudioUtilities.GetMicrophone()
+    if dev is None:
         return None
-    if hasattr(spk, "id"):
-        return spk.id
-    return spk.GetId()
+    if hasattr(dev, "id"):
+        return dev.id
+    return dev.GetId()
+
+
+def _default_render_id():
+    return _default_id(RENDER)
 
 
 def _all_render_devices():
-    """Active playback devices as pycaw AudioDevice objects (new and old pycaw)."""
+    return _all_devices(RENDER)
+
+
+def _all_devices(flow=RENDER):
+    """Active playback (or recording) devices as pycaw AudioDevice objects (new and old pycaw)."""
     try:
-        devs = AudioUtilities.GetAllDevices(0, 1)  # eRender, DEVICE_STATE_ACTIVE
+        devs = AudioUtilities.GetAllDevices(flow, 1)  # EDataFlow, DEVICE_STATE_ACTIVE
     except TypeError:  # old signature: no arguments, returns every flow
         devs = AudioUtilities.GetAllDevices()
     out = []
@@ -155,8 +166,8 @@ def _all_render_devices():
         if d is None or not _is_active(d):
             continue
         try:
-            flow = AudioUtilities.GetEndpointDataFlow(d.id, 1)
-            if flow != 0:  # keep only eRender
+            f = AudioUtilities.GetEndpointDataFlow(d.id, 1)
+            if f != flow:  # keep only the requested direction
                 continue
         except AttributeError:  # old pycaw without that helper
             pass
@@ -263,8 +274,47 @@ class AudioBackend:
         sv = info.handle.SimpleAudioVolume
         return scalar_to_percent(sv.GetMasterVolume()), bool(sv.GetMute())
 
+    # ---- input (microphones), v1.5
+    def input_devices(self):
+        default_id = _default_id(CAPTURE)
+        out = [DeviceInfo(d.id, _device_name(d), d.id == default_id) for d in _all_devices(CAPTURE)]
+        out.sort(key=lambda d: (not d.is_default, d.name.lower()))
+        return out
+
+    def default_input(self):
+        """The default recording AudioDevice, or None when there is no microphone."""
+        default_id = _default_id(CAPTURE)
+        for d in _all_devices(CAPTURE):
+            if d.id == default_id:
+                return d
+        return None
+
+    def input_state(self):
+        """(volume_percent, muted) of the default microphone, or None if there is none."""
+        dev = self.default_input()
+        if dev is None:
+            return None
+        ev = _endpoint_volume(dev)
+        return (scalar_to_percent(ev.GetMasterVolumeLevelScalar()), bool(ev.GetMute()))
+
+    def set_input_volume(self, percent):
+        dev = self.default_input()
+        if dev is None:
+            raise RuntimeError("No default input device.")
+        _endpoint_volume(dev).SetMasterVolumeLevelScalar(percent_to_scalar(percent), None)
+
+    def set_input_mute(self, muted):
+        dev = self.default_input()
+        if dev is None:
+            raise RuntimeError("No default input device.")
+        _endpoint_volume(dev).SetMute(1 if muted else 0, None)
+
+    def set_default_input(self, dev_id):
+        """Same as set_default_device, for the default microphone."""
+        return self.set_default_device(dev_id, flow=CAPTURE)
+
     # ---- switch default output (undocumented IPolicyConfig)
-    def set_default_device(self, dev_id):
+    def set_default_device(self, dev_id, flow=RENDER):
         """Switch the default playback device for all three roles using pycaw's
         AudioUtilities.SetDefaultDevice, which calls the UNDOCUMENTED IPolicyConfig COM
         interface (widely used, but Microsoft does not support it). Returns
@@ -278,9 +328,10 @@ class AudioBackend:
         except Exception as exc:
             return False, f"Windows refused the switch ({exc})."
         try:
-            now = _default_render_id()
+            now = _default_id(flow)
         except Exception as exc:
             return False, f"Switch sent, but the result could not be verified ({exc})."
+        kind = "output" if flow == RENDER else "input"
         if now == dev_id:
-            return True, "Default output device changed."
+            return True, f"Default {kind} device changed."
         return False, "Windows did not change the default device."

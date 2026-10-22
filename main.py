@@ -32,8 +32,8 @@ def main():
     instance_lock = single_instance()
     if instance_lock is None:
         from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar "
-                                "(it may have started minimized with Windows).")
+        QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar or the "
+                                "system tray (it may have started minimized with Windows).")
         sys.exit(0)
     
     # Apply app icon globally across all windows
@@ -47,7 +47,7 @@ def main():
     # Started by "Start with Windows" with "Start minimized" on: no splash, just the taskbar
     if "--minimized" in sys.argv:
         window = MainWindow()
-        window.showMinimized()
+        window.start_hidden()        # tray if "Keep running in the tray" is on, else minimized
         sys.exit(app.exec())
 
     # Chip-scan splash plays while the window really loads (no added waiting)

@@ -144,6 +144,13 @@ class SettingsPage(Page):
         self.minimized.setChecked(bool(s.get("start_minimized", True)))
         self.minimized.toggled.connect(self.toggle_minimized)
         beh.body.addWidget(self.minimized)
+        self.tray = QCheckBox("Keep running in the system tray when I close the window")
+        self.tray.setToolTip("Closing the window hides RYTWEAKS next to the clock instead of quitting, so the "
+                             "volume lock and auto game mode keep working. Right-click the tray icon → Quit RYTWEAKS "
+                             "to close it fully.")
+        self.tray.setChecked(bool(s.get("tray_on_close", False)))
+        self.tray.toggled.connect(self.toggle_tray)
+        beh.body.addWidget(self.tray)
         self.beh_msg = label("", "muted")
         beh.body.addWidget(self.beh_msg)
         self.content.addWidget(beh)
@@ -267,6 +274,16 @@ class SettingsPage(Page):
                 self._show_autostart(not on)
 
         self.run_task(autostart.set_enabled, on, self.minimized.isChecked(), on_done=done)
+
+    def toggle_tray(self, on):
+        self.ctx.set_setting("tray_on_close", bool(on))
+        self.ctx.apply_tray(bool(on))
+        if on and (self.ctx.tray is None or not self.ctx.tray.isVisible()):
+            self.beh_msg.setText("Windows didn't give RYTWEAKS a tray icon, so closing the window still quits.")
+        else:
+            self.beh_msg.setText("Closing the window now keeps RYTWEAKS running in the tray." if on else
+                                 "Closing the window now quits RYTWEAKS.")
+        self.ctx.log_action("Settings", "Keep running in the tray " + ("on" if on else "off"), "OK")
 
     def toggle_minimized(self, value):
         self.ctx.set_setting("start_minimized", value)
