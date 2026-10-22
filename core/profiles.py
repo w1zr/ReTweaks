@@ -147,6 +147,59 @@ def preview(name):
     return out
 
 
+# ---------------------------------------------------------------- selection (v1.4.3, Tweaks page)
+# A preset only TICKS tweaks on the Tweaks page; the user can untick or add tweaks, then applies the
+# selection. A selection is [(key, target)]: key is a tweak id or "power"; target is True/False for a
+# tweak, "ultimate"/"balanced" for the power plan.
+
+SELECTABLE_PRESETS = dict(PRESETS)
+SELECTABLE_PRESETS["Max Performance"] = {     # same changes as the original Max Performance profile
+    "description": PROFILES["Max Performance"]["description"], "power": "ultimate",
+    "tweaks": {"game_mode": True, "xbox_capture": False}}
+
+
+def preset_selection(name):
+    p = SELECTABLE_PRESETS[name]
+    sel = [("power", p["power"])] if p.get("power") else []
+    return sel + list(p["tweaks"].items())
+
+
+def _label(key, target):
+    if key == "power":
+        return _POWER[target][0]
+    return f"{T[key].name}: {'On' if target else 'Off'}"
+
+
+def selection_preview(selection):
+    """[(label, current, target, changes)] read from Windows, like preview()."""
+    out = []
+    for key, target in selection:
+        if key == "power":
+            cur = W.get_active_power_plan()
+            want = "Ultimate Performance" if target == "ultimate" else "Balanced"
+            out.append((_POWER[target][0], cur, want, want.lower() not in str(cur).lower()))
+            continue
+        try:
+            cur = T[key].get_state()
+        except Exception:
+            cur = "Unknown"
+        want = "On" if target else "Off"
+        out.append((T[key].name, cur, want, cur != want))
+    return out
+
+
+def apply_selection(selection):
+    """Apply each selected item. Returns [(label, ok, message)]; one failure never stops the rest."""
+    results = []
+    for key, target in selection:
+        try:
+            ok, msg = _POWER[target][1]() if key == "power" else T[key].apply(bool(target))
+        except Exception as e:
+            ok, msg = False, str(e)
+        results.append((_label(key, target), ok, msg))
+    return results
+
+
 def apply_profile(name):
     """Run every step. Returns a list of (step_name, ok, message)."""
     results = []

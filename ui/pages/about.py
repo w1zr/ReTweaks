@@ -16,7 +16,7 @@ WHATS_NEW = [
                                  "Services, Maintenance) with a search box. Each one explains what it does and "
                                  "its trade-off, and has its own Undo."),
     ("Presets", "Esports, Max FPS, Balanced, Low-end PC, High quality, Ultra quality, Streamer and Privacy. "
-                "Each turns individual tweaks on or off and shows what will change before applying."),
+                "On the Tweaks page a preset ticks its tweaks; untick or add any, then apply only what you selected."),
     ("Essentials", "Clear the DNS cache, clear the Windows Update download cache (shows the size first) "
                    "and check and repair system files (SFC), from the Tweaks page."),
     ("Theme maker", "Pick every color yourself, preview it live, save it, and share it as a code."),

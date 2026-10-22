@@ -4,7 +4,7 @@ with safe (Standard) ones first and Advanced ones marked. Each row shows the set
 current state, its trade-off, and has its own Undo. Plus restore point and Undo everything."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
                                QWidget)
 
 from core import tweaks as T
@@ -16,11 +16,26 @@ from ui.widgets.common import Card, Notice, Page, label, set_role, set_status_st
 class TweakRow(QWidget):
     """Name, description and trade-off on the left; live status and buttons on the right."""
 
-    def __init__(self, page, name, description, tradeoff, get_status, actions, badges=()):
+    def __init__(self, page, name, description, tradeoff, get_status, actions, badges=(),
+                 key=None, targets=()):
         super().__init__()
         self.page, self.name, self.get_status = page, name, get_status
+        self.key = key                  # tweak id or "power"; None = can't be selected
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 8, 0, 8)
+        self.check = None
+        if key is not None:
+            # Selection (v1.4.3): a preset ticks rows; the user reviews, unticks or adds, then applies.
+            self.check = QCheckBox()
+            self.check.setToolTip("Select this tweak. Selected tweaks change only when you press "
+                                  "“Apply selected”.")
+            self.check.toggled.connect(self._toggled)
+            lay.addWidget(self.check, 0, Qt.AlignTop)
+            self.target = QComboBox()
+            for text_, value in targets:
+                self.target.addItem(text_, value)
+            self.target.setToolTip("What “Apply selected” will set this tweak to.")
+            self.target.setVisible(False)
         text = QVBoxLayout()
         title = name + ("   " + "  ·  ".join(badges) if badges else "")
         text.addWidget(label(title, "sectionTitle"))
@@ -32,12 +47,28 @@ class TweakRow(QWidget):
         self.status.setMinimumWidth(150)
         self.status.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         lay.addWidget(self.status)
+        if self.check is not None:
+            lay.addWidget(self.target)
         self.buttons = []
         for text_, fn in actions:
             b = QPushButton(text_)
             b.clicked.connect(lambda _=False, f=fn, t=text_: self.page.run(self, t, f))
             lay.addWidget(b)
             self.buttons.append(b)
+
+    def _toggled(self, on):
+        self.target.setVisible(on)
+        self.page.selection_changed()
+
+    def select(self, value):
+        """Tick this row and set its target (used by presets)."""
+        i = self.target.findData(value)
+        if i >= 0:
+            self.target.setCurrentIndex(i)
+        self.check.setChecked(True)
+
+    def selected(self):
+        return self.check is not None and self.check.isChecked()
 
     def set_busy(self, busy):
         for b in self.buttons:
@@ -97,18 +128,33 @@ class TweaksPage(Page):
         bar.addWidget(self.search, 1)
         bar.addSpacing(12)
         bar.addWidget(label("Preset", "cardLine"))
-        from core.profiles import PROFILES
+        from core.profiles import SELECTABLE_PRESETS
         self.preset = QComboBox()
-        self.preset.addItems(list(PROFILES.keys()))
+        self.preset.addItems(list(SELECTABLE_PRESETS.keys()))
         last = self.ctx.settings.get("last_preset") if isinstance(getattr(self.ctx, "settings", None), dict) else None
-        if last in PROFILES:
+        if last in SELECTABLE_PRESETS:
             self.preset.setCurrentText(last)
         bar.addWidget(self.preset)
-        self.b_preset = set_role(QPushButton("Preview and apply"), "primary")
-        self.b_preset.setToolTip("Shows which tweaks the preset turns on or off before changing anything.")
-        self.b_preset.clicked.connect(self.apply_preset)
+        self.b_preset = QPushButton("Select its tweaks")
+        self.b_preset.setToolTip("Ticks every tweak in this preset and sets each one to On or Off the way the "
+                                 "preset does. Nothing changes until you press “Apply selected”.")
+        self.b_preset.clicked.connect(self.select_preset)
         bar.addWidget(self.b_preset)
         self.content.addLayout(bar)
+        sel = QHBoxLayout()
+        self.sel_msg = label("No tweaks selected. Tick tweaks below, or pick a preset and press "
+                             "“Select its tweaks”.", "muted", wrap=True)
+        sel.addWidget(self.sel_msg, 1)
+        self.b_sel_shown = QPushButton("Select all shown")
+        self.b_sel_shown.setToolTip("Ticks every tweak the search is showing (each keeps its On/Off choice).")
+        self.b_sel_shown.clicked.connect(self.select_shown)
+        self.b_clear = QPushButton("Clear selection")
+        self.b_clear.clicked.connect(self.clear_selection)
+        self.b_apply_sel = set_role(QPushButton("Apply selected"), "primary")
+        self.b_apply_sel.clicked.connect(self.apply_selected)
+        for b in (self.b_sel_shown, self.b_clear, self.b_apply_sel):
+            sel.addWidget(b)
+        self.content.addLayout(sel)
         self.match_msg = label("", "muted")
         self.match_msg.setVisible(False)
         self.content.addWidget(self.match_msg)
@@ -136,7 +182,8 @@ class TweaksPage(Page):
                                W.get_active_power_plan,
                                [("Ultimate Performance", W.enable_ultimate_power_plan),
                                 ("Balanced", W.set_balanced_power_plan),
-                                ("Restore previous", W.restore_previous_power_plan)])
+                                ("Restore previous", W.restore_previous_power_plan)],
+                               key="power", targets=(("→ Ultimate", "ultimate"), ("→ Balanced", "balanced")))
                 card.body.addWidget(row)
                 self.rows.append(row)
                 row.search_text = "power plan ultimate performance balanced battery cpu"
@@ -156,7 +203,8 @@ class TweaksPage(Page):
                          (["Sign out needed"] if t.restart == "signout" else [])
                 row = TweakRow(self, t.name, t.description, t.tradeoff, t.get_state,
                                [("On", lambda t=t: t.apply(True)), ("Off", lambda t=t: t.apply(False)),
-                                ("Undo", t.undo)], badges)
+                                ("Undo", t.undo)], badges,
+                               key=t.id, targets=(("→ Turn on", True), ("→ Turn off", False)))
                 card.body.addWidget(row)
                 self.rows.append(row)
                 row.search_text = " ".join((t.name, t.description, t.tradeoff, cat, " ".join(badges),
@@ -196,6 +244,7 @@ class TweaksPage(Page):
             ess.body.addLayout(r)
         ess.body.addWidget(self.quick_msg)
         self.content.addWidget(ess)
+        self.selection_changed()
         self.finish()
 
     # ------------------------------------------------------------ Essentials
@@ -271,17 +320,89 @@ class TweaksPage(Page):
                                    + ("" if total or ess_hit else " Try another word."))
         self.match_msg.setVisible(bool(words))
 
-    def apply_preset(self):
-        from ui.widgets import preset_apply
+    def _selectable(self):
+        return [r for r in self.rows if r.check is not None]
+
+    def selection_changed(self):
+        rows = [r for r in self._selectable() if r.selected()]
+        n = len(rows)
+        if n:
+            self.sel_msg.setText(f"{n} tweak{'s' if n != 1 else ''} selected. Review the ticks and On/Off "
+                                 "choices below, then press “Apply selected”.")
+        else:
+            self.sel_msg.setText("No tweaks selected. Tick tweaks below, or pick a preset and press "
+                                 "“Select its tweaks”.")
+        self.b_apply_sel.setText(f"Apply selected ({n})" if n else "Apply selected")
+        self.b_apply_sel.setEnabled(n > 0)
+        self.b_clear.setEnabled(n > 0)
+
+    def select_preset(self):
+        from core.profiles import preset_selection
         name = self.preset.currentText()
-        self.b_preset.setEnabled(False)
+        by_key = {r.key: r for r in self._selectable()}
+        self.clear_selection()
+        for key, target in preset_selection(name):
+            if key in by_key:
+                by_key[key].select(target)
+        if self.search.text():
+            self.search.clear()          # show everything so all ticked tweaks are visible
+        self.top_msg.setText(f"Selected the {name} tweaks. Untick any you don't want, or tick more, then "
+                             "press “Apply selected”. Nothing has changed yet.")
 
-        def finished(results):
-            self.b_preset.setEnabled(True)
-            if results:
-                self.on_shown()            # re-read every row from Windows
+    def select_shown(self):
+        for r in self._selectable():
+            if r.isVisible() or not self.search.text():
+                r.check.setChecked(True)
 
-        preset_apply.start(self, name, self.top_msg.setText, finished)
+    def clear_selection(self):
+        for r in self._selectable():
+            r.check.setChecked(False)
+
+    def apply_selected(self):
+        from core.profiles import apply_selection, selection_preview
+        selection = [(r.key, r.target.currentData()) for r in self._selectable() if r.selected()]
+        if not selection:
+            return
+        self.b_apply_sel.setEnabled(False)
+        self.top_msg.setText("Checking your current settings…")
+
+        def previewed(items):
+            if isinstance(items, tuple):
+                self.selection_changed()
+                self.top_msg.setText(f"✖ Couldn't read your current settings: {items[1]}")
+                return
+            change = [(sel, i) for sel, i in zip(selection, items) if i[3]]
+            same = [i for i in items if not i[3]]
+            if not change:
+                self.selection_changed()
+                self.top_msg.setText("Everything you selected is already set. Nothing to change.")
+                return
+            lines = "\n".join(f"• {lbl}: {cur or '?'} → {want}" for _, (lbl, cur, want, _c) in change)
+            text = f"Change {len(change)} setting{'s' if len(change) != 1 else ''}?\n\n{lines}"
+            if same:
+                text += f"\n\nAlready set ({len(same)}): " + ", ".join(i[0] for i in same)
+            text += "\n\nEach one can be undone on its row, or all at once with “Undo everything”."
+            if QMessageBox.question(self, "Apply selected tweaks", text) != QMessageBox.Yes:
+                self.selection_changed()
+                self.top_msg.setText("Cancelled. Nothing was changed.")
+                return
+            self.top_msg.setText("Applying…")
+            self.run_task(apply_selection, [sel for sel, _ in change], on_done=applied)
+
+        def applied(results):
+            if isinstance(results, tuple):
+                results = [("Apply selected", False, results[1])]
+            for step, ok, msg in results:
+                self.ctx.log_action("Tweaks: apply selected", step, "Success" if ok else "Failed", "" if ok else msg)
+            failed = sum(1 for _, ok, _ in results if not ok)
+            self.top_msg.setText(f"{len(results) - failed} of {len(results)} changes succeeded.\n"
+                                 + "\n".join(f"{'✔' if ok else '✖'}  {s}: {m}" for s, ok, m in results))
+            if not failed:
+                self.clear_selection()
+            self.selection_changed()
+            self.on_shown()              # re-read every row from Windows
+
+        self.run_task(selection_preview, selection, on_done=previewed)
 
     def on_shown(self):
         for row in self.rows:
