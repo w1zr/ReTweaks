@@ -358,6 +358,11 @@ class Capture:
     def cancel(self):
         self.cancelled = True
         self.terminate()
+        if self._err:
+            try:
+                self._err.close()    # otherwise Windows can't delete the temp folder
+            except Exception:
+                pass
 
     def terminate(self):
         if self.running():

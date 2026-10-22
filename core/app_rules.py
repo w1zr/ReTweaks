@@ -185,7 +185,9 @@ def _write_state(state):
         state = {k: v for k, v in state.items() if v}
         if state:
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(state), encoding="utf-8")
+            tmp = p.with_suffix(".tmp")
+            tmp.write_text(json.dumps(state), encoding="utf-8")
+            os.replace(tmp, p)        # atomic: a crash never leaves a half-written file
         elif p.exists():
             p.unlink()
     except Exception:
@@ -206,7 +208,11 @@ CALM_DEFAULT = "Below normal"
 # Never lowered, whatever the user types: system-critical processes and RYTWEAKS itself.
 PROTECTED = frozenset({"csrss", "wininit", "winlogon", "services", "lsass", "smss", "svchost", "dwm",
                        "explorer", "audiodg", "system", "registry", "msmpeng", "rytweaks",
-                       "rytweaks.old", "system idle process", "memory compression", "secure system"})
+                       "rytweaks.old", "system idle process", "memory compression", "secure system",
+                       # anti-cheat services: never touched (CLAUDE.md section 9)
+                       "easyanticheat", "easyanticheat_eos", "beservice", "beservice_x64", "vgc", "vgtray",
+                       "faceit", "faceitservice", "esportal", "gameguard", "nprotect", "xigncode",
+                       "ricochet", "eaanticheat.gameservice"})
 
 
 def normalize_name(name):
@@ -392,11 +398,20 @@ class AutoGameMode:
         return events
 
     def _poll_calm(self, rules):
-        """Calm the picked programs while any program from Program rules is running."""
+        """Calm the picked programs while a game from Program rules is running.
+
+        A "game" is a rule with auto game mode or a CPU priority set, the same rules that
+        trigger auto game mode. Rules that only set the graphics card don't count.
+        """
         cfg = load_calm_config()
-        if not self.calm_records and not (cfg["enabled"] and cfg["apps"] and rules):
+        game_rules = [r for r in rules
+                      if r.get("boost") or r.get("priority") not in (None, PRIORITY_CHOICES[0])]
+        if not self.calm_records and not (cfg["enabled"] and cfg["apps"] and game_rules):
             return []
-        game_exes = {os.path.normcase(r["exe"]) for r in rules}
+        game_exes = {os.path.normcase(r["exe"]) for r in game_rules}
+        # Never calm a program that has its own rule (that includes the game itself)
+        ruled_names = {normalize_name(os.path.basename(r["exe"])) for r in rules}
+        cfg = dict(cfg, apps=[a for a in cfg["apps"] if normalize_name(a) not in ruled_names])
         procs, game_up = [], False
         for p in psutil.process_iter(["pid", "name", "exe"]):
             try:

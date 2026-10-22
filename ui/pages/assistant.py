@@ -141,7 +141,7 @@ class AssistantPage(Page):
         opts = Card("Options")
         r1 = QHBoxLayout()
         self.specs_chk = QCheckBox("Include my PC specs")
-        self.specs_chk.setChecked(bool(ctx.settings.get("ai_share_specs", True)))
+        self.specs_chk.setChecked(bool(ctx.settings.get("ai_share_specs", False)))
         self.specs_chk.toggled.connect(lambda v: ctx.set_setting("ai_share_specs", bool(v)))
         self.see_btn = QPushButton("See what's shared")
         self.see_btn.clicked.connect(self._show_shared)

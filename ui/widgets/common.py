@@ -213,9 +213,17 @@ class Page(QWidget):
         return any(w.isRunning() for w in self._tasks)
 
     def wait_for_tasks(self):
-        """Called when the app closes: a QThread must not be destroyed while running."""
+        """Called when the app closes: a QThread must not be destroyed while running.
+
+        Waits up to 3 s per task. Returns False if something is still running (for example
+        a slow network request); MainWindow then exits the process directly instead of
+        hanging hidden in the background.
+        """
+        all_done = True
         for w in list(self._tasks):
-            w.wait()
+            if not w.wait(3000):
+                all_done = False
+        return all_done
 
     def finish(self):
         """Call at the end of a subclass __init__ to push content to the top."""

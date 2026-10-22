@@ -285,7 +285,7 @@ class MainWindow(QMainWindow):
         button.setChecked(True)
         changed = self.stack.currentIndex() != index
         self.stack.setCurrentIndex(index)
-        if changed and self.isVisible():
+        if changed and self.isVisible() and not getattr(self.pages[index], "no_fade", False):
             self._fade_in(self.pages[index])
         scroll = self._nav_holder.parentWidget().parentWidget() if hasattr(self, "_nav_holder") else None
         if isinstance(scroll, QScrollArea) and button.parentWidget() is self._nav_holder:
@@ -416,6 +416,14 @@ class MainWindow(QMainWindow):
             self._auto.wait()
         if self._scan_worker:
             self._scan_worker.wait()
+        stuck = False
         for p in self.pages:
-            p.wait_for_tasks()
+            if p.wait_for_tasks() is False:
+                stuck = True
         super().closeEvent(event)
+        if stuck:
+            # A background request (e.g. a slow AI or PowerShell call) didn't finish in time.
+            # Settings are saved on every change and the workers above are already stopped and
+            # restored, so exit now rather than leave a hidden process blocking the next launch.
+            self._save_settings()
+            os._exit(0)

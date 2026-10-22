@@ -135,6 +135,7 @@ class PollBox(ClickArea):
 
 
 class FunPage(Page):
+    no_fade = True   # the raw-input box is a native window; Qt can't fade native widgets
     title = "Fun tools"
     subtitle = "Three quick tests. Every number comes from a real measurement on this PC."
 
@@ -173,7 +174,7 @@ class FunPage(Page):
 
     def wait_for_tasks(self):
         self._timer.stop()
-        super().wait_for_tasks()
+        return super().wait_for_tasks()
 
     def on_shown(self):
         self._paint_all()

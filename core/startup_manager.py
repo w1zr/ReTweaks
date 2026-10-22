@@ -1,4 +1,5 @@
 # C:\pc_optimizer\core\startup_manager.py
+import base64
 
 import os
 import json
@@ -62,9 +63,9 @@ def get_publisher(file_path):
         import win32api
         ver_info = win32api.GetFileVersionInfo(clean_path, '\\')
         string_FileInfo = win32api.GetFileVersionInfo(clean_path, f'\\StringFileInfo\\{win32api.GetFileVersionInfo(clean_path, "\\VarFileInfo\\Translation")[0][0]:04x}{win32api.GetFileVersionInfo(clean_path, "\\VarFileInfo\\Translation")[0][1]:04x}\\CompanyName')
-        return string_FileInfo.strip() if string_FileInfo else "Verified Publisher"
+        return string_FileInfo.strip() if string_FileInfo else "Unavailable"
     except Exception:
-        return "Local Application"
+        return "Unavailable"
 
 def extract_icon(file_path):
     """Extracts native system icon using Qt QFileIconProvider."""
@@ -374,7 +375,20 @@ def list_scheduled_startup_tasks(include_windows_tasks=False):
 
 
 def _ps_quote(text):
-    return "'" + str(text).replace("'", "''") + "'"
+    """A PowerShell expression that evaluates to `text` exactly.
+
+    The text is sent base64-encoded, so no quote character (including the curly quotes
+    PowerShell also accepts) or wildcard in a task name can ever be run as code.
+    """
+    b64 = base64.b64encode(str(text).encode("utf-8")).decode("ascii")
+    return f"([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64}')))"
+
+
+def _ps_find_task(task_path, name):
+    """PowerShell that finds exactly one task by literal path and name (no wildcard matching)."""
+    return (f"$p = {_ps_quote(task_path)}; $n = {_ps_quote(name)}; "
+            "$t = @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskPath -eq $p -and $_.TaskName -eq $n }); "
+            "if ($t.Count -ne 1) { throw \"Task not found (or not unique): $p$n\" }; ")
 
 
 def get_task_state(task_path, name):
@@ -384,8 +398,8 @@ def get_task_state(task_path, name):
     try:
         from core.winutil import run_powershell
         out = run_powershell(
-            f"try {{ (Get-ScheduledTask -TaskPath {_ps_quote(task_path)} -TaskName {_ps_quote(name)} "
-            "-ErrorAction Stop).State.ToString() } catch { 'ERR: ' + $_.Exception.Message }", timeout=30).strip()
+            "try { " + _ps_find_task(task_path, name) + "$t[0].State.ToString() } "
+            "catch { 'ERR: ' + $_.Exception.Message }", timeout=30).strip()
     except Exception:
         return None
     if not out or out.startswith("ERR:"):
@@ -400,7 +414,7 @@ def _set_task_enabled(task_path, name, enable):
     from core.winutil import run_powershell
     cmd = "Enable-ScheduledTask" if enable else "Disable-ScheduledTask"
     out = run_powershell(
-        f"try {{ {cmd} -TaskPath {_ps_quote(task_path)} -TaskName {_ps_quote(name)} -ErrorAction Stop | Out-Null; 'OK' }} "
+        "try { " + _ps_find_task(task_path, name) + f"$t[0] | {cmd} -ErrorAction Stop | Out-Null; 'OK' }} "
         "catch { $_.Exception.Message }", timeout=40).strip()
     state = get_task_state(task_path, name)
     wanted_ok = (state is not None and state.lower() != "disabled") if enable else (state or "").lower() == "disabled"

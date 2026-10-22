@@ -93,6 +93,8 @@ class DisplayPage(Page):
 
     def _show_displays(self, displays):
         self._clear(self.mon_box)
+        if not isinstance(displays, list):    # the task raised: (False, message)
+            displays = []
         if not displays:
             card = Card("Monitors")
             card.body.addWidget(label(f"Display modes: {NA} (Windows did not list any active display).",
@@ -180,6 +182,8 @@ class DisplayPage(Page):
 
     def _show_drivers(self, drivers):
         self._clear(self.drv_box)
+        if not isinstance(drivers, list):     # the task raised: (False, message)
+            drivers = []
         if not drivers:
             card = Card("Graphics driver")
             card.body.addWidget(label(f"Driver information: {NA}", "muted"))

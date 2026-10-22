@@ -372,6 +372,8 @@ class ClickEngine:
                 if n == 0:
                     return self._finish("count")
                 for i in range(n):
+                    if i > 0 and self._stop.is_set():
+                        break           # Stop during a double click: don't send the second click
                     self.clicker.click(cfg.button)
                     t = self.clock()
                     with self._lock:

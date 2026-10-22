@@ -70,5 +70,16 @@ def test_cannot_toggle_own_task():
     assert not ok and "Settings" in msg
 
 
-def test_quote():
-    assert sm._ps_quote("it's") == "'it''s'"
+def test_quote_is_injection_safe():
+    import base64, re
+    for name in ["it's", "it\u2019s'; Remove-Item C:\\ -Recurse #", "a*b?[c]", "\u00e9t\u00e9"]:
+        expr = sm._ps_quote(name)
+        b64 = re.search(r"FromBase64String\('([A-Za-z0-9+/=]*)'\)", expr).group(1)
+        assert base64.b64decode(b64).decode("utf-8") == name
+        # nothing from the name appears raw in the script, so it can't break out of the string
+        assert "'" not in expr.replace(f"'{b64}'", "")
+
+
+def test_find_task_matches_literally():
+    script = sm._ps_find_task("\\Vendor\\", "Up*date")
+    assert "-eq $p" in script and "-eq $n" in script and "Up*date" not in script

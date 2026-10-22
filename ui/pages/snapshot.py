@@ -151,7 +151,7 @@ class SnapshotPage(Page):
 
     def wait_for_tasks(self):
         self.stop_logging()
-        super().wait_for_tasks()
+        return super().wait_for_tasks()
 
     def toggle(self):
         if self.recording:

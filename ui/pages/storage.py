@@ -644,7 +644,7 @@ class StoragePage(Page):
                 job.join()
         if hasattr(self, "_poll"):
             self._poll.stop()
-        super().wait_for_tasks()
+        return super().wait_for_tasks()
 
     def run_cleanup(self):
         # Preview first (CLAUDE.md: never delete without showing what will go)

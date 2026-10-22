@@ -157,6 +157,10 @@ class ClickerPage(Page):
         row.addWidget(self.stop_key)
         row.addStretch()
         hk.body.addLayout(row)
+        # Off by default: global hotkeys listen in every app, so the user turns them on
+        self.hk_enabled = QCheckBox("Turn on hotkeys (they listen in every window while RYTWEAKS is open)")
+        self.hk_enabled.setChecked(bool(s.get(PREFIX + "hotkeys_enabled", False)))
+        hk.body.addWidget(self.hk_enabled)
         self.hk_msg = label("", "cardLine", wrap=True)
         hk.body.addWidget(self.hk_msg)
         self.content.addWidget(hk)
@@ -203,7 +207,11 @@ class ClickerPage(Page):
         self._timer.setInterval(150)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
-        self._start_watcher()
+        self.hk_enabled.toggled.connect(self._hotkeys_enabled_changed)
+        if self.hk_enabled.isChecked():
+            self._start_watcher()
+        else:
+            self._show_hotkey_msg()
 
     # ------------------------------------------------------------ settings
 
@@ -237,7 +245,22 @@ class ClickerPage(Page):
 
     # ------------------------------------------------------------ hotkeys
 
+    def _hotkeys_enabled_changed(self, on):
+        self.ctx.set_setting(PREFIX + "hotkeys_enabled", bool(on))
+        if on:
+            self._start_watcher()
+        elif not self._active():
+            self._stop_watcher()
+        self._show_hotkey_msg()
+
+    def _stop_watcher(self):
+        if self.watcher:
+            self.watcher.stop()
+            self.watcher = None
+
     def _start_watcher(self):
+        if self.watcher:
+            return
         if not self.windows:
             self.hk_msg.setText("Hotkeys: Unavailable (need Windows).")
             return
@@ -251,6 +274,13 @@ class ClickerPage(Page):
             self.hk_msg.setText(f"Hotkeys: Unavailable ({exc}).")
 
     def _show_hotkey_msg(self):
+        if not self.windows:
+            self.hk_msg.setText("Hotkeys: Unavailable (need Windows).")
+            return
+        if not self.hk_enabled.isChecked():
+            self.hk_msg.setText(f"Hotkeys are off. While clicking, {self.stop_key.currentText()} still works "
+                                "as the emergency stop.")
+            return
         self.hk_msg.setText(f"{self.start_key.currentText()} starts or stops clicking. "
                             f"{self.stop_key.currentText()} is the emergency stop and always stops it.")
 
@@ -265,8 +295,7 @@ class ClickerPage(Page):
             self.watcher.set_keys(sk, ek)
         self.ctx.set_setting(PREFIX + "start_key", sk)
         self.ctx.set_setting(PREFIX + "stop_key", ek)
-        if self.windows and self.watcher:
-            self._show_hotkey_msg()
+        self._show_hotkey_msg()
 
     # ------------------------------------------------------------ running
 
@@ -297,6 +326,7 @@ class ClickerPage(Page):
             return
         self.engine = AC.ClickEngine(cfg, clicker, on_finish=lambda e: self.engine_finished.emit())
         self.engine.state = "delay" if cfg.start_delay_s > 0 else "running"
+        self._start_watcher()   # the emergency stop always works while clicking
         self.engine.start()
         self.msg.setText("Waiting for the start delay…" if cfg.start_delay_s > 0 else "Clicking.")
         self._set_running(True)
@@ -322,6 +352,8 @@ class ClickerPage(Page):
             text += f" Error: {snap['error']}"
         self.msg.setText(text)
         self._set_running(False)
+        if not self.hk_enabled.isChecked():
+            self._stop_watcher()
         self._show_stats(snap)
         self.ctx.log_action("Auto clicker", f"{eng.cfg.button} {eng.cfg.click_type} click",
                             f"{why}: {snap['clicks']} clicks sent", snap["error"])
@@ -356,4 +388,4 @@ class ClickerPage(Page):
             self.engine.join(2.0)
         if self.watcher:
             self.watcher.stop()
-        super().wait_for_tasks()
+        return super().wait_for_tasks()

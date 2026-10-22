@@ -266,7 +266,16 @@ def set_refresh_rate(device, hz):
         if code != DISP_CHANGE_SUCCESSFUL:
             return False, f"Windows rejected {hz} Hz: {DISP_CHANGE_TEXT.get(code, code)}.", previous
         code = user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None, CDS_UPDATEREGISTRY, None)
-        if code not in (DISP_CHANGE_SUCCESSFUL, DISP_CHANGE_RESTART):
+        if code == DISP_CHANGE_RESTART:
+            # Windows saved the new rate for the next restart instead of switching now. Put the
+            # saved setting back, so nothing changes behind the user's back after a reboot.
+            dm.dmDisplayFrequency = previous
+            back = user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None, CDS_UPDATEREGISTRY, None)
+            undone = back in (DISP_CHANGE_SUCCESSFUL, DISP_CHANGE_RESTART)
+            return False, (f"Windows can only switch to {hz} Hz after a restart, so nothing was changed"
+                           + ("." if undone else " now, but it may apply after a restart. Check Windows "
+                              "display settings.")), previous
+        if code != DISP_CHANGE_SUCCESSFUL:
             return False, f"Could not apply {hz} Hz: {DISP_CHANGE_TEXT.get(code, code)}.", previous
         # Verify what Windows is really running now.
         now = _current_devmode(user32, device)

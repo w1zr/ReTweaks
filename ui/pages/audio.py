@@ -150,7 +150,7 @@ class AudioPage(Page):
     def wait_for_tasks(self):
         if self.timer is not None:
             self.timer.stop()
-        super().wait_for_tasks()
+        return super().wait_for_tasks()
 
     # ------------------------------------------------------------ refresh
     def refresh(self):

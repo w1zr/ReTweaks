@@ -95,7 +95,10 @@ class StartupPage(Page):
         self._loaded = True
         self.table.setRowCount(0)
         self.count_lbl.setText("Loading…")
-        self.run_task(_list_startup_apps, self.win_tasks.isChecked(), on_done=self._loaded_entries)
+        self._load_gen = getattr(self, "_load_gen", 0) + 1
+        gen = self._load_gen
+        self.run_task(_list_startup_apps, self.win_tasks.isChecked(),
+                      on_done=lambda entries, g=gen: self._loaded_entries(entries) if g == self._load_gen else None)
 
     def _win_tasks_toggled(self, on):
         self.ctx.set_setting("startup_show_windows_tasks", bool(on))

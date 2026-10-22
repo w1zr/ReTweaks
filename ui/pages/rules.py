@@ -108,10 +108,11 @@ class RulesPage(Page):
         self.calm_cfg = cfg
         card = Card("Background calming")
         card.body.addWidget(label(
-            "While any program listed above is running, temporarily lower the CPU priority of only the "
-            "programs you pick here, then put it back when the game closes (or RYTWEAKS closes). If you "
-            "change a program's priority yourself in the meantime, RYTWEAKS leaves it alone. System-critical "
-            "programs and RYTWEAKS itself can't be added. This never closes or pauses anything.",
+            "While a game from the list above is running (one with auto game mode or a CPU priority set), "
+            "temporarily lower the CPU priority of only the programs you pick here, then put it back when the "
+            "game closes (or RYTWEAKS closes). If you change a program's priority yourself in the meantime, "
+            "RYTWEAKS leaves it alone. System-critical programs, anti-cheat services, programs that have their "
+            "own rule above and RYTWEAKS itself are never lowered. This never closes or pauses anything.",
             "muted", wrap=True))
         self.calm_switch = QCheckBox("Enable background calming")
         self.calm_switch.setChecked(enabled)
