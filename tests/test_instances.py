@@ -101,10 +101,10 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     client = ("import sys, os; sys.path.insert(0, %r); os.environ['QT_QPA_PLATFORM']='offscreen';"
               "from PySide6.QtCore import QCoreApplication; a = QCoreApplication([]); import main;"
-              "main._show_server_name = lambda: %r; print('RESULT', main._ask_running_copy_to_show())") % (root, name)
+              "main._show_server_name = lambda: %r; print('RESULT', %s)")
 
-    def run_client():
-        p = subprocess.Popen([sys.executable, "-c", client], stdout=subprocess.PIPE, text=True)
+    def run_client(expr="main._ask_running_copy_to_show()"):
+        p = subprocess.Popen([sys.executable, "-c", client % (root, name, expr)], stdout=subprocess.PIPE, text=True)
         end = time.time() + 15
         while p.poll() is None and time.time() < end:
             QCoreApplication.processEvents()
@@ -112,6 +112,7 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
         return p.communicate(timeout=5)[0]
 
     assert "RESULT False" in run_client()             # nothing running yet
+    assert "RESULT None" in run_client("main._running_version()")
 
     from PySide6.QtWidgets import QWidget
 
@@ -138,7 +139,37 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
         gc.collect()                                  # the bug: the splash was collected mid-fade
         time.sleep(0.01)
     assert w._reopen_splash is None and w.windowOpacity() == 1.0
+
+    from core.version import __version__
+    assert f"RESULT {__version__}" in run_client("main._running_version()")   # v1.5.1+ answer their version
+    quits = []
+    w.quit_from_tray = lambda: quits.append(1)
+    assert "RESULT b'bye'" in run_client("main._talk(b'quit')")
+    QCoreApplication.processEvents()
+    assert quits == [1]                                # a newer launch can close it normally
     server.close()
+
+
+def test_quit_from_tray_really_ends_the_process(tmp_path):
+    """Quit RYTWEAKS from the tray closes a *hidden* window. Qt doesn't quit by itself then, so the
+    process kept running invisibly (holding the single-instance lock). Runs the real MainWindow in a
+    separate process: hidden in the tray, Quit, and the process must exit."""
+    import os
+    import subprocess
+    import pytest
+    pytest.importorskip("PySide6")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    code = (
+        "import sys, os; sys.path.insert(0, %r); os.environ['QT_QPA_PLATFORM']='offscreen';"
+        "os.environ['APPDATA']=%r; os.environ['LOCALAPPDATA']=%r; os.environ['HOME']=%r;"
+        "from PySide6.QtWidgets import QApplication; from PySide6.QtCore import QTimer;"
+        "app = QApplication([]); from ui.main_window import MainWindow; w = MainWindow();"
+        "w.show(); w.hide();"                                   # in the tray
+        "QTimer.singleShot(300, w.quit_from_tray);"
+        "print('EXEC', app.exec(), flush=True)"
+    ) % (root, str(tmp_path), str(tmp_path), str(tmp_path))
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    assert "EXEC 0" in p.stdout, p.stdout[-2000:] + p.stderr[-2000:]
 
 
 def test_reopen_failsafe_makes_window_visible(monkeypatch):
@@ -162,3 +193,4 @@ def test_reopen_failsafe_makes_window_visible(monkeypatch):
     timers[0]()                                       # 8 s later
     assert w.isVisible() and w.windowOpacity() == 1.0 and w._reopen_splash is None
     app.processEvents()
+

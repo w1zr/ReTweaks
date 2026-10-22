@@ -697,6 +697,10 @@ class MainWindow(QMainWindow):
             if p.wait_for_tasks() is False:
                 stuck = True
         super().closeEvent(event)
+        # Qt only quits by itself when the last *visible* window closes. Quitting from the tray closes
+        # a hidden window, so without this the process kept running invisibly (holding the
+        # single-instance lock) after "Quit RYTWEAKS".
+        QApplication.instance().quit()
         if stuck:
             # A background request (e.g. a slow AI or PowerShell call) didn't finish in time.
             # Settings are saved on every change and the workers above are already stopped and

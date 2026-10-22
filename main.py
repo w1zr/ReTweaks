@@ -27,25 +27,41 @@ def _show_server_name():
     return "RYTWEAKS_show_" + "".join(c for c in user if c.isalnum())[:40]
 
 
+def _talk(command, timeout_ms=1500):
+    """Sends one command to the running RYTWEAKS and returns its reply (bytes) or None if it doesn't
+    answer. Commands: b"ver" (its version), b"show" (bring the window back), b"quit" (close fully).
+    Copies from before v1.5.1 only understand "show" and don't answer the others."""
+    from PySide6.QtNetwork import QLocalSocket
+    sock = QLocalSocket()
+    sock.connectToServer(_show_server_name())
+    if not sock.waitForConnected(timeout_ms):
+        return None
+    sock.write(command + b"\n")
+    sock.waitForBytesWritten(timeout_ms)
+    reply = None
+    if sock.waitForReadyRead(timeout_ms):
+        reply = bytes(sock.readAll()).strip()
+    sock.disconnectFromServer()
+    return reply
+
+
+def _running_version():
+    """Version of the running copy, or None if it doesn't answer (older than v1.5.1, or stuck)."""
+    reply = _talk(b"ver", 1000)
+    if reply and reply.startswith(b"ver "):
+        return reply[4:].decode("utf-8", "replace").strip() or None
+    return None
+
+
 def _ask_running_copy_to_show():
     """Opening RYTWEAKS while it's already running (e.g. in the tray) brings that window to the front,
-    like most apps. Returns True only if the running copy really received the request."""
-    from PySide6.QtNetwork import QLocalSocket
+    like most apps. Returns True only if the running copy really answered after showing it."""
     try:   # let the running copy take the foreground (Windows blocks it otherwise)
         ctypes.windll.user32.AllowSetForegroundWindow(-1)    # ASFW_ANY
     except Exception:
         pass
-    sock = QLocalSocket()
-    sock.connectToServer(_show_server_name())
-    if not sock.waitForConnected(1500):
-        return False
-    sock.write(b"show\n")
-    sock.waitForBytesWritten(1500)
-    # Only a copy whose app is really running answers "ok" after showing its window; a copy that's
-    # stuck while closing may still accept the connection but never answers.
-    ok = sock.waitForReadyRead(2000) and b"ok" in bytes(sock.readAll())
-    sock.disconnectFromServer()
-    return ok
+    reply = _talk(b"show", 2000)
+    return bool(reply and reply.startswith(b"ok"))
 
 
 def _reopen(window):
@@ -91,46 +107,86 @@ def _listen_for_show(window):
         while server.hasPendingConnections():
             conn = server.nextPendingConnection()
             def read(c=conn):
-                if b"show" in bytes(c.readAll()):
+                data = bytes(c.readAll())
+                if b"ver" in data:
+                    from core.version import __version__
+                    c.write(b"ver " + __version__.encode() + b"\n")
+                elif b"show" in data:
                     _reopen(window)
                     c.write(b"ok\n")
-                    c.flush()
+                elif b"quit" in data:
+                    c.write(b"bye\n")
+                    QTimer.singleShot(0, window.quit_from_tray)   # closes fully, with normal cleanup
+                c.flush()
                 c.disconnectFromServer()
             conn.readyRead.connect(read)
     server.newConnection.connect(on_conn)
     return server
 
 
-def _handle_running_copy():
-    """Another RYTWEAKS holds the single-instance lock. Normally it's running (often in the tray) and
-    simply comes to the front. If it doesn't answer, it's stuck (e.g. hung while closing): it's
-    invisible but keeps the lock and locks the .exe file, so offer to close it."""
-    if _ask_running_copy_to_show():
-        sys.exit(0)                       # the running copy came to the front
+def _wait_for_lock(seconds):
+    """After the other copy was told to close: wait until Windows frees the single-instance lock."""
     import time
+    from core.winutil import single_instance
+    end = time.time() + seconds
+    while True:
+        lock = single_instance()
+        if lock is not None or time.time() >= end:
+            return lock
+        time.sleep(0.15)
+
+
+def _handle_running_copy():
+    """Another RYTWEAKS holds the single-instance lock.
+    - Same version, answering: bring its window back (with the startup animation) and exit.
+    - Different version (e.g. you just downloaded an update): offer to close it and open this one.
+    - Not answering (a version before v1.5.1, or stuck in the background): offer to close it.
+    """
     from PySide6.QtWidgets import QMessageBox
-    from core.winutil import close_other_instances, other_instances, single_instance
+    from core.version import __version__ as mine
+    from core.winutil import close_other_instances, other_instances
+    theirs = _running_version()
+    if theirs == mine and _ask_running_copy_to_show():
+        sys.exit(0)
+
+    if theirs and theirs != mine:
+        box = QMessageBox(QMessageBox.Question, "RYTWEAKS",
+                          f"RYTWEAKS v{theirs} is already running (this is v{mine}).")
+        box.setInformativeText(f"Close v{theirs} and open v{mine}?")
+        switch_btn = box.addButton(f"Open v{mine}", QMessageBox.AcceptRole)
+        box.addButton(f"Keep v{theirs}", QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is not switch_btn:
+            _ask_running_copy_to_show()
+            sys.exit(0)
+        lock = None
+        if _talk(b"quit", 2000) == b"bye":
+            lock = _wait_for_lock(10)       # it closes normally (restores power plan etc.) first
+        if lock is None:
+            close_other_instances()
+            lock = _wait_for_lock(4)
+        if lock is None:
+            QMessageBox.warning(None, "RYTWEAKS", f"RYTWEAKS v{theirs} didn't close. Right-click its tray "
+                                "icon, choose Quit RYTWEAKS, then open RYTWEAKS again.")
+            sys.exit(0)
+        return lock
+
     if not other_instances():
         # Nothing to close from here (e.g. running from source): say what's going on.
         QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar or the "
                                 "system tray (it may have started minimized with Windows).")
         sys.exit(0)
     box = QMessageBox(QMessageBox.Warning, "RYTWEAKS",
-                      "Another RYTWEAKS is running but isn't responding (it may be stuck in the background).")
-    box.setInformativeText("Close it and start RYTWEAKS again?")
+                      "Another RYTWEAKS is running but isn't responding. It's an older version or it's "
+                      "stuck in the background.")
+    box.setInformativeText("Close it and start this RYTWEAKS?")
     close_btn = box.addButton("Close it and start", QMessageBox.AcceptRole)
     box.addButton("Cancel", QMessageBox.RejectRole)
     box.exec()
     if box.clickedButton() is not close_btn:
         sys.exit(0)
     ok, msg = close_other_instances()
-    lock = None
-    if ok:
-        for _ in range(20):               # Windows frees the lock as the closed process is cleaned up
-            lock = single_instance()
-            if lock is not None:
-                break
-            time.sleep(0.15)
+    lock = _wait_for_lock(3) if ok else None
     if lock is None:
         QMessageBox.warning(None, "RYTWEAKS", msg if not ok else
                             "The other copy closed, but Windows hasn't released its lock yet. "
