@@ -1,9 +1,10 @@
 # Runtime
 PySide6>=6.5
 psutil>=5.9.0
-py-cpuinfo>=9.0.0       # CPU model name + cache sizes (core/hardware.py)
-nvidia-ml-py>=12.535.0  # provides the "pynvml" module for NVIDIA GPU telemetry; safe on non-NVIDIA PCs
+pywin32>=306; sys_platform == "win32"  # Windows performance counters (GPU/CPU load), WMI, file info
+nvidia-ml-py>=12.535.0                  # "pynvml" module: NVIDIA temps/clocks/power; harmless on other GPUs
 
 # Build / dev tools
 PyInstaller>=6.0.0
-Pillow>=10.0.0          # only used by create_logo.py
+Pillow>=10.0.0                          # only used by create_logo.py
+pytest>=8.0                             # run: python -m pytest tests
