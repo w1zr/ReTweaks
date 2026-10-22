@@ -1,7 +1,7 @@
 # core/report.py
 """Hardware report export.
 
-Users attach this to a GitHub issue when RYTWEAKS detects something wrong on their PC.
+Users attach this to a GitHub issue when RETWEAKS detects something wrong on their PC.
 It deliberately contains no serial numbers, MAC addresses, IP addresses, user names or
 computer names, because GitHub issues are public.
 """

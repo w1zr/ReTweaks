@@ -1,7 +1,7 @@
 # core/autostart.py
-"""Start RYTWEAKS when you sign in to Windows.
+"""Start RETWEAKS when you sign in to Windows.
 
-RYTWEAKS.exe always runs as administrator (--uac-admin). A normal "Run" registry entry
+RETWEAKS.exe always runs as administrator (--uac-admin). A normal "Run" registry entry
 would show a UAC prompt at every sign-in, so this uses a Task Scheduler task with
 "run with highest privileges" instead, the standard way for admin apps. Only works for
 the packaged .exe.
@@ -11,7 +11,7 @@ import sys
 
 from core.winutil import IS_WINDOWS, run, run_powershell
 
-TASK_NAME = "RYTWEAKS"
+TASK_NAME = "RETWEAKS"
 
 
 def available():
@@ -29,7 +29,7 @@ def is_enabled():
 
 def set_enabled(enable, minimized=True):
     if not available():
-        return False, "Start with Windows only works in RYTWEAKS.exe."
+        return False, "Start with Windows only works in RETWEAKS.exe."
     if enable:
         # Register-ScheduledTask instead of schtasks: schtasks tasks don't start on battery,
         # are stopped when a laptop is unplugged and are killed after 72 hours.
@@ -46,11 +46,11 @@ def set_enabled(enable, minimized=True):
             "-Force -ErrorAction Stop | Out-Null; 'OK' } catch { $_.Exception.Message }", timeout=40).strip()
         if out != "OK":
             return False, out or "Task Scheduler refused the change."
-        return True, "RYTWEAKS will start when you sign in."
+        return True, "RETWEAKS will start when you sign in."
     else:
         if not is_enabled():
-            return True, "RYTWEAKS won't start with Windows."
+            return True, "RETWEAKS won't start with Windows."
         r = run(["schtasks", "/Delete", "/TN", TASK_NAME, "/F"], timeout=20)
     if r.returncode != 0:
         return False, (r.stderr or r.stdout).strip() or "Task Scheduler refused the change."
-    return True, "RYTWEAKS will start when you sign in." if enable else "RYTWEAKS won't start with Windows."
+    return True, "RETWEAKS will start when you sign in." if enable else "RETWEAKS won't start with Windows."

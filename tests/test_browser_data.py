@@ -48,13 +48,13 @@ def test_settings_cleaned():
 def test_bookmarks_persist_and_dedupe(tmp_path):
     p = tmp_path / "browser.json"
     d = bd.BrowserData(p)
-    assert d.add_bookmark("RYTWEAKS", "https://github.com/w1zr/rytweaks")
-    assert not d.add_bookmark("again", "https://github.com/w1zr/rytweaks")
+    assert d.add_bookmark("RETWEAKS", "https://github.com/w1zr/retweaks")
+    assert not d.add_bookmark("again", "https://github.com/w1zr/retweaks")
     assert not d.add_bookmark("x", "javascript:alert(1)")
-    assert d.rename_bookmark("https://github.com/w1zr/rytweaks", "Repo")
+    assert d.rename_bookmark("https://github.com/w1zr/retweaks", "Repo")
     d2 = bd.BrowserData(p)
-    assert d2.bookmarks[0]["title"] == "Repo" and d2.is_bookmarked("https://github.com/w1zr/rytweaks")
-    assert d2.remove_bookmark("https://github.com/w1zr/rytweaks") and not bd.BrowserData(p).bookmarks
+    assert d2.bookmarks[0]["title"] == "Repo" and d2.is_bookmarked("https://github.com/w1zr/retweaks")
+    assert d2.remove_bookmark("https://github.com/w1zr/retweaks") and not bd.BrowserData(p).bookmarks
 
 
 def test_history_private_never_recorded_and_clear(tmp_path):
@@ -111,7 +111,7 @@ def test_start_page_render_escapes_and_uses_engine(tmp_path):
     t = themes.get_theme("Midnight")
     page = n.render(t, "DuckDuckGo", "", [{"title": "<script>x</script>", "url": "https://e.com/?a=\"b"},
                                           {"title": "bad", "url": "javascript:alert(1)"}])
-    assert "RYTWEAKS" in page and "<svg" in page
+    assert "ReTweaks" in page and "<svg" in page
     assert "<script>x</script>" not in page and "&lt;script&gt;" in page
     assert "javascript:alert" not in page
     assert '"https://duckduckgo.com/?q={q}"' in page

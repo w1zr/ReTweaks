@@ -6,6 +6,7 @@ wave (live total CPU load, last 60 s). One QTimer runs only while the banner is 
 and the window is not minimized.
 """
 
+from core.version import BRAND
 import math
 import random
 import time
@@ -222,10 +223,10 @@ class DashboardBanner(QWidget):
         f = QFont(self.font())
         f.setPixelSize(26)
         f.setBold(True)
-        f.setLetterSpacing(QFont.AbsoluteSpacing, 5)
+        f.setLetterSpacing(QFont.AbsoluteSpacing, 2)
         p.setFont(f)
         p.setPen(_c("#f4f1ff") if galaxy else _c(self._col("text", "#e8eaed")))
-        p.drawText(QPointF(x, 56), "RYTWEAKS")
+        p.drawText(QPointF(x, 56), BRAND)
         f2 = QFont(self.font())
         f2.setPixelSize(12)
         p.setFont(f2)

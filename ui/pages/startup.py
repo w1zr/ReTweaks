@@ -33,7 +33,7 @@ def _batch_enable(ids):
 class StartupPage(Page):
     title = "Startup apps"
     subtitle = ("Apps that start with Windows. Disabling them makes boot faster. "
-                "RYTWEAKS keeps a backup, so you can turn them back on here.")
+                "RETWEAKS keeps a backup, so you can turn them back on here.")
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
@@ -140,7 +140,7 @@ class StartupPage(Page):
             managed = bool(e.get("managed"))
             if managed:
                 item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)   # not toggled here
-                item.setToolTip("RYTWEAKS's own start-with-Windows task. Change it in Settings.")
+                item.setToolTip("RETWEAKS's own start-with-Windows task. Change it in Settings.")
             else:
                 item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
                 item.setCheckState(Qt.Unchecked)

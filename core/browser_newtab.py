@@ -1,9 +1,9 @@
 # core/browser_newtab.py
-"""The RYTWEAKS start page shown in new tabs (v1.5): the chip logo, the RYTWEAKS name, a search box
+"""The RETWEAKS start page shown in new tabs (v1.5): the chip logo, the RETWEAKS name, a search box
 that uses the chosen search engine, and bookmark tiles. Colors come from the current theme.
 
-The page is a local file served to the Edge engine under https://rytweaks.newtab/ (a WebView2
-virtual host mapped to a folder in %LOCALAPPDATA%\\RYTWEAKS\\Browser\\newtab). Nothing is fetched
+The page is a local file served to the Edge engine under https://retweaks.newtab/ (a WebView2
+virtual host mapped to a folder in %LOCALAPPDATA%\\RETWEAKS\\Browser\\newtab). Nothing is fetched
 from the internet to draw it.
 """
 
@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from core import browser_data as bd
+from core.version import BRAND
 
 HOST = bd.NEWTAB_HOST
 URL = bd.NEWTAB_URL
@@ -76,7 +77,7 @@ def render(theme, engine=bd.DEFAULT_ENGINE, custom="", bookmarks=(), private=Fal
                font-family:'Segoe UI Variable Text','Segoe UI',sans-serif; }}
   main {{ min-height:100%; display:flex; flex-direction:column; align-items:center; padding:12vh 24px 40px; }}
   .brand {{ display:flex; align-items:center; gap:16px; margin-bottom:28px; }}
-  .word {{ font-size:34px; font-weight:700; letter-spacing:6px; }}
+  .word {{ font-size:34px; font-weight:700; letter-spacing:2px; }}
   form {{ width:min(640px, 100%); }}
   input {{ width:100%; padding:15px 22px; font-size:16px; color:var(--text); background:var(--input);
           border:1px solid var(--border); border-radius:28px; outline:none; }}
@@ -97,7 +98,7 @@ def render(theme, engine=bd.DEFAULT_ENGINE, custom="", bookmarks=(), private=Fal
   {stars}
 </style></head>
 <body><main>
-  <div class="brand">{LOGO_SVG.format(c=html.escape(t.get('logo', t['text'])))}<span class="word">RYTWEAKS</span></div>
+  <div class="brand">{LOGO_SVG.format(c=html.escape(t.get('logo', t['text'])))}<span class="word">{BRAND}</span></div>
   <form id="f" autocomplete="off">
     <input id="q" type="search" placeholder="Search with {html.escape(name)} or type an address" autofocus>
   </form>

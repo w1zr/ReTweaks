@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (QButtonGroup, QFrame, QGraphicsOpacityEffect, QHB
                                QProgressBar, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
 from core.themes import get_stylesheet, get_theme
-from core.version import APP_NAME, __version__
+from core.version import APP_NAME, BRAND, __version__
 from core.winutil import is_admin
 from ui.pages.about import AboutPage
 from ui.pages.assistant import AssistantPage
@@ -67,7 +67,7 @@ def resource_path(relative_path):
 
 def config_path():
     base = os.getenv("APPDATA") or str(Path.home())
-    return Path(base) / "RYTWEAKS" / "config.json"
+    return Path(base) / "RETWEAKS" / "config.json"
 
 
 class MainWindow(QMainWindow):
@@ -154,7 +154,7 @@ class MainWindow(QMainWindow):
         if result == "OK":
             self.log_action("Update", f"Installed v{__version__}", "Success")
             self.settings_page.upd_msg.setText(f"Updated to v{__version__}. The previous version is saved as "
-                                               "RYTWEAKS.old.exe next to RYTWEAKS.exe.")
+                                               "RETWEAKS.old.exe next to RETWEAKS.exe.")
         elif result == "FAILED":
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Update", "The update couldn't be installed (Windows kept the file locked), "
@@ -180,7 +180,7 @@ class MainWindow(QMainWindow):
         head.setSpacing(9)
         self.header_chip = ChipLogo(26)
         head.addWidget(self.header_chip, 0, Qt.AlignVCenter)
-        brand = label(APP_NAME, "brand")
+        brand = label(BRAND, "brand")
         head.addWidget(brand, 0, Qt.AlignVCenter)
         head.addStretch(1)
         outer.addLayout(head)
@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
         self.upd_bar_notes.clicked.connect(lambda: self.settings_page.open_release_page())
         h.addWidget(self.upd_bar_notes)
         self.upd_bar_later = QPushButton("Later")
-        self.upd_bar_later.setToolTip("Hide this bar until RYTWEAKS restarts")
+        self.upd_bar_later.setToolTip("Hide this bar until RETWEAKS restarts")
         self.upd_bar_later.clicked.connect(bar.hide)
         h.addWidget(self.upd_bar_later)
         bar.hide()
@@ -348,11 +348,11 @@ class MainWindow(QMainWindow):
         self.update_label.setText(f"Update available: {version}")
         self.update_label.show()
         if updater.can_self_update():
-            self.upd_bar_text.setText(f"RYTWEAKS {version} is available. You're on v{__version__}. "
+            self.upd_bar_text.setText(f"RETWEAKS {version} is available. You're on v{__version__}. "
                                       "Update now to install it here: your settings are kept.")
             self.upd_bar_now.show()
         else:
-            self.upd_bar_text.setText(f"RYTWEAKS {version} is available. You're on v{__version__} "
+            self.upd_bar_text.setText(f"RETWEAKS {version} is available. You're on v{__version__} "
                                       "(running from source: use git pull, or download the .exe).")
             self.upd_bar_now.hide()
         self.update_bar.show()
@@ -415,16 +415,16 @@ class MainWindow(QMainWindow):
                 tray_icon = resource_path("assets/icon.ico")      # the .exe icon (owner's pick for the tray)
                 icon = QIcon(tray_icon) if os.path.exists(tray_icon) else self.windowIcon()
                 self.tray = QSystemTrayIcon(icon, self)
-                self.tray.setToolTip("RYTWEAKS")
+                self.tray.setToolTip("RETWEAKS")
                 menu = QMenu(self)
                 # Rounded, themed menu (v1.5): frameless + translucent so the rounded corners show
                 menu.setWindowFlags(menu.windowFlags() | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
                 menu.setAttribute(Qt.WA_TranslucentBackground, True)
-                head = menu.addAction(icon, "RYTWEAKS")
+                head = menu.addAction(icon, "RETWEAKS")
                 head.setEnabled(False)
                 menu.addSeparator()
-                menu.addAction("Open RYTWEAKS", self.show_from_tray)
-                menu.addAction("Quit RYTWEAKS", self.quit_from_tray)
+                menu.addAction("Open RETWEAKS", self.show_from_tray)
+                menu.addAction("Quit RETWEAKS", self.quit_from_tray)
                 self.tray.setContextMenu(menu)
                 self.tray.activated.connect(
                     lambda r: self.show_from_tray()
@@ -666,9 +666,9 @@ class MainWindow(QMainWindow):
             self.hide()
             if not self._tray_tip_shown:
                 self._tray_tip_shown = True
-                self.tray.showMessage("RYTWEAKS is still running",
+                self.tray.showMessage("RETWEAKS is still running",
                                       "Volume lock and auto game mode keep working. Right-click the tray "
-                                      "icon and choose Quit RYTWEAKS to close it.", self.windowIcon(), 5000)
+                                      "icon and choose Quit RETWEAKS to close it.", self.windowIcon(), 5000)
             return
         self._lock_timer.stop()
         if self.tray is not None:
@@ -699,7 +699,7 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
         # Qt only quits by itself when the last *visible* window closes. Quitting from the tray closes
         # a hidden window, so without this the process kept running invisibly (holding the
-        # single-instance lock) after "Quit RYTWEAKS".
+        # single-instance lock) after "Quit RETWEAKS".
         QApplication.instance().quit()
         if stuck:
             # A background request (e.g. a slow AI or PowerShell call) didn't finish in time.

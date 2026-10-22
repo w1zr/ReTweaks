@@ -92,25 +92,25 @@ def _sep():
 class TweaksPage(Page):
     title = "Tweaks"
     subtitle = ("Apply tweaks one at a time. Status is read from Windows, every change is written to "
-                "Logs, and RYTWEAKS saves the original setting so Undo puts it back exactly.")
+                "Logs, and RETWEAKS saves the original setting so Undo puts it back exactly.")
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         if not is_admin():
             self.content.addWidget(Notice(
-                "RYTWEAKS isn't running as administrator, so tweaks marked “Admin” will fail. "
-                "Right-click RYTWEAKS.exe → Run as administrator."))
+                "RETWEAKS isn't running as administrator, so tweaks marked “Admin” will fail. "
+                "Right-click RETWEAKS.exe → Run as administrator."))
 
         if elevated_as_other_user():
             self.content.addWidget(Notice(
-                "RYTWEAKS was started with a different administrator account than the one signed in. "
+                "RETWEAKS was started with a different administrator account than the one signed in. "
                 "Tweaks for “your” settings would change that other account instead. Sign in to the "
-                "administrator account, or make your account an administrator, then start RYTWEAKS again."))
+                "administrator account, or make your account an administrator, then start RETWEAKS again."))
         top = QHBoxLayout()
         self.b_restore = QPushButton("Create restore point")
         self.b_restore.setToolTip("Windows System Restore point, so you can roll back the whole PC.")
         self.b_restore.clicked.connect(self.restore_point)
-        self.b_undo_all = set_role(QPushButton("Undo everything RYTWEAKS changed"), "danger")
+        self.b_undo_all = set_role(QPushButton("Undo everything RETWEAKS changed"), "danger")
         self.b_undo_all.clicked.connect(self.undo_everything)
         top.addWidget(self.b_restore)
         top.addWidget(self.b_undo_all)
@@ -442,8 +442,8 @@ class TweaksPage(Page):
         listing = "\n".join(f"• {n}" for n in names) or "• (no individual tweaks)"
         if QMessageBox.question(
                 self, "Undo everything",
-                "Put these back to how they were before RYTWEAKS changed them?\n\n"
-                f"{listing}\n• Power plan and DNS, if RYTWEAKS saved them") != QMessageBox.Yes:
+                "Put these back to how they were before RETWEAKS changed them?\n\n"
+                f"{listing}\n• Power plan and DNS, if RETWEAKS saved them") != QMessageBox.Yes:
             return
         self.b_undo_all.setEnabled(False)
         self.top_msg.setText("Restoring…")
@@ -453,7 +453,7 @@ class TweaksPage(Page):
             if isinstance(results, tuple):
                 results = [("Undo everything", False, results[1])]
             if not results:
-                self.top_msg.setText("Nothing to undo: RYTWEAKS hasn't changed anything yet.")
+                self.top_msg.setText("Nothing to undo: RETWEAKS hasn't changed anything yet.")
             else:
                 ok_count = sum(1 for _, ok, _ in results if ok)
                 lines = [f"{'✔' if ok else '✖'} {name}: {msg}" for name, ok, msg in results]

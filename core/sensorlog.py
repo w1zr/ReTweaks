@@ -15,7 +15,7 @@ from pathlib import Path
 
 def default_log_path(now=None):
     now = now or datetime.now()
-    docs = Path.home() / "Documents" / "RYTWEAKS logs"
+    docs = Path.home() / "Documents" / "RETWEAKS logs"
     return docs / f"sensors_{now.strftime('%Y-%m-%d_%H%M')}.csv"
 
 

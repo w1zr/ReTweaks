@@ -158,7 +158,7 @@ class ClickerPage(Page):
         row.addStretch()
         hk.body.addLayout(row)
         # Off by default: global hotkeys listen in every app, so the user turns them on
-        self.hk_enabled = QCheckBox("Turn on hotkeys (they listen in every window while RYTWEAKS is open)")
+        self.hk_enabled = QCheckBox("Turn on hotkeys (they listen in every window while RETWEAKS is open)")
         self.hk_enabled.setChecked(bool(s.get(PREFIX + "hotkeys_enabled", False)))
         hk.body.addWidget(self.hk_enabled)
         self.hk_msg = label("", "cardLine", wrap=True)

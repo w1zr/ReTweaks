@@ -178,7 +178,7 @@ class DisplayPage(Page):
         row.addStretch(1)
         card.body.addLayout(row)
         card.body.addWidget(label(
-            "If a resolution isn't on your graphics card yet, RYTWEAKS adds it on NVIDIA cards (NVIDIA's own "
+            "If a resolution isn't on your graphics card yet, RETWEAKS adds it on NVIDIA cards (NVIDIA's own "
             "NVAPI, like Control Panel → Create Custom Resolution). On AMD or Intel add it once in AMD Software "
             "or Intel Graphics Command Center. If you see black bars instead of a stretched picture, set "
             "scaling to Full-screen (NVIDIA Control Panel → Adjust desktop size and position) or Full panel "

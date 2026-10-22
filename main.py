@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from ui.main_window import MainWindow
-from ui.splash import RytweaksSplash
+from ui.splash import RetweaksSplash
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -24,16 +24,16 @@ def _show_server_name():
         user = getpass.getuser()
     except Exception:
         user = "user"
-    return "RYTWEAKS_show_" + "".join(c for c in user if c.isalnum())[:40]
+    return "RETWEAKS_show_" + "".join(c for c in user if c.isalnum())[:40]
 
 
-def _talk(command, timeout_ms=1500):
-    """Sends one command to the running RYTWEAKS and returns its reply (bytes) or None if it doesn't
+def _talk(command, timeout_ms=1500, server=None):
+    """Sends one command to the running RETWEAKS and returns its reply (bytes) or None if it doesn't
     answer. Commands: b"ver" (its version), b"show" (bring the window back), b"quit" (close fully).
     Copies from before v1.5.1 only understand "show" and don't answer the others."""
     from PySide6.QtNetwork import QLocalSocket
     sock = QLocalSocket()
-    sock.connectToServer(_show_server_name())
+    sock.connectToServer(server or _show_server_name())
     if not sock.waitForConnected(timeout_ms):
         return None
     sock.write(command + b"\n")
@@ -54,7 +54,7 @@ def _running_version():
 
 
 def _ask_running_copy_to_show():
-    """Opening RYTWEAKS while it's already running (e.g. in the tray) brings that window to the front,
+    """Opening RETWEAKS while it's already running (e.g. in the tray) brings that window to the front,
     like most apps. Returns True only if the running copy really answered after showing it."""
     try:   # let the running copy take the foreground (Windows blocks it otherwise)
         ctypes.windll.user32.AllowSetForegroundWindow(-1)    # ASFW_ANY
@@ -73,7 +73,7 @@ def _reopen(window):
     if window.isVisible() and not window.isMinimized():
         window.show_from_tray()
         return
-    splash = RytweaksSplash()
+    splash = RetweaksSplash()
     window._reopen_splash = splash      # keeps the splash alive until its fade has fully finished
 
     def finished():
@@ -137,7 +137,7 @@ def _wait_for_lock(seconds):
 
 
 def _handle_running_copy():
-    """Another RYTWEAKS holds the single-instance lock.
+    """Another RETWEAKS holds the single-instance lock.
     - Same version, answering: bring its window back (with the startup animation) and exit.
     - Different version (e.g. you just downloaded an update): offer to close it and open this one.
     - Not answering (a version before v1.5.1, or stuck in the background): offer to close it.
@@ -150,8 +150,8 @@ def _handle_running_copy():
         sys.exit(0)
 
     if theirs and theirs != mine:
-        box = QMessageBox(QMessageBox.Question, "RYTWEAKS",
-                          f"RYTWEAKS v{theirs} is already running (this is v{mine}).")
+        box = QMessageBox(QMessageBox.Question, "RETWEAKS",
+                          f"RETWEAKS v{theirs} is already running (this is v{mine}).")
         box.setInformativeText(f"Close v{theirs} and open v{mine}?")
         switch_btn = box.addButton(f"Open v{mine}", QMessageBox.AcceptRole)
         box.addButton(f"Keep v{theirs}", QMessageBox.RejectRole)
@@ -166,20 +166,20 @@ def _handle_running_copy():
             close_other_instances()
             lock = _wait_for_lock(4)
         if lock is None:
-            QMessageBox.warning(None, "RYTWEAKS", f"RYTWEAKS v{theirs} didn't close. Right-click its tray "
-                                "icon, choose Quit RYTWEAKS, then open RYTWEAKS again.")
+            QMessageBox.warning(None, "RETWEAKS", f"RETWEAKS v{theirs} didn't close. Right-click its tray "
+                                "icon, choose Quit RETWEAKS, then open RETWEAKS again.")
             sys.exit(0)
         return lock
 
     if not other_instances():
         # Nothing to close from here (e.g. running from source): say what's going on.
-        QMessageBox.information(None, "RYTWEAKS", "RYTWEAKS is already running. Check the taskbar or the "
+        QMessageBox.information(None, "RETWEAKS", "RETWEAKS is already running. Check the taskbar or the "
                                 "system tray (it may have started minimized with Windows).")
         sys.exit(0)
-    box = QMessageBox(QMessageBox.Warning, "RYTWEAKS",
-                      "Another RYTWEAKS is running but isn't responding. It's an older version or it's "
+    box = QMessageBox(QMessageBox.Warning, "RETWEAKS",
+                      "Another RETWEAKS is running but isn't responding. It's an older version or it's "
                       "stuck in the background.")
-    box.setInformativeText("Close it and start this RYTWEAKS?")
+    box.setInformativeText("Close it and start this RETWEAKS?")
     close_btn = box.addButton("Close it and start", QMessageBox.AcceptRole)
     box.addButton("Cancel", QMessageBox.RejectRole)
     box.exec()
@@ -188,9 +188,9 @@ def _handle_running_copy():
     ok, msg = close_other_instances()
     lock = _wait_for_lock(3) if ok else None
     if lock is None:
-        QMessageBox.warning(None, "RYTWEAKS", msg if not ok else
+        QMessageBox.warning(None, "RETWEAKS", msg if not ok else
                             "The other copy closed, but Windows hasn't released its lock yet. "
-                            "Open RYTWEAKS again in a few seconds.")
+                            "Open RETWEAKS again in a few seconds.")
         sys.exit(0)
     return lock
 
@@ -206,21 +206,71 @@ def _exit(code):
     sys.exit(code)
 
 
+def _log_migration(window, lines):
+    for line in lines or []:
+        try:
+            window.log_action("Rename to RETWEAKS", "Move data from RYTWEAKS", line)
+        except Exception:
+            pass
+
+
+def _close_legacy_copy():
+    """RETWEAKS was called RYTWEAKS before v1.6. If the old RYTWEAKS.exe is still running (e.g. in the
+    tray), it would keep using the old data folders, so close it first: normally via its "quit"
+    command (v1.5.1 has it, so it cleans up as usual), otherwise by ending the process."""
+    import time
+    from core import rename_migration as rm
+    if not rm.legacy_processes():
+        return
+    from PySide6.QtWidgets import QMessageBox
+    box = QMessageBox(QMessageBox.Question, "RETWEAKS",
+                      "RYTWEAKS (this app's old name) is still running.")
+    box.setInformativeText("Close it and open RETWEAKS? Your settings move over to RETWEAKS.")
+    go = box.addButton("Close it and open RETWEAKS", QMessageBox.AcceptRole)
+    box.addButton("Cancel", QMessageBox.RejectRole)
+    box.exec()
+    if box.clickedButton() is not go:
+        sys.exit(0)
+    old_server = rm.OLD_SHOW_SERVER_PREFIX + _show_server_name()[len("RETWEAKS_show_"):]
+    _talk(b"quit", 2000, server=old_server)
+    end = time.time() + 10
+    while rm.legacy_processes() and time.time() < end:
+        time.sleep(0.2)
+    left = rm.legacy_processes()
+    if left:
+        try:
+            import psutil
+            for p in left:
+                p.kill()
+            psutil.wait_procs(left, timeout=5)
+        except Exception:
+            pass
+    if rm.legacy_processes():
+        QMessageBox.warning(None, "RETWEAKS", "RYTWEAKS didn't close. Right-click its tray icon, choose "
+                            "Quit RYTWEAKS, then open RETWEAKS again.")
+        sys.exit(0)
+
+
 def main():
     # Set explicit AppUserModelID so Windows Taskbar uses the custom icon
     try:
-        myappid = 'rytweaks.pcoptimizer.suite.v1'
+        myappid = 'retweaks.pcoptimizer.suite.v1'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
 
     app = QApplication(sys.argv)
 
-    # Only one RYTWEAKS at a time (two copies would fight over auto game mode and settings)
+    # Only one RETWEAKS at a time (two copies would fight over auto game mode and settings)
     from core.winutil import single_instance
     instance_lock = single_instance()
     if instance_lock is None:
         instance_lock = _handle_running_copy()
+
+    # One-time move from the old name RYTWEAKS (v1.6): before any settings are read
+    _close_legacy_copy()
+    from core.rename_migration import migrate_all
+    migration_log = migrate_all()
     
     # Apply app icon globally across all windows
     # Window + taskbar use the v1.4 drawing (owner preference); the .exe file keeps icon.ico
@@ -233,12 +283,13 @@ def main():
     # Started by "Start with Windows" with "Start minimized" on: no splash, just the taskbar
     if "--minimized" in sys.argv:
         window = MainWindow()
+        _log_migration(window, migration_log)
         window._show_server = _listen_for_show(window)
         window.start_hidden()        # tray if "Keep running in the tray" is on, else minimized
         _exit(app.exec())
 
     # Chip-scan splash plays while the window really loads (no added waiting)
-    splash = RytweaksSplash()
+    splash = RetweaksSplash()
     splash.start()
     try:
         window = MainWindow(progress=splash.pump)
@@ -246,6 +297,7 @@ def main():
         splash.abort()       # never leave the splash stuck on screen
         raise
     splash.finish(window)
+    _log_migration(window, migration_log)
     window._show_server = _listen_for_show(window)
 
     _exit(app.exec())

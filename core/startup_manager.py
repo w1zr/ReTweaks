@@ -19,7 +19,7 @@ except ImportError:
 from core.autostart import TASK_NAME as OWN_TASK_NAME
 
 SCHED_SOURCE = "Scheduled task"
-BACKUP_STORE = Path(os.getenv('APPDATA') or str(Path.home())) / "RYTWEAKS" / "startup_backups.json"
+BACKUP_STORE = Path(os.getenv('APPDATA') or str(Path.home())) / "RETWEAKS" / "startup_backups.json"
 
 def _ensure_backup_store():
     BACKUP_STORE.parent.mkdir(parents=True, exist_ok=True)
@@ -272,7 +272,7 @@ def enable_startup_entry(entry_id):
 # ======================================================================================
 
 TASK_ID_PREFIX = "task_"
-OWN_TASK_LABEL = "RYTWEAKS (managed in Settings)"
+OWN_TASK_LABEL = "RETWEAKS (managed in Settings)"
 TASK_WARNING = ("Some scheduled tasks are needed by apps (updaters, drivers, backup or security tools). "
                 "Disabling one can stop that app from updating or working. You can turn it back on here.")
 
@@ -440,7 +440,7 @@ def disable_scheduled_task(entry):
     task_path = entry.get("task_path") or split_task_id(entry["id"])[0]
     name = entry.get("task_name") or split_task_id(entry["id"])[1]
     if entry.get("managed") or (task_path == "\\" and name == OWN_TASK_NAME):
-        return False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."
+        return False, "This is RETWEAKS's own start-with-Windows task. Change it in Settings."
     before = get_task_state(task_path, name)
     if before is None:
         return False, "Could not read the task's current state, so nothing was changed."
@@ -513,7 +513,7 @@ def disable_scheduled_tasks(entries):
         path = e.get("task_path") or split_task_id(e["id"])[0]
         name = e.get("task_name") or split_task_id(e["id"])[1]
         if e.get("managed") or (path == "\\" and name == OWN_TASK_NAME):
-            results.append((e, False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."))
+            results.append((e, False, "This is RETWEAKS's own start-with-Windows task. Change it in Settings."))
             continue
         backup = dict(e)
         backup["original_state"] = e.get("task_state") or "Ready"
@@ -542,7 +542,7 @@ def enable_scheduled_tasks(entry_ids):
     for i in entry_ids:
         path, name = split_task_id(i)
         if path == "\\" and name == OWN_TASK_NAME:
-            results.append((i, False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."))
+            results.append((i, False, "This is RETWEAKS's own start-with-Windows task. Change it in Settings."))
         else:
             todo.append((i, path, name))
     for (i, _p, _n), (before, after, err) in zip(todo, set_tasks_enabled_batch([(p, n) for _, p, n in todo], True)):
@@ -557,7 +557,7 @@ def enable_scheduled_tasks(entry_ids):
 def enable_scheduled_task(entry_id):
     task_path, name = split_task_id(entry_id)
     if task_path == "\\" and name == OWN_TASK_NAME:
-        return False, "This is RYTWEAKS's own start-with-Windows task. Change it in Settings."
+        return False, "This is RETWEAKS's own start-with-Windows task. Change it in Settings."
     ok, msg = _set_task_enabled(task_path, name, True)
     if ok:
         remove_backup(entry_id)

@@ -1,10 +1,10 @@
 # core/audio_lock.py
 """Volume lock (v1.5): keeps the default speaker and/or default microphone volume at a chosen
 percent. When anything else changes it (Discord's or Zoom's automatic mic adjustment, a game, a
-driver), RYTWEAKS puts it back within about half a second.
+driver), RETWEAKS puts it back within about half a second.
 
 It follows the DEFAULT device: switch to another mic and the lock holds that one at the same %.
-Mute is never touched (muting stays your choice). It only works while RYTWEAKS is running; with
+Mute is never touched (muting stays your choice). It only works while RETWEAKS is running; with
 "Keep running in the tray" on, that includes after the window is closed.
 
 The decision logic here is pure and tested; the Qt timer that drives it lives in the main window.

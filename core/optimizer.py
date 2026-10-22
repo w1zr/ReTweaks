@@ -28,7 +28,7 @@ _CAPTURE_VALUES = [
 
 
 def _state_path():
-    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "tweak_state.json"
+    return Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "tweak_state.json"
 
 
 def _load_state():
@@ -104,7 +104,7 @@ class WindowsOptimizer:
         if not IS_WINDOWS:
             return NOT_WINDOWS
         ok, err = _reg_set_dword(r"HKCU\Software\Microsoft\GameBar", "AutoGameModeEnabled", 1 if enable else 0)
-        # Older RYTWEAKS versions wrote AllowAutoGameMode; keep it in sync
+        # Older RETWEAKS versions wrote AllowAutoGameMode; keep it in sync
         _reg_set_dword(r"HKCU\Software\Microsoft\GameBar", "AllowAutoGameMode", 1 if enable else 0)
         return (True, f"Game Mode {'enabled' if enable else 'disabled'}.") if ok else (False, err)
 
@@ -175,7 +175,7 @@ class WindowsOptimizer:
             return NOT_WINDOWS
         prev = _load_state().get("previous_power_plan")
         if not prev:
-            return False, "No previous power plan was saved. RYTWEAKS saves it the first time you turn on Ultimate Performance."
+            return False, "No previous power plan was saved. RETWEAKS saves it the first time you turn on Ultimate Performance."
         r = run(["powercfg", "/setactive", prev["guid"]], timeout=15)
         if r.returncode != 0:
             return False, (r.stderr or r.stdout).strip() or "powercfg failed (the saved plan may have been deleted)."
@@ -281,7 +281,7 @@ class WindowsOptimizer:
             return False, f"Not a valid IP address: {', '.join(bad) or '(empty)'}"
         state = _load_state()
         prev = state.setdefault("previous_dns", {})
-        # Save what was set before RYTWEAKS first changed this adapter ([] = automatic)
+        # Save what was set before RETWEAKS first changed this adapter ([] = automatic)
         if adapter_name not in prev:
             prev[adapter_name] = WindowsOptimizer.get_dns_servers_all(adapter_name)
             _save_state(state)

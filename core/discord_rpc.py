@@ -1,8 +1,8 @@
 # core/discord_rpc.py
 """Discord status ("Rich Presence") through Discord's local IPC.
 
-RYTWEAKS only talks to the Discord app on this PC (a named pipe on Windows).
-Nothing is sent over the network by RYTWEAKS itself. No extra dependency.
+RETWEAKS only talks to the Discord app on this PC (a named pipe on Windows).
+Nothing is sent over the network by RETWEAKS itself. No extra dependency.
 
 Wire format (Discord RPC): every frame is  <opcode: uint32 LE><length: uint32 LE><JSON, UTF-8>.
 Opcodes: 0 HANDSHAKE, 1 FRAME, 2 CLOSE, 3 PING, 4 PONG.
@@ -20,13 +20,13 @@ import uuid
 
 # Public Discord Application ID (not a secret). The owner supplies it.
 # While it is empty the feature reports "Not set up yet" and never connects.
-DISCORD_APP_ID = "1562695957651521627"   # public Discord Application ID for RYTWEAKS (not a secret)
+DISCORD_APP_ID = "1562695957651521627"   # public Discord Application ID for RETWEAKS (not a secret)
 
 OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG = 0, 1, 2, 3, 4
 RETRY_SECONDS = 15.0          # reconnect interval when Discord isn't running
 UPDATE_SECONDS = 15.0         # minimum gap between SET_ACTIVITY calls (Discord rate limit)
 MAX_FRAME = 1 << 20           # refuse absurd frames from a broken peer
-RELEASES_URL = "https://github.com/w1zr/rytweaks/releases/latest"
+RELEASES_URL = "https://github.com/w1zr/retweaks/releases/latest"
 
 STATUS_TEXT = {
     "off": "Off",
@@ -116,14 +116,14 @@ def build_activity(state, show_game, start_ts):
     elif game:
         details = "Gaming"
     else:
-        details = "Optimizing with RYTWEAKS"
-    sub = "Boosted by RYTWEAKS" if game else "Windows PC tweaks"
+        details = "Optimizing with RETWEAKS"
+    sub = "Boosted by RETWEAKS" if game else "Windows PC tweaks"
     return {
         "details": _clip(details),
         "state": _clip(sub),
         "timestamps": {"start": int(start_ts)},
-        "assets": {"large_image": "rytweaks", "large_text": "RYTWEAKS"},
-        "buttons": [{"label": "Get RYTWEAKS", "url": RELEASES_URL}],
+        "assets": {"large_image": "rytweaks", "large_text": "RETWEAKS"},
+        "buttons": [{"label": "Get RETWEAKS", "url": RELEASES_URL}],
     }
 
 

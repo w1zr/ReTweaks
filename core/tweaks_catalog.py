@@ -41,7 +41,7 @@ def T(tid, name, cat, level, desc, tradeoff, values, admin=False, restart=None):
 
 def Service(tid, svc, name, desc, tradeoff, default_start):
     """Turning a Windows service off = start type Disabled (4). Undo restores the exact original
-    start type. Changes apply after a restart (RYTWEAKS never force-stops services)."""
+    start type. Changes apply after a restart (RETWEAKS never force-stops services)."""
     t = Tweak(tid, name, ADVANCED, desc, tradeoff,
               {(SVC + "\\" + svc, "Start"): (REG_DWORD, default_start)},
               {(SVC + "\\" + svc, "Start"): (REG_DWORD, 4)}, admin=True, restart="restart")
@@ -97,7 +97,7 @@ class ClassicMenuTweak(Tweak):
         backups = load_backups()
         entry = backups.get(self.id)
         if not entry:
-            return False, "Nothing to undo: RYTWEAKS hasn't changed this setting."
+            return False, "Nothing to undo: RETWEAKS hasn't changed this setting."
         try:
             if entry["values"][0][2] is None:
                 self._remove()

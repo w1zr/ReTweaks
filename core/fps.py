@@ -37,7 +37,7 @@ CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 # ---------------------------------------------------------------- finding PresentMon
 
 def find_presentmon_near_exe():
-    """A PresentMon*.exe in the folder of RYTWEAKS.exe (or this project), if any."""
+    """A PresentMon*.exe in the folder of RETWEAKS.exe (or this project), if any."""
     folders = []
     if getattr(sys, "frozen", False):
         folders.append(Path(sys.executable).parent)
@@ -66,7 +66,7 @@ def validate_presentmon_path(path):
 
 # ---------------------------------------------------------------- command line
 
-def build_command(exe, process_name, seconds, output_file, session_name="RYTWEAKS_FPS"):
+def build_command(exe, process_name, seconds, output_file, session_name="RETWEAKS_FPS"):
     """PresentMon 2.x console command line (list for subprocess, no shell)."""
     seconds = int(seconds)
     if seconds <= 0:
@@ -231,7 +231,7 @@ def comparison_warnings(a, b):
 # ---------------------------------------------------------------- saved runs
 
 def runs_path():
-    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "fps_runs.json"
+    return Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "fps_runs.json"
 
 
 def load_runs(path=None):
@@ -322,7 +322,7 @@ def list_processes():
 # ---------------------------------------------------------------- running PresentMon
 
 ADMIN_HINT = ("PresentMon needs administrator rights or membership in the \"Performance Log "
-              "Users\" group. RYTWEAKS normally runs as administrator; check that it did.")
+              "Users\" group. RETWEAKS normally runs as administrator; check that it did.")
 
 
 class Capture:
@@ -330,7 +330,7 @@ class Capture:
 
     def __init__(self, exe, process_name, seconds):
         self.exe, self.process_name, self.seconds = exe, process_name, int(seconds)
-        self.dir = tempfile.mkdtemp(prefix="rytweaks_fps_")
+        self.dir = tempfile.mkdtemp(prefix="retweaks_fps_")
         self.csv_path = os.path.join(self.dir, "capture.csv")
         self.err_path = os.path.join(self.dir, "stderr.txt")
         self.proc = None

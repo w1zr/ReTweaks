@@ -101,5 +101,5 @@ class AutoGameWorker(QThread):
                 if not self._running:
                     break
                 self.msleep(50)
-        for e in mode.restore():         # RYTWEAKS is closing: put the power plan back
+        for e in mode.restore():         # RETWEAKS is closing: put the power plan back
             self.event.emit(e)

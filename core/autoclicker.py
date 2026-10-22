@@ -318,7 +318,7 @@ class ClickEngine:
     def start(self):
         if self._thread and self._thread.is_alive():
             return False
-        self._thread = threading.Thread(target=self.run, name="RytweaksClicker", daemon=True)
+        self._thread = threading.Thread(target=self.run, name="RetweaksClicker", daemon=True)
         self._thread.start()
         return True
 
@@ -443,7 +443,7 @@ class HotkeyWatcher:
         if self._thread and self._thread.is_alive():
             return
         self._quit.clear()
-        self._thread = threading.Thread(target=self._loop, name="RytweaksHotkeys", daemon=True)
+        self._thread = threading.Thread(target=self._loop, name="RetweaksHotkeys", daemon=True)
         self._thread.start()
 
     def stop(self, timeout=1.0):

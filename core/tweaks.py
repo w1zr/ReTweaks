@@ -82,7 +82,7 @@ REG_SZ, REG_DWORD = 1, 4
 # ---------------------------------------------------------------- saved previous values
 
 def _state_path():
-    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "tweak_backups.json"
+    return Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "tweak_backups.json"
 
 
 def load_backups():
@@ -136,7 +136,7 @@ class Tweak:
     def _backup_once(self):
         backups = load_backups()
         if self.id in backups:
-            return  # keep the ORIGINAL values from before RYTWEAKS first touched it
+            return  # keep the ORIGINAL values from before RETWEAKS first touched it
         saved = []
         for path, name in self.keys():
             cur = REG.get(path, name)
@@ -159,7 +159,7 @@ class Tweak:
             if self.after_change:
                 self.after_change()
         except PermissionError:
-            return False, "Windows refused the change. Run RYTWEAKS as administrator."
+            return False, "Windows refused the change. Run RETWEAKS as administrator."
         except Exception as e:
             return False, str(e)
         note = {"signout": " Sign out and back in for it to take full effect.",
@@ -174,7 +174,7 @@ class Tweak:
         backups = load_backups()
         entry = backups.get(self.id)
         if not entry:
-            return False, "Nothing to undo: RYTWEAKS hasn't changed this setting."
+            return False, "Nothing to undo: RETWEAKS hasn't changed this setting."
         try:
             for path, name, value in entry["values"]:
                 if value is None:
@@ -184,7 +184,7 @@ class Tweak:
             if self.after_change:
                 self.after_change()
         except PermissionError:
-            return False, "Windows refused the change. Run RYTWEAKS as administrator."
+            return False, "Windows refused the change. Run RETWEAKS as administrator."
         except Exception as e:
             return False, str(e)
         del backups[self.id]
@@ -319,7 +319,7 @@ class CommandTweak(Tweak):
             self._backup_once()
             self._run(on)
         except PermissionError as e:
-            return False, str(e) or "Windows refused the change. Run RYTWEAKS as administrator."
+            return False, str(e) or "Windows refused the change. Run RETWEAKS as administrator."
         except Exception as e:
             return False, str(e)
         return True, f"{self.name}: {'on' if on else 'off'}."
@@ -328,7 +328,7 @@ class CommandTweak(Tweak):
         backups = load_backups()
         entry = backups.get(self.id)
         if not entry:
-            return False, "Nothing to undo: RYTWEAKS hasn't changed this setting."
+            return False, "Nothing to undo: RETWEAKS hasn't changed this setting."
         prev = entry["values"][0][2]
         try:
             # value missing before = Windows default, which is ON
@@ -408,7 +408,7 @@ BY_ID = {t.id: t for t in TWEAKS}
 
 
 def changed_tweaks():
-    """Tweaks RYTWEAKS changed that still have a saved original."""
+    """Tweaks RETWEAKS changed that still have a saved original."""
     backups = load_backups()
     return [BY_ID[i] for i in backups if i in BY_ID]
 
@@ -437,7 +437,7 @@ def create_restore_point():
         return False, "This only works on Windows."
     script = (
         "$before = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue).Count; "
-        "try { Checkpoint-Computer -Description 'RYTWEAKS' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop } "
+        "try { Checkpoint-Computer -Description 'RETWEAKS' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop } "
         "catch { 'ERR:' + $_.Exception.Message; exit }; "
         "$after = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue).Count; "
         "if ($after -gt $before) { 'OK' } else { 'SKIPPED' }")

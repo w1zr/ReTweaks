@@ -2,7 +2,7 @@
 r"""Optional temperatures and fan speeds from LibreHardwareMonitor.
 
 Windows has no standard API for CPU temperature, fan RPM or motherboard sensors; reading
-them needs a kernel driver. RYTWEAKS does NOT ship one. Instead it reads them from the free,
+them needs a kernel driver. RETWEAKS does NOT ship one. Instead it reads them from the free,
 open source LibreHardwareMonitor (https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
 when the user runs it. Two ways, tried in this order:
 

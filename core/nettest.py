@@ -69,7 +69,7 @@ def time_lookup(server, name, timeout=2.0):
 
 
 def _random_name():
-    label = "rytweaks-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
+    label = "retweaks-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
     return f"{label}.{random.choice(UNCACHED_PARENTS)}"
 
 
@@ -141,7 +141,7 @@ def _icmp_ping_windows(ip, count, interval, timeout_ms, progress=None):
     if not handle or handle == wintypes.HANDLE(-1).value:
         raise OSError("Windows couldn't open an ICMP handle.")
     dest = int.from_bytes(socket.inet_aton(ip), "little")   # IPAddr is network byte order in memory
-    payload = b"RYTWEAKS ping test 32 bytes....."
+    payload = b"RETWEAKS ping test 32 bytes....."
     reply_size = ctypes.sizeof(ICMP_ECHO_REPLY) + len(payload) + 8
     buf = ctypes.create_string_buffer(reply_size)
     times = []

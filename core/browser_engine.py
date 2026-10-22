@@ -2,7 +2,7 @@
 """Loads Microsoft's Edge engine (WebView2) for the Browser page (v1.5). Windows only.
 
 WebView2 is the Edge engine that ships with Windows 11 (and with Microsoft Edge on Windows 10);
-RYTWEAKS draws its own browser frame (tabs, address bar, bookmarks) around it. RYTWEAKS talks to it
+RETWEAKS draws its own browser frame (tabs, address bar, bookmarks) around it. RETWEAKS talks to it
 through Microsoft's WebView2 SDK (Microsoft.Web.WebView2.Core.dll + WebView2Loader.dll, ~1 MB,
 redistributable; taken from the pywebview package) using pythonnet on .NET Framework 4.8, which is
 part of Windows 10 and 11.
@@ -46,15 +46,15 @@ def sdk_dir():
                 return d
     except Exception:
         pass
-    raise EngineUnavailable("RYTWEAKS couldn't find the Edge engine files (Microsoft.Web.WebView2.Core.dll). "
-                            "Download RYTWEAKS again from GitHub Releases.")
+    raise EngineUnavailable("RETWEAKS couldn't find the Edge engine files (Microsoft.Web.WebView2.Core.dll). "
+                            "Download RETWEAKS again from GitHub Releases.")
 
 
 def loader_path(d):
     for p in (Path(d) / LOADER_DLL, Path(d) / "runtimes" / "win-x64" / "native" / LOADER_DLL):
         if p.exists():
             return p
-    raise EngineUnavailable("RYTWEAKS couldn't find WebView2Loader.dll. Download RYTWEAKS again from GitHub Releases.")
+    raise EngineUnavailable("RETWEAKS couldn't find WebView2Loader.dll. Download RETWEAKS again from GitHub Releases.")
 
 
 def load():

@@ -2,7 +2,7 @@
 """Browser (v1.5): search engines, address-bar parsing, bookmarks and history.
 
 Pure Python, testable on any OS. Bookmarks and history live in their own file,
-%APPDATA%\\RYTWEAKS\\browser.json, separate from config.json (app settings) so clearing history
+%APPDATA%\\RETWEAKS\\browser.json, separate from config.json (app settings) so clearing history
 can never touch settings. Private tabs never write history.
 """
 
@@ -30,7 +30,7 @@ HOMEPAGES = {
     "Startpage": "https://www.startpage.com/",
 }
 CUSTOM = "Custom"
-NEWTAB_HOST = "rytweaks.newtab"                    # RYTWEAKS start page (core/browser_newtab.py)
+NEWTAB_HOST = "retweaks.newtab"                    # RETWEAKS start page (core/browser_newtab.py)
 NEWTAB_URL = f"https://{NEWTAB_HOST}/index.html"
 NEWTAB_PRIVATE_URL = f"https://{NEWTAB_HOST}/private.html"
 DEFAULT_ENGINE = "Google"
@@ -148,13 +148,13 @@ def default_download_dir():
 
 def data_path():
     base = os.getenv("APPDATA") or str(Path.home())
-    return Path(base) / "RYTWEAKS" / "browser.json"
+    return Path(base) / "RETWEAKS" / "browser.json"
 
 
 def user_data_dir():
     """Edge engine profile folder (cookies, cache). Kept outside the .exe's folder."""
     base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA") or str(Path.home())
-    return str(Path(base) / "RYTWEAKS" / "Browser")
+    return str(Path(base) / "RETWEAKS" / "Browser")
 
 
 class BrowserData:

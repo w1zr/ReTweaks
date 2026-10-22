@@ -1,11 +1,11 @@
 # ui/pages/browser.py
-"""Browser (v1.5): the RYTWEAKS browser: its own frame, logo and start page around Microsoft's Edge
+"""Browser (v1.5): the RETWEAKS browser: its own frame, logo and start page around Microsoft's Edge
 engine (WebView2).
 
 Tabs, private tabs, address bar that also searches (Google, DuckDuckGo, Brave Search, Bing,
 Startpage or your own), bookmarks, history and downloads. The engine starts the first time this page
-is opened, never at app start. Bookmarks/history: %APPDATA%\\RYTWEAKS\\browser.json. Cookies/cache:
-%LOCALAPPDATA%\\RYTWEAKS\\Browser. Private tabs keep nothing after they close.
+is opened, never at app start. Bookmarks/history: %APPDATA%\\RETWEAKS\\browser.json. Cookies/cache:
+%LOCALAPPDATA%\\RETWEAKS\\Browser. Private tabs keep nothing after they close.
 """
 
 import os
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QInputDialog, Q
                                QListWidgetItem, QMenu, QMessageBox, QPushButton, QScrollArea,
                                QStackedWidget, QTabBar, QToolButton, QVBoxLayout, QWidget)
 
+from core.version import BRAND
 from core import browser_data as bd
 from ui.widgets.common import Page, label, set_role
 
@@ -153,7 +154,7 @@ class BrowserPage(Page):
         bl.setSpacing(8)
         self.brand_logo = ChipLogo(20)
         bl.addWidget(self.brand_logo)
-        bl.addWidget(label("RYTWEAKS", "browserBrand"))
+        bl.addWidget(label(BRAND, "browserBrand"))
         sl.addWidget(brand)
         self.tabbar = QTabBar()
         self.tabbar.setObjectName("browserTabs")
@@ -246,7 +247,7 @@ class BrowserPage(Page):
         v.setContentsMargins(40, 40, 40, 40)
         v.addStretch(1)
         self.un_title = label("Starting the browser…", "pageTitle")
-        self.un_text = label("RYTWEAKS uses Microsoft's Edge engine, which is part of Windows 11.", "muted", wrap=True)
+        self.un_text = label("RETWEAKS uses Microsoft's Edge engine, which is part of Windows 11.", "muted", wrap=True)
         self.un_retry = set_role(QPushButton("Try again"), "primary")
         self.un_retry.clicked.connect(self._retry)
         self.un_retry.setVisible(False)
@@ -500,7 +501,7 @@ class BrowserPage(Page):
             (v.stop if v.loading else v.reload)()
 
     def home_url(self, private=False):
-        """New tabs and Home open the RYTWEAKS start page (logo + search + bookmark tiles)."""
+        """New tabs and Home open the RETWEAKS start page (logo + search + bookmark tiles)."""
         return bd.NEWTAB_PRIVATE_URL if private else bd.NEWTAB_URL
 
     def _refresh_newtab(self):
@@ -712,7 +713,7 @@ class BrowserPage(Page):
                     args.Cancel = True
                     return
             args.ResultFilePath = path
-            args.Handled = True          # RYTWEAKS shows the download, not Edge's own pop-up
+            args.Handled = True          # RETWEAKS shows the download, not Edge's own pop-up
             item = DownloadItem(args.DownloadOperation, path, self._download_changed)
             self.downloads.append(item)
             self._download_changed(item)
@@ -838,7 +839,7 @@ class BrowserPage(Page):
         ver = getattr(self.engine, "version", "") or "not started"
         QMessageBox.information(
             self, "Browser engine",
-            f"Microsoft Edge WebView2 runtime: {ver}\n\nRYTWEAKS draws the tabs, address bar, bookmarks "
+            f"Microsoft Edge WebView2 runtime: {ver}\n\nRETWEAKS draws the tabs, address bar, bookmarks "
             "and history; Microsoft's Edge engine (part of Windows) shows the web pages and keeps itself "
             "updated with Windows.\n\nBookmarks and history: " + str(self.data.path) +
             "\nCookies and cache: " + bd.user_data_dir())

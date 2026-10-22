@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 def build_app():
-    print("Starting RYTWEAKS single-file build process...")
+    print("Starting RETWEAKS single-file build process...")
     
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
@@ -24,7 +24,7 @@ def build_app():
         "--onefile",
         "--windowed",
         "--uac-admin",
-        "--icon=assets/icon.ico",  # Embeds the icon into RYTWEAKS.exe for Windows Explorer
+        "--icon=assets/icon.ico",  # Embeds the icon into RETWEAKS.exe for Windows Explorer
         "--add-data=assets/icon.ico;assets", # Fallback runtime icon
         "--add-data=assets/taskbar.ico;assets",  # Window + taskbar icon (the v1.4 drawing)
         "--collect-submodules=pycaw",        # Audio mixer: pycaw's COM interface modules
@@ -33,12 +33,12 @@ def build_app():
         "--collect-all=clr_loader",
         "--hidden-import=clr",
         *webview2,
-        "--name=RYTWEAKS",
+        "--name=RETWEAKS",
         "main.py"
     ]
 
     subprocess.check_call(cmd)
-    print("Build complete! Check C:\\pc_optimizer\\dist\\RYTWEAKS.exe")
+    print("Build complete! Check C:\\pc_optimizer\\dist\\RETWEAKS.exe")
 
 if __name__ == "__main__":
     build_app()

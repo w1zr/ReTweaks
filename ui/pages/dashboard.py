@@ -32,7 +32,7 @@ class DashboardPage(Page):
 
         self.sensor_notice = Notice(
             "CPU temperature and fan speeds aren't available yet. Windows needs a hardware "
-            "driver for those, so RYTWEAKS reads them from <b>LibreHardwareMonitor</b> "
+            "driver for those, so RETWEAKS reads them from <b>LibreHardwareMonitor</b> "
             "(free, open source) when it's running with its web server on. See <b>Settings → Temperatures &amp; fans</b>.")
         self.sensor_notice.hide()
         self.content.addWidget(self.sensor_notice)

@@ -63,7 +63,7 @@ def appdata(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("name", ["csrss", "WinLogon.exe", "svchost", "System", "Registry", "MsMpEng.exe",
                                   "explorer", "dwm", "audiodg", "lsass", "smss", "wininit", "services",
-                                  "RYTWEAKS.exe", "rytweaks"])
+                                  "RETWEAKS.exe", "retweaks"])
 def test_protected_names_refused(name):
     assert R.is_protected(name)
     ok, msg = R.validate_calm_name(name)

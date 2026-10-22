@@ -28,7 +28,7 @@ def main():
         return 0
     app = QApplication(sys.argv)
     from ui.widgets.edge_view import EdgeView, EnvironmentHolder
-    env = EnvironmentHolder(eng, tempfile.mkdtemp(prefix="rytweaks_browser_"))
+    env = EnvironmentHolder(eng, tempfile.mkdtemp(prefix="retweaks_browser_"))
     result = {"code": 1}
     views = []
 
@@ -39,11 +39,11 @@ def main():
         views.append(v)
 
         def ready():
-            v.wv.NavigateToString("<html><head><title>RYTWEAKS OK</title></head><body>ok</body></html>")
+            v.wv.NavigateToString("<html><head><title>RETWEAKS OK</title></head><body>ok</body></html>")
 
         def title(t):
             report(f"{'Private' if private else 'Normal'} tab works: page title read back as '{t}'")
-            if t == "RYTWEAKS OK":
+            if t == "RETWEAKS OK":
                 done(private)
 
         v.ready.connect(ready)

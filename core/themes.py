@@ -73,7 +73,8 @@ EDITABLE = [("bg", "Background"), ("sidebar", "Sidebar"), ("card", "Cards"), ("b
             ("text", "Text"), ("subtext", "Secondary text"), ("accent", "Accent"),
             ("good", "Good"), ("warn", "Warning"), ("bad", "Error")]
 EDITABLE_KEYS = [k for k, _ in EDITABLE]
-SHARE_PREFIX = "RYT1-"
+SHARE_PREFIX = "RET1-"
+OLD_SHARE_PREFIXES = ("RYT1-",)   # codes shared before the rename still import
 _HEX = _re.compile(r"^#[0-9a-fA-F]{6}$")
 _custom = {}          # name -> full palette, filled from settings by MainWindow
 
@@ -137,7 +138,7 @@ def clean_theme_name(name):
 
 
 def export_code(name, colors):
-    """A short code people can paste into RYTWEAKS to get the same theme."""
+    """A short code people can paste into RETWEAKS to get the same theme."""
     data = {"n": clean_theme_name(name), "c": {k: colors[k].lower() for k in EDITABLE_KEYS}}
     raw = _json.dumps(data, separators=(",", ":")).encode("utf-8")
     return SHARE_PREFIX + _b64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
@@ -146,9 +147,10 @@ def export_code(name, colors):
 def parse_code(code):
     """Returns (ok, name_or_message, colors). Never raises on bad input."""
     code = "".join(str(code or "").split())
-    if not code.startswith(SHARE_PREFIX) or len(code) > 2000:
-        return False, "That isn't a RYTWEAKS theme code (it should start with RYT1-).", None
-    body = code[len(SHARE_PREFIX):]
+    prefix = next((p for p in (SHARE_PREFIX,) + OLD_SHARE_PREFIXES if code.startswith(p)), None)
+    if prefix is None or len(code) > 2000:
+        return False, f"That isn't a RETWEAKS theme code (it should start with {SHARE_PREFIX}).", None
+    body = code[len(prefix):]
     try:
         data = _json.loads(_b64.urlsafe_b64decode(body + "=" * (-len(body) % 4)).decode("utf-8"))
     except Exception:

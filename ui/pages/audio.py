@@ -35,11 +35,11 @@ class VolumeRow(QWidget):
         lay.addWidget(self.mute)
         self.lock = None
         if on_lock is not None:
-            # Volume lock (v1.5): hold this volume; RYTWEAKS puts it back if anything else changes it
+            # Volume lock (v1.5): hold this volume; RETWEAKS puts it back if anything else changes it
             self.lock = QCheckBox("Lock")
-            self.lock.setToolTip("Keep this volume where it is. If an app or Windows changes it, RYTWEAKS "
+            self.lock.setToolTip("Keep this volume where it is. If an app or Windows changes it, RETWEAKS "
                                  "puts it back within half a second. Moving this slider changes the locked "
-                                 "level. Works while RYTWEAKS is running (also from the tray).")
+                                 "level. Works while RETWEAKS is running (also from the tray).")
             self.lock.setChecked(locked is not None)
             self.lock.clicked.connect(lambda checked: on_lock(checked, self.slider.value()))
             lay.addWidget(self.lock)
@@ -117,7 +117,7 @@ class AudioPage(Page):
         self.dev_card.body.addLayout(self.dev_holder)
         note = label(
             "Switching the default device uses IPolicyConfig, an undocumented Windows "
-            "interface that many audio tools rely on. RYTWEAKS checks afterwards whether "
+            "interface that many audio tools rely on. RETWEAKS checks afterwards whether "
             "Windows really changed the default and tells you if it did not.",
             "muted", wrap=True)
         self.dev_card.body.addWidget(note)
@@ -303,7 +303,7 @@ class AudioPage(Page):
             self._fail(what, exc)
 
     def _relock(self, kind, percent):
-        """Moving a locked slider in RYTWEAKS moves the lock with it."""
+        """Moving a locked slider in RETWEAKS moves the lock with it."""
         if self._lock_value(kind) is not None:
             self.ctx.set_volume_lock(kind, percent)
 

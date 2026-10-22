@@ -2,7 +2,7 @@
 """Startup splash: the chip-scan animation (owner choice 2026-10-21, design canvas "Splash C").
 
 The chip outline draws, the pins light up in sequence, a scan line sweeps, the R traces in,
-then the RYTWEAKS wordmark and an honest status line appear.
+then the RETWEAKS wordmark and an honest status line appear.
 
 Timing rules (CLAUDE.md section 18a, owner update 2026-10-21):
 - The reveal always plays at normal speed (about 1.4 s), so it never looks rushed or cut off.
@@ -19,6 +19,7 @@ from PySide6.QtCore import QElapsedTimer, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QWidget
 
+from core.version import BRAND
 from ui.widgets.brand import LOGO_COLOR, paint_chip
 
 WIDTH, HEIGHT = 600, 360
@@ -46,7 +47,7 @@ def _phase(t, span):
     return x * x * (3 - 2 * x)   # smoothstep
 
 
-class RytweaksSplash(QWidget):
+class RetweaksSplash(QWidget):
     done = Signal()      # the fade into the window finished (or the splash was aborted)
 
     def __init__(self):
@@ -171,9 +172,9 @@ class RytweaksSplash(QWidget):
             p.setOpacity(word)
             p.setPen(QColor(LOGO_COLOR))
             f = QFont("Segoe UI", 22, QFont.Bold)
-            f.setLetterSpacing(QFont.AbsoluteSpacing, 8)
+            f.setLetterSpacing(QFont.AbsoluteSpacing, 3)
             p.setFont(f)
-            p.drawText(QRectF(0, 200, WIDTH, 44), Qt.AlignCenter, "RYTWEAKS")
+            p.drawText(QRectF(0, 200, WIDTH, 44), Qt.AlignCenter, BRAND)
             p.setPen(QColor(SUBTEXT))
             p.setFont(QFont("Segoe UI", 9))
             p.drawText(QRectF(0, 250, WIDTH, 24), Qt.AlignCenter, self.status)

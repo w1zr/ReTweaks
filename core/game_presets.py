@@ -156,7 +156,7 @@ def read_text(path):
 
 
 def write_text(path, text, encoding):
-    tmp = str(path) + ".rytweaks.tmp"
+    tmp = str(path) + ".retweaks.tmp"
     with open(tmp, "w", encoding=encoding, newline="") as f:
         f.write(text)
     os.replace(tmp, path)
@@ -177,7 +177,7 @@ def set_read_only(path, locked):
 # ================================================================ backups
 
 def backup_dir(game_id):
-    base = Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "game_backups" / game_id
+    base = Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "game_backups" / game_id
     base.mkdir(parents=True, exist_ok=True)
     return base
 
@@ -218,7 +218,7 @@ def list_backups(game_id):
         except Exception:
             continue
         pinned = f.name.startswith("ORIGINAL__")
-        when = "Original (before RYTWEAKS)" if pinned else f.name.split("__")[0].replace("_", " ")
+        when = "Original (before RETWEAKS)" if pinned else f.name.split("__")[0].replace("_", " ")
         out.append({"file": f, "original": original, "when": when, "pinned": pinned})
     return out
 
@@ -235,7 +235,7 @@ def restore_backup(game_id, backup):
         data = Path(backup["file"]).read_bytes()  # read it before making a new backup
         if os.path.exists(target):
             make_backup(game_id, target)
-        tmp = str(target) + ".rytweaks.tmp"
+        tmp = str(target) + ".retweaks.tmp"
         Path(tmp).write_bytes(data)
         os.replace(tmp, target)
         if was_locked:
@@ -464,7 +464,7 @@ def apply_changes(game_id, path, fmt, changes):
 # ================================================================ user's own files and presets
 
 def _user_store():
-    return Path(os.getenv("APPDATA") or Path.home()) / "RYTWEAKS" / "custom_presets.json"
+    return Path(os.getenv("APPDATA") or Path.home()) / "RETWEAKS" / "custom_presets.json"
 
 
 def load_custom():
@@ -492,7 +492,7 @@ def add_custom_file(path, name=None):
     text, _ = read_text(path)
     fmt = detect_format(text)
     if not FORMATS[fmt].parse(text):
-        return None, "RYTWEAKS couldn't find any settings in that file (it supports key=value, key:value and \"key\" \"value\" files)."
+        return None, "RETWEAKS couldn't find any settings in that file (it supports key=value, key:value and \"key\" \"value\" files)."
     data = load_custom()
     fid = "custom_" + re.sub(r"[^a-z0-9]+", "_", (name or Path(path).stem).lower()).strip("_")
     base, n = fid, 2
@@ -508,7 +508,8 @@ def add_custom_file(path, name=None):
 # User presets live in custom_presets.json under "presets"[game_or_file_id][name] = {key: value}.
 # That format is unchanged, so presets saved by earlier versions keep loading.
 
-PRESET_FORMAT = "rytweaks-preset"
+PRESET_FORMAT = "retweaks-preset"
+OLD_PRESET_FORMATS = ("rytweaks-preset",)   # files exported before the rename still import
 PRESET_VERSION = 1
 MAX_IMPORT_BYTES = 256 * 1024
 MAX_PRESET_KEYS = 500
@@ -557,7 +558,7 @@ def validate_settings(settings, allowed_keys=None):
                 or any(ord(c) < 32 for c in k):
             return False, "The preset contains an invalid setting name."
         if allowed_keys is not None and k not in allowed_keys:
-            return False, f"“{k}” is not a setting RYTWEAKS knows for this game."
+            return False, f"“{k}” is not a setting RETWEAKS knows for this game."
         if isinstance(v, bool):
             continue
         if isinstance(v, (int, float)):
@@ -681,14 +682,14 @@ def parse_preset_file(raw, entry_id):
     try:
         data = json.loads(raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, ValueError):
-        return False, "That file isn't a valid RYTWEAKS preset (it isn't readable JSON).", None, None
-    if not isinstance(data, dict) or data.get("format") != PRESET_FORMAT:
-        return False, "That file isn't a RYTWEAKS preset export.", None, None
+        return False, "That file isn't a valid RETWEAKS preset (it isn't readable JSON).", None, None
+    if not isinstance(data, dict) or data.get("format") not in (PRESET_FORMAT,) + OLD_PRESET_FORMATS:
+        return False, "That file isn't a RETWEAKS preset export.", None, None
     version = data.get("version")
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         return False, "The preset file has no valid version.", None, None
     if version > PRESET_VERSION:
-        return False, "That preset was made by a newer RYTWEAKS. Update RYTWEAKS to import it.", None, None
+        return False, "That preset was made by a newer RETWEAKS. Update RETWEAKS to import it.", None, None
     if data.get("game") != entry_id:
         return False, (f"That preset is for “{data.get('game')}”, not for the game you have selected."), None, None
     ok, name = clean_name(data.get("name"))

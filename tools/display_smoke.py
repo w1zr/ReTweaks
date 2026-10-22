@@ -1,4 +1,4 @@
-"""CI check on GitHub's Windows runner: calls the real Windows display functions RYTWEAKS uses
+"""CI check on GitHub's Windows runner: calls the real Windows display functions RETWEAKS uses
 (QueryDisplayConfig names/native size + EnumDisplaySettings modes) and reports what Windows returned
 as build annotations. A runner has no real monitor, so this proves the calls work, not specific values."""
 import os
