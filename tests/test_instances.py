@@ -121,8 +121,14 @@ def test_second_launch_brings_running_copy_to_front(monkeypatch, tmp_path):
         def show_from_tray(self):
             Win.shown += 1
 
-    w = Win()
+    w = Win()                                         # hidden, like a window in the tray
     server = main._listen_for_show(w)
     assert server is not None
-    assert "RESULT True" in run_client() and Win.shown == 1
+    assert "RESULT True" in run_client()              # answered right away, animation starts
+    assert w._reopen_splash is not None and w._reopen_splash.isVisible()
+    end = time.time() + 6                             # reveal (~1.4 s) + hold + fade, then the window
+    while Win.shown == 0 and time.time() < end:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+    assert Win.shown == 1 and w._reopen_splash is None
     server.close()
