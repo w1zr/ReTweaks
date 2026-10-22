@@ -12,6 +12,9 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("Theme maker", "Pick every color yourself, preview it live, save it, and share it as a code."),
+    ("Discord status", "Show \"Optimizing with RYTWEAKS\" or the game you're playing on Discord (off until "
+                       "you turn it on in Settings)."),
     ("Themes", "Seven full-UI themes: Midnight, Super Black, Galaxy, Ocean, Ember, Forest and Light. "
                "Pick one in Settings → Appearance."),
     ("Dashboard banner", "CPU cores (live load per thread), Load wave (live), Circuit traces or Galaxy. "

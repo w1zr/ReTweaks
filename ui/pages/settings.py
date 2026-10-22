@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLineEdit, QMe
 
 from core import autostart, updater
 from core.report import build_report, report_to_text
-from core.themes import THEMES
+from core.themes import THEMES, custom_theme_names
 
 HEADER_STYLES = [("Small chip + wordmark", "chip"), ("Wordmark only", "wordmark")]
 BANNER_STYLES = [("CPU cores (live)", "cores"), ("Load wave (live)", "wave"), ("Circuit traces", "circuit"),
@@ -50,7 +50,7 @@ class SettingsPage(Page):
         row = QHBoxLayout()
         row.addWidget(label("Theme", "cardLine"))
         self.theme = QComboBox()
-        self.theme.addItems(list(THEMES.keys()))
+        self.theme.addItems(list(THEMES.keys()) + custom_theme_names())
         self.theme.setCurrentText(s.get("theme", "Midnight"))
         self.theme.currentTextChanged.connect(ctx.set_theme)
         row.addWidget(self.theme)
@@ -97,6 +97,16 @@ class SettingsPage(Page):
                                   "CPU cores and Load wave show real live readings; Circuit and Galaxy are "
                                   "decoration.", "muted", wrap=True))
         self.content.addWidget(look)
+
+        # ---------------- Theme maker (v1.4.3)
+        from ui.widgets.theme_maker import ThemeMakerCard
+        self.theme_maker = ThemeMakerCard(ctx, on_saved=self.reload_theme_list)
+        self.content.addWidget(self.theme_maker)
+
+        # ---------------- Discord status (v1.4.3)
+        from ui.widgets.discord_card import DiscordCard
+        self.discord_card = DiscordCard(ctx, ctx.discord)
+        self.content.addWidget(self.discord_card)
 
         # ---------------- Behavior
         beh = Card("Behavior")
@@ -201,6 +211,14 @@ class SettingsPage(Page):
         self.finish()
 
     # ------------------------------------------------------------ appearance
+    def reload_theme_list(self):
+        """After the theme maker saves or deletes a theme: refresh the Theme list without re-applying."""
+        self.theme.blockSignals(True)
+        self.theme.clear()
+        self.theme.addItems(list(THEMES.keys()) + custom_theme_names())
+        self.theme.setCurrentText(self.ctx.settings.get("theme", "Midnight"))
+        self.theme.blockSignals(False)
+
     def apply_hex(self):
         text = self.hex.text().strip()
         if text and not text.startswith("#"):

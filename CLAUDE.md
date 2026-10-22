@@ -107,6 +107,8 @@ Rewrites are allowed, but they are the most likely way to lose features. Follow 
 - Built-in themes: Midnight black/grey (the default) plus accent themes Pink, Blue, Purple, Red, Green and Cyan. Full-UI themes (v1.4.1, owner choice): Super Black (pure black/OLED), Galaxy (with a static starfield backdrop), Ocean, Ember, Forest and Light. The logo uses the theme's `logo` token: grey/white on dark themes, dark on Light.
 - Dashboard banner (v1.4.1): setting `banner_style` = `cores` (default, live per-thread load), `wave` (live CPU load), `circuit`, `galaxy` or `off`. It animates only while visible and not minimized.
 - Custom accent color through a validated HEX input.
+- Theme maker (v1.4.3): users build themes from 10 editable colors (`core/themes.py` EDITABLE); the rest are derived. Saved in settings `custom_themes` {name: colors}; built-in names can't be reused. Share codes `RYT1-` + base64 JSON, validated on import (hex colors only).
+- Discord status (v1.4.3): `core/discord_rpc.py`, local Discord IPC only, off by default (`discord_status`, `discord_show_game`). Public Application ID 1562695957651521627; large image asset name `rytweaks`.
 - Use centralized theme tokens. Never hardcode colors across the UI.
 - Apply the theme consistently to buttons, active navigation, switches, sliders, highlights and focus states.
 - Keep the dark foundation unless the user picks a supported light mode.

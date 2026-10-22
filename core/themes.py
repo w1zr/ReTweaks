@@ -63,6 +63,125 @@ FULL_THEMES = {
 THEMES.update(FULL_THEMES)
 
 
+# ---------------------------------------------------------------- theme maker (v1.4.3)
+
+import base64 as _b64
+import json as _json
+import re as _re
+
+EDITABLE = [("bg", "Background"), ("sidebar", "Sidebar"), ("card", "Cards"), ("border", "Borders"),
+            ("text", "Text"), ("subtext", "Secondary text"), ("accent", "Accent"),
+            ("good", "Good"), ("warn", "Warning"), ("bad", "Error")]
+EDITABLE_KEYS = [k for k, _ in EDITABLE]
+SHARE_PREFIX = "RYT1-"
+_HEX = _re.compile(r"^#[0-9a-fA-F]{6}$")
+_custom = {}          # name -> full palette, filled from settings by MainWindow
+
+
+def _rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _hex(rgb):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(v))) for v in rgb)
+
+
+def mix(a, b, t):
+    """Blend color a toward b by t (0..1)."""
+    ra, rb = _rgb(a), _rgb(b)
+    return _hex([x + (y - x) * t for x, y in zip(ra, rb)])
+
+
+def luminance(h):
+    def ch(c):
+        c /= 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (ch(c) for c in _rgb(h))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    """WCAG contrast ratio, 1..21. 4.5 or more is comfortable for normal text."""
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def build_palette(colors):
+    """Full theme from the 10 editable colors (the rest are derived so everything stays consistent)."""
+    c = {k: colors[k].lower() for k in EDITABLE_KEYS}
+    light = luminance(c["bg"]) > 0.4
+    c["card_hover"] = mix(c["card"], c["text"], 0.06)
+    c["input"] = mix(c["card"], c["text"], 0.05)
+    c["muted"] = mix(c["subtext"], c["bg"], 0.35)
+    c["logo"] = c["text"] if light else "#e8eaed"
+    if light:
+        c["light"] = True
+    return c
+
+
+def validate_colors(colors):
+    """Returns (ok, message). All 10 colors must be #rrggbb."""
+    if not isinstance(colors, dict):
+        return False, "The theme has no colors."
+    for k in EDITABLE_KEYS:
+        v = colors.get(k)
+        if not isinstance(v, str) or not _HEX.match(v):
+            return False, f"'{dict(EDITABLE)[k]}' must be a color like #1a2b3c."
+    return True, ""
+
+
+def clean_theme_name(name):
+    name = " ".join(str(name or "").split())[:32]
+    return name
+
+
+def export_code(name, colors):
+    """A short code people can paste into RYTWEAKS to get the same theme."""
+    data = {"n": clean_theme_name(name), "c": {k: colors[k].lower() for k in EDITABLE_KEYS}}
+    raw = _json.dumps(data, separators=(",", ":")).encode("utf-8")
+    return SHARE_PREFIX + _b64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def parse_code(code):
+    """Returns (ok, name_or_message, colors). Never raises on bad input."""
+    code = "".join(str(code or "").split())
+    if not code.startswith(SHARE_PREFIX) or len(code) > 2000:
+        return False, "That isn't a RYTWEAKS theme code (it should start with RYT1-).", None
+    body = code[len(SHARE_PREFIX):]
+    try:
+        data = _json.loads(_b64.urlsafe_b64decode(body + "=" * (-len(body) % 4)).decode("utf-8"))
+    except Exception:
+        return False, "The theme code is damaged or incomplete.", None
+    if not isinstance(data, dict):
+        return False, "The theme code is damaged or incomplete.", None
+    colors = data.get("c")
+    ok, msg = validate_colors(colors)
+    if not ok:
+        return False, msg, None
+    name = clean_theme_name(data.get("n")) or "Shared theme"
+    return True, name, {k: colors[k].lower() for k in EDITABLE_KEYS}
+
+
+def set_custom_themes(saved):
+    """saved: {name: {10 editable colors}} from settings. Bad entries are skipped, never deleted."""
+    _custom.clear()
+    for name, colors in (saved or {}).items():
+        if name in THEMES or not validate_colors(colors)[0]:
+            continue
+        _custom[name] = build_palette(colors)
+
+
+def custom_theme_names():
+    return list(_custom)
+
+
+def editable_colors(theme_name):
+    """The 10 editable colors of any theme (built-in or custom), as a starting point."""
+    t = get_theme(theme_name)
+    return {k: t[k] for k in EDITABLE_KEYS}
+
+
 def _on_accent(hex_color):
     """Black or white text, whichever reads better on the accent color."""
     h = hex_color.lstrip("#")
@@ -71,7 +190,7 @@ def _on_accent(hex_color):
 
 
 def get_theme(theme_name="Midnight", custom_accent=None):
-    t = dict(THEMES.get(theme_name, THEMES["Midnight"]))
+    t = dict(THEMES.get(theme_name) or _custom.get(theme_name) or THEMES["Midnight"])
     if custom_accent:
         t["accent"] = custom_accent
     t["on_accent"] = _on_accent(t["accent"])
