@@ -2,6 +2,7 @@
 """Startup apps manager (moved from the old main_window.py; behavior unchanged)."""
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
                                QPushButton, QTableWidget, QTableWidgetItem)
 
@@ -155,7 +156,7 @@ class StartupPage(Page):
             self.table.setItem(r, 1, QTableWidgetItem(e.get("publisher", "Unknown")))
             self.table.setItem(r, 2, QTableWidgetItem(source))
             st = QTableWidgetItem("Managed in Settings" if managed else status)
-            st.setForeground(Qt.red if status == "Disabled" else Qt.green)
+            st.setForeground(QColor(self.ctx.theme["bad"] if status == "Disabled" else self.ctx.theme["good"]))
             self.table.setItem(r, 3, st)
             self.table.setItem(r, 4, QTableWidgetItem(scope))
         self.table.blockSignals(False)

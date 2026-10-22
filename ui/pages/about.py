@@ -12,6 +12,12 @@ REPO_URL = "https://github.com/w1zr/rytweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
+    ("Themes", "Seven full-UI themes: Midnight, Super Black, Galaxy, Ocean, Ember, Forest and Light. "
+               "Pick one in Settings → Appearance."),
+    ("Dashboard banner", "CPU cores (live load per thread), Load wave (live), Circuit traces or Galaxy. "
+                         "Change or turn it off in Settings."),
+    ("Header and icon", "The chip logo next to the wordmark (or wordmark only, in Settings) and a sharper "
+                        "icon for the .exe file."),
     ("New look", "Chip logo and startup animation, new app icon, line icons in the sidebar, "
                  "a sliding accent bar and smooth page fades."),
     ("Health Check", "One scan of startup apps, temp files, power plan, disk health, free space, "

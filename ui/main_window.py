@@ -148,12 +148,21 @@ class MainWindow(QMainWindow):
         outer = QVBoxLayout(side)
         outer.setContentsMargins(0, 22, 0, 16)
         outer.setSpacing(2)
-        brand = label(APP_NAME, "brand")          # wordmark only, no logo beside it (CLAUDE.md section 5)
-        brand.setContentsMargins(12, 0, 12, 0)
-        outer.addWidget(brand)
+        # Header: small chip + wordmark by default; "Wordmark only" in Settings (owner choice 2026-10-21)
+        from ui.widgets.brand import ChipLogo
+        head = QHBoxLayout()
+        head.setContentsMargins(12, 0, 12, 0)
+        head.setSpacing(9)
+        self.header_chip = ChipLogo(26)
+        head.addWidget(self.header_chip, 0, Qt.AlignVCenter)
+        brand = label(APP_NAME, "brand")
+        head.addWidget(brand, 0, Qt.AlignVCenter)
+        head.addStretch(1)
+        outer.addLayout(head)
         ver = label(f"Version {__version__}", "brandVersion")
-        ver.setContentsMargins(12, 0, 12, 0)
+        self.header_version = ver
         outer.addWidget(ver)
+        self.apply_header_style(self.settings.get("header_style", "chip"))
 
         # 20 pages don't fit short screens, so the page list scrolls
         scroll = QScrollArea()
@@ -403,8 +412,26 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ theme + settings
 
+    def apply_header_style(self, style):
+        chip = style != "wordmark"
+        self.header_chip.setVisible(chip)
+        # line the version up under the wordmark
+        self.header_version.setContentsMargins(12 + (35 if chip else 0), 0, 12, 0)
+
     def apply_theme(self):
-        self.setStyleSheet(get_stylesheet(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent")))
+        from ui.widgets import brand
+        brand.set_logo_color(self.theme.get("logo"))
+        qss = get_stylesheet(self.settings.get("theme", "Midnight"), self.settings.get("custom_accent"))
+        if self.theme.get("stars"):
+            try:
+                path = brand.galaxy_backdrop_path().replace("\\", "/")
+                qss += (f"\nQScrollArea#pageScroll {{ background-color: {self.theme['bg']}; "
+                        f"background-image: url('{path}'); background-position: top right; "
+                        "background-attachment: fixed; }\n"
+                        "QWidget#pageInner { background: transparent; }\n")
+            except Exception:
+                pass      # the starfield is decoration only; the plain Galaxy colors still apply
+        self.setStyleSheet(qss)
         # Links in labels (Settings → LibreHardwareMonitor, GitHub) use the accent color
         pal = QApplication.palette()
         for role in (QPalette.Link, QPalette.LinkVisited):
@@ -414,11 +441,19 @@ class MainWindow(QMainWindow):
             p.on_theme(self.theme)
         if hasattr(self, "nav_group"):
             self._apply_nav_icons()
+        if hasattr(self, "header_chip"):
+            self.header_chip.update()
 
     def set_setting(self, key, value):
         self.settings[key] = value
         if key == "temp_unit":
             common.TEMP_UNIT["unit"] = value
+        elif key == "header_style":
+            self.apply_header_style(value)
+        elif key == "banner_style":
+            for p in self.pages:
+                if hasattr(p, "on_banner_changed"):
+                    p.on_banner_changed(value)
         self._save_settings()
 
     def set_custom_accent(self, hex_color):

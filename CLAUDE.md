@@ -97,14 +97,15 @@ Rewrites are allowed, but they are the most likely way to lose features. Follow 
 - Smooth, short transitions for navigation, buttons, loading states and dialogs. They must not make the app feel slow.
 - Navigation gets a subtle click or selection animation. Buttons respond to hover and press.
 - Use monochrome icons. No picture emojis (the colorful phone-style ones) anywhere in the app UI. Plain text symbols such as ✔ ✖ → • are fine (owner clarification 2026-10-21).
-- The main header shows the RYTWEAKS wordmark with **no logo beside it**. The splash screen may show the logo.
+- The sidebar header shows the small chip logo next to the RYTWEAKS wordmark by default (owner choice 2026-10-21). Settings → Appearance → Sidebar header can switch to "Wordmark only" (setting `header_style`: `chip` / `wordmark`).
 - Pop-ups and dialogs match the app's style, with clear confirm and cancel options and real outcomes.
 - No fake progress bars or artificial waits.
 - Accessibility: readable contrast, keyboard navigation where practical, visible focus states and a layout that scales.
 - A targeted UI request gets a targeted change, not a redesign.
 
 ### Themes
-- Built-in themes: black/grey (the default), pink and blue. Purple, red, green and cyan are optional extras if they fit cleanly.
+- Built-in themes: Midnight black/grey (the default) plus accent themes Pink, Blue, Purple, Red, Green and Cyan. Full-UI themes (v1.4.1, owner choice): Super Black (pure black/OLED), Galaxy (with a static starfield backdrop), Ocean, Ember, Forest and Light. The logo uses the theme's `logo` token: grey/white on dark themes, dark on Light.
+- Dashboard banner (v1.4.1): setting `banner_style` = `cores` (default, live per-thread load), `wave` (live CPU load), `circuit`, `galaxy` or `off`. It animates only while visible and not minimized.
 - Custom accent color through a validated HEX input.
 - Use centralized theme tokens. Never hardcode colors across the UI.
 - Apply the theme consistently to buttons, active navigation, switches, sliders, highlights and focus states.
@@ -314,7 +315,6 @@ Gemini was removed in v1.2 and brought back in v1.4 as the **AI Assistant** tab,
 - The FPS overlay only shows over borderless/windowed-fullscreen games; exclusive fullscreen draws over it. It must never be changed to inject into game processes (anti-cheat).
 - The FPS test needs the user to download Intel PresentMon (2.x console app); RYTWEAKS doesn't bundle it.
 - Audio output switching uses pycaw's SetDefaultDevice (the undocumented IPolicyConfig interface), so it's labelled as such and falls back to Windows Sound settings.
-- The sidebar header is wordmark-only; the owner hasn't picked between the two header options on the design canvas yet.
 
 ## 18a. Feature backlog (approved by the owner, not built yet)
 
@@ -366,7 +366,7 @@ A change is not done until each applicable item is verified:
 - [ ] Existing preferences and profiles still load, and new settings persist.
 - [ ] Any migration is backward-compatible and preserves old data.
 - [ ] The UI fits the black/grey rounded design, with no picture emojis and no "Galaxy Optimizer".
-- [ ] No logo sits beside the RYTWEAKS header wordmark.
+- [ ] The sidebar header follows the `header_style` setting (chip + wordmark by default).
 - [ ] The splash is centered and sized correctly, animates smoothly, and shows no version number.
 - [ ] The taskbar and window use the RYTWEAKS icon.
 - [ ] Hardware data, including the exact GPU name, comes from real detection. Unsupported metrics show "Unavailable".

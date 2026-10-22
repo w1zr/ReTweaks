@@ -3,6 +3,7 @@
 
 from PySide6.QtWidgets import QGridLayout
 
+from ui.widgets.banners import DashboardBanner, normalize_style
 from ui.widgets.charts import MetricCard
 from ui.widgets.common import Card, Notice, Page, fmt, fmt_rate, join, label, temp_text, NA
 
@@ -21,6 +22,11 @@ class DashboardPage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
+        style = normalize_style((getattr(ctx, "settings", None) or {}).get("banner_style", "cores"))
+        self.banner = DashboardBanner(ctx, style)
+        self.banner.setVisible(style != "off")
+        self.content.addWidget(self.banner)
+
         self.summary = label("Scanning hardware…", "pageSubtitle", wrap=True)
         self.content.addWidget(self.summary)
 
@@ -58,7 +64,14 @@ class DashboardPage(Page):
         rows = (len(self._all_cards()) + 1) // 2
         self.grid.addWidget(self.fans, rows, 0, 1, 2)
 
+    def on_banner_changed(self, style):
+        """Settings changed banner_style: 'off' hides it (no timers run)."""
+        style = normalize_style(style)
+        self.banner.set_style(style)
+        self.banner.setVisible(style != "off")
+
     def on_theme(self, theme):
+        self.banner.apply_theme(theme)
         for card in self._all_cards():
             card.set_theme(theme)
 
@@ -73,6 +86,10 @@ class DashboardPage(Page):
         self.summary.setText((pc + " · " if pc else "") + " · ".join(p for p in parts if p))
 
     def on_telemetry(self, s):
+        try:
+            self.banner.feed_sample(s)
+        except Exception:
+            pass  # a decorative banner must never break the live cards
         cpu, ram, io, sensors = s["cpu"], s["ram"], s["io"], s.get("sensors")
         static = self.ctx.static or {}
         scpu = static.get("cpu", {})

@@ -166,9 +166,11 @@ class Page(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")      # the Galaxy theme draws its starfield here
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         inner = QWidget()
+        inner.setObjectName("pageInner")
         self.content = QVBoxLayout(inner)
         self.content.setContentsMargins(32, 28, 32, 28)
         self.content.setSpacing(16)

@@ -12,6 +12,10 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLineEdit, QMe
 from core import autostart, updater
 from core.report import build_report, report_to_text
 from core.themes import THEMES
+
+HEADER_STYLES = [("Small chip + wordmark", "chip"), ("Wordmark only", "wordmark")]
+BANNER_STYLES = [("CPU cores (live)", "cores"), ("Load wave (live)", "wave"), ("Circuit traces", "circuit"),
+                 ("Galaxy", "galaxy"), ("Off", "off")]
 from core.version import APP_NAME, __version__
 from ui.widgets.common import Card, Page, label, set_role
 
@@ -66,6 +70,32 @@ class SettingsPage(Page):
         look.body.addLayout(row)
         self.hex_msg = label("", "muted")
         look.body.addWidget(self.hex_msg)
+
+        row = QHBoxLayout()
+        row.addWidget(label("Sidebar header", "cardLine"))
+        self.header_style = QComboBox()
+        for text, key in HEADER_STYLES:
+            self.header_style.addItem(text, key)
+        self.header_style.setCurrentIndex(1 if s.get("header_style") == "wordmark" else 0)
+        self.header_style.currentIndexChanged.connect(
+            lambda _i: ctx.set_setting("header_style", self.header_style.currentData()))
+        row.addWidget(self.header_style)
+        row.addSpacing(20)
+        row.addWidget(label("Dashboard banner", "cardLine"))
+        self.banner_style = QComboBox()
+        for text, key in BANNER_STYLES:
+            self.banner_style.addItem(text, key)
+        keys = [k for _, k in BANNER_STYLES]
+        cur = s.get("banner_style", "cores")
+        self.banner_style.setCurrentIndex(keys.index(cur) if cur in keys else 0)
+        self.banner_style.currentIndexChanged.connect(
+            lambda _i: ctx.set_setting("banner_style", self.banner_style.currentData()))
+        row.addWidget(self.banner_style)
+        row.addStretch()
+        look.body.addLayout(row)
+        look.body.addWidget(label("Banners only animate while the Dashboard is open and RYTWEAKS isn't minimized. "
+                                  "CPU cores and Load wave show real live readings; Circuit and Galaxy are "
+                                  "decoration.", "muted", wrap=True))
         self.content.addWidget(look)
 
         # ---------------- Behavior

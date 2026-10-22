@@ -32,6 +32,36 @@ ACCENTS = {
 
 THEMES = {name: {**BASE, "accent": accent} for name, accent in ACCENTS.items()}
 
+# Full-UI themes (v1.4.1, owner choice): each recolors the background, sidebar, cards, borders,
+# text and accent. "logo" is the chip/logo color: grey/white on dark themes, dark on Light.
+FULL_THEMES = {
+    "Super Black": {"bg": "#000000", "sidebar": "#000000", "card": "#0a0a0a", "card_hover": "#141414",
+                    "input": "#101010", "border": "#1f1f1f", "text": "#f2f2f2", "subtext": "#a3a3a3",
+                    "muted": "#6b6b6b", "good": "#3fb950", "warn": "#d29922", "bad": "#f85149",
+                    "accent": "#a3a3a3"},
+    "Galaxy": {"bg": "#0c0a1d", "sidebar": "#100d24", "card": "#171334", "card_hover": "#1e1940",
+               "input": "#1d1840", "border": "#2b2452", "text": "#eeebff", "subtext": "#aaa4d8",
+               "muted": "#726c9f", "good": "#4ade80", "warn": "#fbbf24", "bad": "#f87171",
+               "accent": "#8b5cf6", "stars": True},
+    "Ocean": {"bg": "#0a1220", "sidebar": "#0d1628", "card": "#111d33", "card_hover": "#16243d",
+              "input": "#15233d", "border": "#1f3050", "text": "#e6f0ff", "subtext": "#9db2cf",
+              "muted": "#647a99", "good": "#34d399", "warn": "#fbbf24", "bad": "#f87171",
+              "accent": "#22d3ee"},
+    "Ember": {"bg": "#120e0c", "sidebar": "#17120f", "card": "#1e1814", "card_hover": "#261f1a",
+              "input": "#251d18", "border": "#352820", "text": "#f5ece6", "subtext": "#c2ad9f",
+              "muted": "#857266", "good": "#4ade80", "warn": "#facc15", "bad": "#f87171",
+              "accent": "#f97316"},
+    "Forest": {"bg": "#0b120f", "sidebar": "#0e1713", "card": "#131e19", "card_hover": "#18261f",
+               "input": "#17251f", "border": "#22342b", "text": "#e7f3ec", "subtext": "#a1b9ad",
+               "muted": "#677d72", "good": "#4ade80", "warn": "#fbbf24", "bad": "#f87171",
+               "accent": "#10b981"},
+    "Light": {"bg": "#f4f5f7", "sidebar": "#eceef1", "card": "#ffffff", "card_hover": "#f0f2f5",
+              "input": "#e9ecf0", "border": "#d6dae0", "text": "#16181c", "subtext": "#4b5260",
+              "muted": "#7a8190", "good": "#15803d", "warn": "#a16207", "bad": "#b91c1c",
+              "accent": "#4b5563", "logo": "#16181c", "light": True},
+}
+THEMES.update(FULL_THEMES)
+
 
 def _on_accent(hex_color):
     """Black or white text, whichever reads better on the accent color."""
@@ -45,6 +75,7 @@ def get_theme(theme_name="Midnight", custom_accent=None):
     if custom_accent:
         t["accent"] = custom_accent
     t["on_accent"] = _on_accent(t["accent"])
+    t.setdefault("logo", "#e8eaed")      # chip/logo color: grey/white except on Light
     return t
 
 
