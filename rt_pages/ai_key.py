@@ -12,6 +12,7 @@ import webbrowser
 from pathlib import Path
 
 AI_STUDIO_URL = "https://aistudio.google.com/apikey"
+LIMITS_URL = "https://aistudio.google.com/rate-limit"   # per-model limits for your own key (Google docs)
 KEY_RE = re.compile(r"^[A-Za-z0-9._\-]{20,200}$")
 
 
@@ -118,3 +119,58 @@ def build_card(hub, parent, g, on_change):
     refresh_status()
     box.refresh_status = refresh_status
     return box
+
+
+# ------------------------------------------------------------------ model choice
+# Owner request 2026-10-23: choose the Gemini model like RETWEAKS v1.4-v1.6 did. Same setting key as before
+# (ai_model), so a model picked in v1.6 is kept. "" = Automatic: the helper picks the lightweight Flash-Lite model
+# (fast, and the most generous free quota). The list comes from Google for the key in use (helper "Load models").
+SETTING = "ai_model"
+AUTO = "Automatic (newest Flash-Lite)"
+
+
+def saved_model(hub):
+    return str((getattr(hub, "settings", {}) or {}).get(SETTING) or "").strip()
+
+
+def build_model_row(hub, parent, g, send):
+    """Model dropdown for the AI assistant page. send(dict) passes a command to the AI helper."""
+    bg = g["BG"]
+    row = tk.Frame(parent, bg=bg)
+    row.pack(fill="x", pady=(2, 4))
+    tk.Label(row, text="Model", bg=bg, fg=g["FG"], font=(g["UI"], 10, "bold")).pack(side="left", padx=(0, 10))
+    saved = saved_model(hub)
+    select = g["RSelect"](row, [AUTO] + ([saved] if saved else []), width=300, command=lambda v: choose(v))
+    select.set(saved or AUTO)
+    select.pack(side="left")
+    g["RButton"](row, "See my limits", lambda: webbrowser.open(LIMITS_URL), kind="ghost").pack(side="left",
+                                                                                            padx=(8, 0))
+    note = tk.Label(row, text="The list loads from Google when the AI starts.", bg=bg, fg=g["MUTED"],
+                    font=(g["UI"], 9), anchor="w")
+    note.pack(side="left", padx=(10, 0))
+
+    def choose(value):
+        name = "" if value == AUTO else str(value).strip()
+        hub.settings[SETTING] = name
+        from rt_pages import settings_store
+        settings_store.save(hub.settings)
+        send({"op": "model", "name": name})
+        note.configure(text=f"Using {name}." if name else "Using the automatic choice.")
+
+    def set_models(names, selected="", preferred="", found=True):
+        names = [str(n) for n in (names or []) if str(n).strip()]
+        select.values = [AUTO] + names
+        current = saved_model(hub)
+        if current and current in names:
+            select.set(current)
+            note.configure(text=f"Using {current}. {len(names)} models available for this key.")
+        elif current:
+            select.set(AUTO)
+            note.configure(text=f"{current} isn't available for this key, so the automatic choice ({selected}) is used.")
+        else:
+            select.set(AUTO)
+            note.configure(text=f"Automatic: {selected}. {len(names)} models available for this key."
+                           if selected else f"{len(names)} models available for this key.")
+
+    row.select, row.set_models, row.choose = select, set_models, choose
+    return row

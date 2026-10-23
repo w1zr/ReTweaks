@@ -39,4 +39,28 @@ assert "Using your own key" in card.winfo_children()[1].cget("text")
 assert ai_key.is_key_error("Google HTTP 401: API key not valid. Please pass a valid API key.")
 print("PASS: AI own-key card — saves encrypted where the helper reads it, rejects junk, hides the key, "
       "removes it, restarts the AI on save; key errors are recognised.")
+
+# ---- model picker (setting ai_model, same key as RETWEAKS v1.6)
+import json
+sent = []
+hub.ai_bridge = type("B", (), {"send": lambda self, m: sent.append(m), "close": lambda self, **k: None})()
+row = hub.ai_model_row
+assert row.select.get() == ai_key.AUTO
+names = ["gemini-2.5-flash-lite", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+row.set_models(names, "gemini-3.5-flash-lite", "", False)
+assert row.select.values == [ai_key.AUTO] + names and "Automatic: gemini-3.5-flash-lite" in row.winfo_children()[-1].cget("text")
+hub.show_tab(20); pump()
+sel = row.select
+sel.event_generate("<ButtonRelease-1>", x=10, y=10); pump()
+pop = sel.popup; i = sel.values.index("gemini-3.5-flash"); y = 6 + i * 34 + 17
+pop.event_generate("<Motion>", x=40, y=y); pop.event_generate("<ButtonRelease-1>", x=40, y=y); pump()
+cfg = json.load(open(os.path.join(TMP, "RETWEAKS", "config.json")))
+assert cfg["ai_model"] == "gemini-3.5-flash" and sent[-1] == {"op": "model", "name": "gemini-3.5-flash"}, (cfg.get("ai_model"), sent)
+# a saved model the key doesn't offer falls back to automatic, and says so
+hub.settings["ai_model"] = "gemini-3.8-flash"
+row.set_models(names, "gemini-3.5-flash-lite", "gemini-3.8-flash", False)
+assert row.select.get() == ai_key.AUTO and "isn't available" in row.winfo_children()[-1].cget("text")
+row.choose(ai_key.AUTO); assert hub.settings["ai_model"] == "" and sent[-1] == {"op": "model", "name": ""}
+print("PASS: AI model picker — lists the key's models, saves ai_model on click and tells the helper, "
+      "falls back to automatic when a saved model isn't offered.")
 hub.destroy()

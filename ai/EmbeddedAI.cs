@@ -137,15 +137,7 @@ class EmbeddedAI {
             if(!modelsLoaded) {
                 Status("Connecting to Gemini and checking available modelsâ€¦");
                 await InvokeTask("LoadModels");
-                var models=(ComboBox)Field("model");
-                int lightweight=-1;
-                for(int i=0;i<models.Items.Count;i++) {
-                    string name=Convert.ToString(models.Items[i]);
-                    if(name.EndsWith("gemini-flash-lite-latest")) {lightweight=i;break;}
-                    if(lightweight<0 && name.Contains("flash-lite") && !name.Contains("preview"))lightweight=i;
-                }
-                if(lightweight>=0)models.SelectedIndex=lightweight;
-                modelsLoaded=models.Items.Count>0;
+                ApplyModelChoice();
             }
             Status("Sendingâ€¦ waiting for Gemini.");
             await InvokeTask("Send");
@@ -224,6 +216,28 @@ class EmbeddedAI {
         if(history!=null) history.TextChanged+=(s,e)=>FormatHistory(history);
         foreach(Control child in control.Controls) AttachPaintFixes(child);
     }
+    // Model choice (AI assistant page, setting ai_model): "" = automatic (the newest non-preview Flash-Lite model).
+    static string preferredModel="";
+    static void ApplyModelChoice() {
+        var models=(ComboBox)Field("model");
+        int pick=-1,lightweight=-1;
+        for(int i=0;i<models.Items.Count;i++) {
+            string name=Convert.ToString(models.Items[i]);
+            if(preferredModel.Length>0 && name==preferredModel) pick=i;
+            if(lightweight<0 && name.EndsWith("gemini-flash-lite-latest")) lightweight=i;
+        }
+        // newest non-preview Flash-Lite: the list is sorted by name, so search from the end (gemini-3.5-... after gemini-2.5-...)
+        if(lightweight<0) for(int i=models.Items.Count-1;i>=0;i--) { string name=Convert.ToString(models.Items[i]); if(name.Contains("flash-lite") && !name.Contains("preview")) {lightweight=i;break;} }
+        if(pick>=0) models.SelectedIndex=pick; else if(lightweight>=0) models.SelectedIndex=lightweight;
+        modelsLoaded=models.Items.Count>0;
+        var names=new List<string>(); foreach(var item in models.Items) names.Add(Convert.ToString(item));
+        Emit(new {type="models",names=names,selected=models.Text,preferred=preferredModel,found=pick>=0});
+    }
+    static async void LoadModelsNow() {
+        if(sending || (bool)Field("busy")) return;
+        try { await InvokeTask("LoadModels"); ApplyModelChoice(); }
+        catch(Exception ex) { while(ex is TargetInvocationException && ex.InnerException!=null)ex=ex.InnerException; Status("Could not load the model list: "+Clean(ex.Message)); }
+    }
     static void Command(string text) {
         try {
             var data=json.Deserialize<Dictionary<string,object>>(text);
@@ -233,6 +247,8 @@ class EmbeddedAI {
                 if(contextWait!=null)contextWait.TrySetResult(true);
             }
             else if(op=="theme") Theme(data);
+            else if(op=="model") { preferredModel=Convert.ToString(data["name"]??"").Trim(); if(modelsLoaded) ApplyModelChoice(); }
+            else if(op=="load_models") LoadModelsNow();
             else if(op=="visibility") {pageVisible=Convert.ToBoolean(data["visible"]);SyncVisibility();}
             else if(op=="close") { chat.Close();loop.ExitThread(); }
             else if(op=="insert") {

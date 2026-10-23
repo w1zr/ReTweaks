@@ -783,6 +783,7 @@ def install(g):
             Button(bar,'Retry AI',self.retry_ai).pack(side='right')
             from rt_pages import ai_key
             self.ai_key_card=ai_key.build_card(self,tab,g,lambda:self.retry_ai())
+            self.ai_model_row=ai_key.build_model_row(self,tab,g,lambda m:self.ai_bridge.send(m) if self.ai_bridge is not None else None)
             self.ai_status=self.label(tab,'AI loads when you open this tab.',10,MUTED)
             self.ai_frame=tk.Frame(tab,bg=PANEL,highlightthickness=1,highlightbackground=g['LINE'])
             self.ai_frame.pack(fill='both',expand=True,pady=(4,8))
@@ -808,6 +809,9 @@ def install(g):
                 self.ai_bridge.send(self.ai_context_message())
             elif kind=='ready':
                 self.ai_ready=True;self.ai_status.config(text='Chat ready. Messages use GeminiChat’s existing connection.')
+                from rt_pages import ai_key
+                self.ai_bridge.send({'op':'model','name':ai_key.saved_model(self)})
+                self.ai_bridge.send({'op':'load_models'})
                 self.ai_bridge.send({'op':'visibility','visible':self.cur_tab==20})
                 pending,self.ai_pending=self.ai_pending,[]
                 for draft in pending:self.insert_ai_draft(draft)
@@ -819,6 +823,8 @@ def install(g):
             elif kind=='stopped' and self.ai_ready:
                 self.ai_ready=False;self.ai_status.config(text='AI stopped. Use Retry AI to reload it.')
             elif kind=='theme':self.ai_last_theme=data
+            elif kind=='models' and getattr(self,'ai_model_row',None) is not None:
+                self.ai_model_row.set_models(data.get('names'),data.get('selected',''),data.get('preferred',''),data.get('found',True))
             elif kind=='status':
                 msg=data.get('message','')
                 from rt_pages import ai_key

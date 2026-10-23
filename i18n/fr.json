@@ -3182,7 +3182,11 @@
   "Using your own key.": "Votre propre clé est utilisée.",
   "Your Gemini key": "Votre clé Gemini",
   "Your key is saved (encrypted for your Windows account). The AI reloads with it now.": "Votre clé est enregistrée (chiffrée pour votre compte Windows). L'IA se recharge maintenant avec elle.",
-  "Your key was removed.": "Votre clé a été supprimée."
+  "Your key was removed.": "Votre clé a été supprimée.",
+  "Automatic (newest Flash-Lite)": "Automatique (Flash-Lite le plus récent)",
+  "See my limits": "Voir mes limites",
+  "The list loads from Google when the AI starts.": "La liste est chargée depuis Google au démarrage de l'IA.",
+  "Using the automatic choice.": "Choix automatique utilisé."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nDéjà en place ({0}) : ",
@@ -3684,6 +3688,11 @@
   "{0} minutes": "{0} minutes",
   "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "Le serveur de {0} a redirigé vers une adresse qui n'est pas celle de {1} ({2}) ; rien n'a été téléchargé.",
   "Couldn't remove the key ({0}).": "Impossible de supprimer la clé ({0}).",
-  "Couldn't save the key ({0}).": "Impossible d'enregistrer la clé ({0})."
+  "Couldn't save the key ({0}).": "Impossible d'enregistrer la clé ({0}).",
+  "Using {0}.": "{0} est utilisé.",
+  "Automatic: {0}. {1} models available for this key.": "Automatique : {0}. {1} modèles disponibles pour cette clé.",
+  "Using {0}. {1} models available for this key.": "{0} est utilisé. {1} modèles disponibles pour cette clé.",
+  "{0} isn't available for this key, so the automatic choice ({1}) is used.": "{0} n'est pas disponible pour cette clé ; le choix automatique ({1}) est utilisé.",
+  "{0} models available for this key.": "{0} modèles disponibles pour cette clé."
  }
 }
