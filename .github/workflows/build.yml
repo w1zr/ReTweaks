@@ -44,6 +44,19 @@ jobs:
         continue-on-error: true      # a runner has no real monitor; reported, not blocking
         run: python tools/display_smoke.py
 
+      - name: Check the AI keys are set (releases only)
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+        shell: pwsh
+        env:
+          RETWEAKS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RETWEAKS_GEMINI_KEY)) {
+            Write-Output "::error::The GEMINI_API_KEY repository secret is missing, so the AI assistant would have no keys. Add it (one key per line) in Settings > Secrets and variables > Actions, then run the release again."
+            exit 1
+          }
+          $n = ($env:RETWEAKS_GEMINI_KEY -split '[\s,|]+' | Where-Object { $_ }).Count
+          Write-Output "::notice::AI keys found in the GEMINI_API_KEY secret: $n"
+
       - name: Build RETWEAKS.exe
         env:
           RETWEAKS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}   # private repo secret, never in the code
