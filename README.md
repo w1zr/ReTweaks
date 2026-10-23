@@ -54,12 +54,15 @@ RETWEAKS never promises FPS gains. Use the FPS test to measure your own before a
 
 ## Bundled tools
 
-Temperatures, fan control and RGB lighting use two bundled open-source programs:
+Temperatures, fan control and RGB lighting use two open-source programs that come **built into RETWEAKS**, so
+there's nothing extra to download or install:
 [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) 0.9.6 (MPL-2.0) and
 [OpenRGB](https://openrgb.org/) 1.1 (GPL-2.0), unmodified, in `ai/sensors` and `ai/openrgb` with their licenses.
-CPU and motherboard sensors and most fan controllers also need the free
-[PawnIO](https://github.com/namazso/PawnIO.Setup/releases) driver, which you install yourself; RETWEAKS doesn't
-install drivers.
+
+CPU and motherboard temperatures, most fan control and usually RAM lighting also need the free
+[PawnIO](https://github.com/namazso/PawnIO.Setup/releases) driver, because Windows only allows that hardware to be
+read through a driver. It's a one-time install from PawnIO's official page; the Temperatures and Fan control pages
+and Settings have a button that opens it. GPU and drive temperatures usually work without it.
 
 ## Install
 
