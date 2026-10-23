@@ -186,6 +186,11 @@ tr:hover td{background:var(--bg-3)}
 .tl li{margin-bottom:4px}
 .tl a{color:var(--muted);font-size:.88rem}
 
+.tl .meta{color:var(--muted);font-size:.85rem;font-family:var(--mono)}
+.tl h3,.tl h4{font-size:.95rem;margin:10px 0 2px;color:var(--fg)}
+.tl p{color:var(--muted);font-size:.94rem;margin-top:6px}
+.tl code{font-size:.82rem;background:var(--bg-3);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+
 /* rules */
 .rules{display:grid;grid-template-columns:1fr 1fr;gap:28px 40px}
 .rules li{margin-bottom:10px}
@@ -260,7 +265,7 @@ footer a{color:var(--muted)}
 
 <header class="hero" id="top">
   <div>
-    <div class="top"><span class="eyebrow">Windows PC diagnostics &amp; optimization</span><span class="ver"><i></i>v1.6 · free</span></div>
+    <div class="top"><span class="eyebrow">Windows PC diagnostics &amp; optimization</span><span class="ver"><i></i><span id="verTop">v1.6</span> · free</span></div>
     <h1><span class="w" style="animation-delay:.05s">Real readings.</span> <span class="w" style="animation-delay:.15s">Real tweaks.</span> <span class="w" style="animation-delay:.25s">Nothing faked.</span></h1>
     <p class="lede">RETWEAKS shows what your PC is actually doing, applies Windows and game tweaks you can undo, and never reports a number it didn't measure. One file. No installer.</p>
     <div class="cta">
@@ -410,9 +415,9 @@ footer a{color:var(--muted)}
   <div class="sechead reveal">
     <p class="eyebrow">Changelog</p>
     <h2>What's new</h2>
-    <p>Summaries of the real release notes. Full notes are on each GitHub release.</p>
+    <p id="wnNote">Summaries of the real release notes. Full notes are on each GitHub release.</p>
   </div>
-  <div class="tl reveal">
+  <div class="tl reveal" id="timeline">
     <article>
       <div class="v">v1.6 <span class="tag">Latest</span></div>
       <ul>
@@ -516,7 +521,7 @@ footer a{color:var(--muted)}
 </section>
 
 <footer>
-  <span>RETWEAKS by w1zr · v1.6</span>
+  <span>RETWEAKS by w1zr · <span id="verFoot">v1.6</span></span>
   <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a> · <a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a> · <a href="#report">Report a problem</a></span>
 </footer>
 </div>
@@ -578,6 +583,37 @@ footer a{color:var(--muted)}
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code.textContent).then(function(){st.textContent="Copied."},fb);else fb()});
   var saved=null;try{saved=localStorage.getItem("retweaks-site-theme")}catch(e){}
   if(saved&&THEMES[saved])apply(saved,false);else{sel.value="Midnight";updateCode("Midnight");document.querySelector('.sw-card[data-theme="Midnight"]').classList.add("on")}
+
+  /* ---------- live version + release notes from GitHub (falls back to the typed text) ---------- */
+  (function(){
+    if(!window.fetch)return;
+    function esc(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+    function inline(t){t=esc(t);
+      t=t.replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<em>$2</em>");
+      t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return t}
+    function md(src){var out=[],list=null,para=[];
+      function flushP(){if(para.length){out.push("<p>"+inline(para.join(" "))+"</p>");para=[]}}
+      function flushL(){if(list){out.push("<ul>"+list.map(function(x){return "<li>"+inline(x)+"</li>"}).join("")+"</ul>");list=null}}
+      src.split(/\r?\n/).forEach(function(line){var l=line.trim();
+        if(!l){flushP();flushL();return}
+        var h=/^#{1,6}\s+(.*)$/.exec(l);if(h){flushP();flushL();if(/^#\s|^##\s/.test(l)&&/RETWEAKS v/i.test(h[1]))return;out.push("<h4>"+inline(h[1])+"</h4>");return}
+        var b=/^[-*]\s+(.*)$/.exec(l);if(b){flushP();(list=list||[]).push(b[1]);return}
+        flushL();para.push(l)});
+      flushP();flushL();return out.join("")}
+    fetch("https://api.github.com/repos/w1zr/ReTweaks/releases?per_page=5",{headers:{Accept:"application/vnd.github+json"}})
+      .then(function(r){if(!r.ok)throw 0;return r.json()})
+      .then(function(rel){
+        rel=(rel||[]).filter(function(x){return x&&x.tag_name&&!x.draft&&!x.prerelease});if(!rel.length)return;
+        var tag=rel[0].tag_name.replace(/^v?/,"v");
+        document.getElementById("verTop").textContent=tag;document.getElementById("verFoot").textContent=tag;
+        var tl=document.getElementById("timeline");tl.innerHTML="";
+        rel.forEach(function(x,i){var a=document.createElement("article");var when=x.published_at?new Date(x.published_at).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"";
+          a.innerHTML='<div class="v">'+esc(x.tag_name.replace(/^v?/,"v"))+(i===0?' <span class="tag">Latest</span>':'')+(when?' <span class="meta">'+esc(when)+'</span>':'')+'</div>'+md(x.body||"")+'<a href="'+esc(x.html_url)+'" target="_blank" rel="noopener">Release on GitHub</a>';
+          tl.appendChild(a)});
+        document.getElementById("wnNote").textContent="Release notes as published on GitHub, loaded live.";
+      }).catch(function(){});
+  })();
 
   /* ---------- ambient canvas: circuit, or starfield on Galaxy ---------- */
   var cv=document.getElementById("bgc"),resizeCanvas=null;
