@@ -126,6 +126,38 @@ section{padding-block:72px 0}
 .calls b{display:block;font-family:var(--display);color:var(--fg);margin-bottom:4px}
 @media (max-width:820px){.calls{grid-template-columns:1fr}}
 
+/* interactive dashboard demo */
+.app{border:1px solid var(--line);border-radius:14px;background:var(--bg-2);overflow:hidden;display:grid;grid-template-columns:200px 1fr;min-height:420px}
+.app .side{background:var(--bg);border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.app .side .hd{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;padding:4px 8px 12px}
+.app .side .hd svg{width:20px;height:20px}
+.app .side .grp{font-family:var(--display);font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:10px 8px 4px}
+.app .side button{text-align:left;font:inherit;font-size:.9rem;color:var(--muted);background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;position:relative;transition:background .15s,color .15s}
+.app .side button:hover{color:var(--fg);background:var(--bg-3)}
+.app .side button.on{color:var(--fg);background:var(--bg-3)}
+.app .side button.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--accent)}
+.app .main{padding:18px 20px;min-width:0}
+.app .main h3{font-size:1.3rem;margin-bottom:2px}
+.app .main .sub{color:var(--muted);font-size:.88rem;margin-bottom:14px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card .t{font-family:var(--display);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.card .big{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:4px}
+.card .big b{font-family:var(--display);font-size:1.7rem;font-variant-numeric:tabular-nums}
+.card .big span{color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums;text-align:right}
+.card .meter{height:4px;border-radius:2px;background:var(--line);margin:8px 0 10px;overflow:hidden}
+.card .meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+.card canvas{width:100%;height:48px;display:block}
+.card .ft{color:var(--muted);font-size:.8rem;margin-top:8px;line-height:1.5}
+.card .ft b{color:var(--fg);font-weight:500}
+.app .page{display:none}.app .page.on{display:block}
+.hw{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:.9rem}
+.hw dt{color:var(--muted)}.hw dd{margin:0;font-variant-numeric:tabular-nums}
+.live{display:inline-flex;align-items:center;gap:6px;font-family:var(--display);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:blink 1.6s steps(2) infinite}
+.app .note{color:var(--muted);font-size:.85rem;margin-top:12px}
+@media (max-width:820px){.app{grid-template-columns:1fr}.app .side{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.app .side .grp,.app .side .hd{width:100%}.cards{grid-template-columns:1fr}}
+
 /* tweak demo */
 .demo{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
 .panel{border:1px solid var(--line);border-radius:14px;background:var(--bg-2);overflow:hidden}
@@ -258,7 +290,7 @@ footer a{color:var(--muted)}
     ReTweaks
   </a>
   <div class="links">
-    <a href="#features">Features</a><a href="#dashboard">Dashboard</a><a href="#tweaks">Tweaks</a><a href="#themes">Themes</a><a href="#sources">Data</a><a href="#whatsnew">What's new</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="#report">Report a problem</a><a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
+    <a href="#features">Features</a><a href="#dashboard">Dashboard</a><a href="#demo">Demo</a><a href="#tweaks">Tweaks</a><a href="#themes">Themes</a><a href="#sources">Data</a><a href="#whatsnew">What's new</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="#report">Report a problem</a><a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
     <label class="eyebrow" for="themeSel" style="margin-left:6px">Theme</label><select id="themeSel" aria-label="Site theme"></select>
   </div>
 </nav>
@@ -341,6 +373,55 @@ footer a{color:var(--muted)}
     <div><b>Processor</b>Load, live clock (not the base clock), temperature, core and thread count, with a rolling graph.</div>
     <div><b>Memory</b>Percent and GB in use against the total, with the module type and speed.</div>
     <div><b>GPU</b>One card per GPU: load, VRAM in use against the total, temperature, exact name from the driver.</div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="sechead reveal">
+    <p class="eyebrow">Interactive demo</p>
+    <h2>Try the Dashboard in your browser</h2>
+    <p>A working mini Dashboard fed with real readings your browser can take right now. A website can't see CPU load, temperatures or VRAM the way the app does, so those show "Unavailable", the same rule the app follows. Click the sidebar.</p>
+  </div>
+  <div class="app reveal">
+    <div class="side">
+      <div class="hd"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="8" width="24" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 8V3M20 8V3M26 8V3M14 32v5M20 32v5M26 32v5M8 14H3M8 20H3M8 26H3M32 14h5M32 20h5M32 26h5"/></g><path d="M16 26V14h5a3.5 3.5 0 0 1 0 7h-5m5 0 4 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>ReTweaks</div>
+      <div class="grp">Monitor</div>
+      <button type="button" class="on" data-page="dash">Dashboard</button>
+      <button type="button" data-page="hw">Hardware</button>
+      <div class="grp">Optimize</div>
+      <button type="button" data-page="tw">Tweaks</button>
+      <div class="grp">App</div>
+      <button type="button" data-page="about">About</button>
+    </div>
+    <div class="main">
+      <div class="page on" data-page="dash">
+        <h3>Dashboard</h3>
+        <div class="sub"><span class="live"><i></i>Live</span> · readings from this browser, updated every second</div>
+        <div class="cards">
+          <div class="card"><div class="t">Processor</div><div class="big"><b>Unavailable</b><span id="dThreads">…</span></div><div class="meter"><i style="width:0"></i></div><canvas id="cCpu" width="300" height="48"></canvas><div class="ft">Load, clock and temperature need the app. <b id="dThreadsFt">…</b></div></div>
+          <div class="card"><div class="t">Display</div><div class="big"><b id="dFps">…</b><span id="dRes">…</span></div><div class="meter"><i id="mFps" style="width:0"></i></div><canvas id="cFps" width="300" height="48"></canvas><div class="ft">Frames per second this tab is drawing right now, measured live. <b id="dFpsFt">…</b></div></div>
+          <div class="card"><div class="t">GPU</div><div class="big"><b>Unavailable</b><span id="dGpuS">load</span></div><div class="meter"><i style="width:0"></i></div><canvas id="cGpu" width="300" height="48"></canvas><div class="ft"><b id="dGpu">…</b><br>VRAM and temperature need the app.</div></div>
+          <div class="card"><div class="t">Memory</div><div class="big"><b id="dMem">…</b><span id="dMemS"></span></div><div class="meter"><i id="mMem" style="width:0"></i></div><canvas id="cMem" width="300" height="48"></canvas><div class="ft" id="dMemFt">…</div></div>
+        </div>
+        <p class="note">In the app, every card shows the real number: CPU load and live clock from Windows counters, GPU load from the same counters Task Manager uses, temperatures from LibreHardwareMonitor.</p>
+      </div>
+      <div class="page" data-page="hw">
+        <h3>Hardware</h3>
+        <div class="sub">What this browser can detect. The app reads the full list from Windows.</div>
+        <dl class="hw" id="hwList"></dl>
+        <p class="note">Not detectable by a website: CPU model, RAM size and speed, motherboard, BIOS, drives, monitors' names, audio devices. The app's Hardware page shows all of them, or "Unavailable" when Windows can't report one.</p>
+      </div>
+      <div class="page" data-page="tw">
+        <h3>Tweaks</h3>
+        <div class="sub">53 tweaks in Gaming, Privacy, Interface, Services and Maintenance.</div>
+        <p class="note">The Tweaks page lists every tweak with its current state, what it changes, the trade-off, whether it needs admin, and its own Undo. Try the flow with a real tweak in the <a href="#tweaks">How a tweak works</a> preview below.</p>
+      </div>
+      <div class="page" data-page="about">
+        <h3>About</h3>
+        <div class="sub">RETWEAKS <span id="verAbout">v1.6</span></div>
+        <p class="note">Free. Source on <a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>. Community on <a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a>. Updates arrive through the Update now bar at the top of the app.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -606,7 +687,7 @@ footer a{color:var(--muted)}
       .then(function(rel){
         rel=(rel||[]).filter(function(x){return x&&x.tag_name&&!x.draft&&!x.prerelease});if(!rel.length)return;
         var tag=rel[0].tag_name.replace(/^v?/,"v");
-        document.getElementById("verTop").textContent=tag;document.getElementById("verFoot").textContent=tag;
+        document.getElementById("verTop").textContent=tag;document.getElementById("verFoot").textContent=tag;var va=document.getElementById("verAbout");if(va)va.textContent=tag;
         var tl=document.getElementById("timeline");tl.innerHTML="";
         rel.forEach(function(x,i){var a=document.createElement("article");var when=x.published_at?new Date(x.published_at).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"";
           a.innerHTML='<div class="v">'+esc(x.tag_name.replace(/^v?/,"v"))+(i===0?' <span class="tag">Latest</span>':'')+(when?' <span class="meta">'+esc(when)+'</span>':'')+'</div>'+md(x.body||"")+'<a href="'+esc(x.html_url)+'" target="_blank" rel="noopener">Release on GitHub</a>';
@@ -703,6 +784,46 @@ footer a{color:var(--muted)}
   windowsVersion(function(w){ta.value=build(w)});
   document.getElementById("copySpecs").addEventListener("click",function(){var t=ta.value;function fallback(){ta.focus();ta.select();cs.textContent="Press Ctrl+C to copy."}
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cs.textContent="Copied. Paste them under My specs in the form if you like."},fallback)}else fallback()});
+  /* ---------- interactive dashboard demo: real browser readings only ---------- */
+  (function(){
+    var app=document.querySelector(".app");if(!app)return;
+    app.querySelectorAll(".side button").forEach(function(b){b.addEventListener("click",function(){
+      app.querySelectorAll(".side button").forEach(function(x){x.classList.toggle("on",x===b)});
+      app.querySelectorAll(".page").forEach(function(pg){pg.classList.toggle("on",pg.getAttribute("data-page")===b.getAttribute("data-page"))})})});
+    var U="Unavailable";
+    var threads=navigator.hardwareConcurrency||null;
+    document.getElementById("dThreads").textContent=threads?threads+" logical processors":U;
+    document.getElementById("dThreadsFt").textContent=threads?"Your browser reports "+threads+" logical processors.":"Your browser doesn't report the processor count.";
+    document.getElementById("dRes").textContent=screen.width+" × "+screen.height+" · "+(window.devicePixelRatio||1)+"× scale";
+    var g=gpu();document.getElementById("dGpu").textContent=g===U?"GPU name: "+U+" in this browser":g;
+    var dm=navigator.deviceMemory;
+    if(dm){document.getElementById("dMem").textContent="≥ "+dm+" GB";document.getElementById("dMemS").textContent="browser estimate";document.getElementById("dMemFt").textContent="Browsers round memory down and cap the value at 8 GB, so this is a lower bound. The app reads the real total and what's in use.";document.getElementById("mMem").style.width=Math.min(100,dm/8*100)+"%"}
+    else{document.getElementById("dMem").textContent=U;document.getElementById("dMemFt").textContent="This browser doesn't report memory. The app reads the real total and what's in use."}
+    /* hardware page */
+    var hw=document.getElementById("hwList"),rows=[["GPU",g],["Display",screen.width+" × "+screen.height+", "+(window.devicePixelRatio||1)+"× scaling, "+(screen.colorDepth||"?")+"-bit color"],["Logical processors",threads||U],["Memory",dm?"at least "+dm+" GB (browser cap)":U],["Platform",(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||U],["Touch",("ontouchstart" in window||navigator.maxTouchPoints>0)?"yes":"no"]];
+    var con=navigator.connection;if(con)rows.push(["Connection",(con.effectiveType||"")+(con.downlink?" · ~"+con.downlink+" Mb/s estimate":"")||U]);
+    rows.forEach(function(r){var dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=r[0];dd.textContent=r[1];hw.appendChild(dt);hw.appendChild(dd)});
+    if(navigator.getBattery){navigator.getBattery().then(function(b){var dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent="Battery";dd.textContent=Math.round(b.level*100)+"%"+(b.charging?" · charging":"");hw.appendChild(dt);hw.appendChild(dd)}).catch(function(){})}
+    /* live fps graph (real) + flat lines for unavailable cards */
+    function graph(id){var c=document.getElementById(id),x=c.getContext("2d"),data=[];return{push:function(v){data.push(v);if(data.length>60)data.shift()},draw:function(flat){
+      var dpr=devicePixelRatio||1,w=c.clientWidth||300,h=48;if(c.width!==w*dpr){c.width=w*dpr;c.height=h*dpr}x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+      var cs=getComputedStyle(root),line=cs.getPropertyValue("--line").trim(),acc=cs.getPropertyValue("--accent").trim();
+      x.strokeStyle=line;x.lineWidth=1;x.setLineDash([2,4]);[12,24,36].forEach(function(y){x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()});x.setLineDash([]);
+      if(flat){x.strokeStyle=line;x.beginPath();x.moveTo(0,h-6);x.lineTo(w,h-6);x.stroke();return}
+      if(data.length<2)return;var max=Math.max(60,Math.max.apply(null,data))*1.05;x.strokeStyle=acc;x.lineWidth=1.5;x.beginPath();
+      data.forEach(function(v,i){var px=i/(59)*w,py=h-4-(v/max)*(h-8);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+      x.fillStyle=acc;var lv=data[data.length-1];x.beginPath();x.arc((data.length-1)/59*w,h-4-(lv/max)*(h-8),2.5,0,6.28);x.fill()}}}
+    var gF=graph("cFps"),gC=graph("cCpu"),gG=graph("cGpu"),gM=graph("cMem");
+    var frames=0,last=performance.now();
+    function tick(){frames++;requestAnimationFrame(tick)}requestAnimationFrame(tick);
+    setInterval(function(){var now=performance.now(),fps=Math.round(frames/((now-last)/1000));frames=0;last=now;
+      if(document.hidden)return;
+      document.getElementById("dFps").textContent=fps+" FPS";document.getElementById("mFps").style.width=Math.min(100,fps/Math.max(60,fps)*100)+"%";
+      document.getElementById("dFpsFt").textContent="Most screens draw 60 to 240 frames per second; the browser can't go above your screen's refresh rate.";
+      gF.push(fps);gF.draw(false);gC.draw(true);gG.draw(true);gM.draw(true)},1000);
+    /* uses gpu() from the report section */
+  })();
+
 })();
 </script>
 </body>
