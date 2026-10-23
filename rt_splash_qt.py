@@ -41,6 +41,14 @@ def _std_streams():
                         setattr(sys, name, io.open(fd, mode, encoding="utf-8", buffering=1 if mode == "w" else -1))
         except Exception:
             pass
+    # The app always sends UTF-8. Streams Python opened by itself use the Windows code page (cp1252), which turned
+    # "Loading Settings…" into "Loading Settingsâ€¦" (owner report 2026-10-23), so force UTF-8 on both.
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            if stream is not None and (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
+                stream.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 
 
 def _send(line):

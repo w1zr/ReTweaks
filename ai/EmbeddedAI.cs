@@ -135,11 +135,11 @@ class EmbeddedAI {
             await Task.WhenAny(contextWait.Task,Task.Delay(2500));
             if(!contextWait.Task.IsCompleted)contextText="";
             if(!modelsLoaded) {
-                Status("Connecting to Gemini and checking available modelsâ€¦");
+                Status("Connecting to Gemini and checking available models\u2026");
                 await InvokeTask("LoadModels");
                 ApplyModelChoice();
             }
-            Status("Sendingâ€¦ waiting for Gemini.");
+            Status("Sending\u2026 waiting for Gemini.");
             await InvokeTask("Send");
             if(input.TextLength==0)Status("Reply received.");
             else {
@@ -350,7 +350,7 @@ class EmbeddedAI {
                 Rect size;GetClientRect(parent,out size);
                 if(chat.Width!=size.right || chat.Height!=size.bottom) chat.SetBounds(0,0,Math.Max(1,size.right),Math.Max(1,size.bottom));
                 if(sending && (DateTime.UtcNow-sendingStarted).TotalSeconds>5) {
-                    string waiting="Waiting for Gemini ("+(int)(DateTime.UtcNow-sendingStarted).TotalSeconds+" seconds)â€¦";
+                    string waiting="Waiting for Gemini ("+(int)(DateTime.UtcNow-sendingStarted).TotalSeconds+" seconds)\u2026";
                     ((Label)Field("status")).Text=waiting;
                 }
             };
