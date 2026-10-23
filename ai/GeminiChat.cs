@@ -37,10 +37,10 @@ class GeminiChat : Form
         return "";
     }
     // The user's own key (if saved) first, then the built-in keys.
-    static List<string> Keys() { var list = new List<string>(); string own = OwnKey(); if (own.Length > 0) list.Add(own); foreach (var k in Builtins()) if (!list.Contains(k)) list.Add(k); return list; }
+    static List<string> AllKeys() { var list = new List<string>(); string own = OwnKey(); if (own.Length > 0) list.Add(own); foreach (var k in Builtins()) if (!list.Contains(k)) list.Add(k); return list; }
     static int ActiveIndex(int count) { try { int i; if (count > 0 && int.TryParse(File.ReadAllText(ActiveFile).Trim(), out i)) return ((i % count) + count) % count; } catch { } return 0; }
     static void SaveActiveIndex(int i) { try { Directory.CreateDirectory(Path.GetDirectoryName(ActiveFile)); File.WriteAllText(ActiveFile, i.ToString()); } catch { } }
-    static string ReadKey() { var keys = Keys(); return keys.Count == 0 ? "" : keys[ActiveIndex(keys.Count)]; }
+    static string ReadKey() { var keys = AllKeys(); return keys.Count == 0 ? "" : keys[ActiveIndex(keys.Count)]; }
     class KeyRejected : Exception { public KeyRejected(string m) : base(m) { } }
     // Google says the key itself is unusable (invalid, expired, disabled, suspended). Usage limits (429), model
     // problems and network errors are NOT key failures, so they never cause a switch.
@@ -110,7 +110,7 @@ class GeminiChat : Form
     string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("No Gemini key yet. Paste your own free key on the AI assistant page (Get a free key)."); return value; }
     async Task<Dictionary<string,object>> Request(string path, object body)
     {
-        var keys = Keys();
+        var keys = AllKeys();
         if (keys.Count == 0) return await RequestOnce(path, body, ApiKey());
         int current = keys.IndexOf(key.Text.Trim()), start = current >= 0 ? current : ActiveIndex(keys.Count);
         Exception last = null;
