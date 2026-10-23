@@ -3186,7 +3186,8 @@
   "Automatic (newest Flash-Lite)": "Automatisch (neuestes Flash-Lite)",
   "See my limits": "Meine Limits ansehen",
   "The list loads from Google when the AI starts.": "Die Liste wird beim Start der KI von Google geladen.",
-  "Using the automatic choice.": "Die automatische Auswahl wird verwendet."
+  "Using the automatic choice.": "Die automatische Auswahl wird verwendet.",
+  "  Google rejected the built-in AI keys. Update RETWEAKS from GitHub or try again later.": "  Google hat die eingebauten KI-Schlüssel abgelehnt. Aktualisiere RETWEAKS über GitHub oder versuche es später erneut."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nBereits gesetzt ({0}): ",

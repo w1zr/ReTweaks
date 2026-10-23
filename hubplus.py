@@ -782,7 +782,6 @@ def install(g):
             tk.Checkbutton(bar,text='Use hub context',variable=self.ai_context_enabled,bg=BG,fg=FG,selectcolor=PANEL,activebackground=BG,activeforeground=FG).pack(side='left')
             Button(bar,'Retry AI',self.retry_ai).pack(side='right')
             from rt_pages import ai_key
-            self.ai_key_card=ai_key.build_card(self,tab,g,lambda:self.retry_ai())
             self.ai_model_row=ai_key.build_model_row(self,tab,g,lambda m:self.ai_bridge.send(m) if self.ai_bridge is not None else None)
             self.ai_status=self.label(tab,'AI loads when you open this tab.',10,MUTED)
             self.ai_frame=tk.Frame(tab,bg=PANEL,highlightthickness=1,highlightbackground=g['LINE'])
@@ -818,7 +817,7 @@ def install(g):
             elif kind=='error':
                 self.ai_ready=False;msg=data.get('message','AI could not load. Use Retry AI.')
                 from rt_pages import ai_key
-                if ai_key.is_key_error(msg):msg+='  Google rejected the key. Paste your own free key above (Get a free key).'
+                if ai_key.is_key_error(msg):msg+='  Google rejected the built-in AI keys. Update RETWEAKS from GitHub or try again later.'
                 self.ai_status.config(text=msg)
             elif kind=='stopped' and self.ai_ready:
                 self.ai_ready=False;self.ai_status.config(text='AI stopped. Use Retry AI to reload it.')
@@ -828,7 +827,7 @@ def install(g):
             elif kind=='status':
                 msg=data.get('message','')
                 from rt_pages import ai_key
-                if ai_key.is_key_error(msg):msg+='  Google rejected the key. Paste your own free key above (Get a free key).'
+                if ai_key.is_key_error(msg):msg+='  Google rejected the built-in AI keys. Update RETWEAKS from GitHub or try again later.'
                 self.ai_status.config(text=msg)
 
         def ask_guide_ai(self,title,body):

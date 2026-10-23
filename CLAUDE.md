@@ -37,9 +37,9 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   allowed (one per line, joined with `|`); `GeminiChat.Request` switches to the next key only when Google says a key is
   dead (401, or 400/403 about the key), never on 429 limits (owner choice 2026-10-23); the working key's index is kept in
   `%LOCALAPPDATA%\GeminiChat\active-key.txt` (a number, never the key). The Notifications page was removed from the
-  sidebar (owner request 2026-10-23); its page object stays so later page indexes don't shift. Users can also
-  paste their own key on the AI assistant page (`rt_pages/ai_key.py`, DPAPI file `%LOCALAPPDATA%\GeminiChat\key-v2.dat`,
-  which the helper reads first).
+  sidebar (owner request 2026-10-23); its page object stays so later page indexes don't shift. There is no
+  own-key option (owner request 2026-10-23, after the built-in keys were confirmed working); the helper ignores any old
+  saved key file. `rt_pages/ai_key.py` holds the model picker (setting `ai_model`, "" = newest non-preview Flash-Lite).
 - **Base app v1.5 merge (owner decisions 2026-10-22):** added the base app's v1.5 Temperatures, Fan control, RGB lighting
   and Run pages (`rt_pages/cooling.py` wrapping `cooling_panel.py`, `thermal_dashboard.py`, `run_panel.py`;
   sensors `temperatures.py`, `gpu_metrics.py`; RGB `rgb_service.py`, `rgb_sync.py`) plus its fixes (rounded

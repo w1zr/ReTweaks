@@ -32,12 +32,8 @@ class GeminiChat : Form
     static readonly string KeyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GeminiChat", "key-v2.dat");
     // Which key worked last (a number only, never the key), so every AI helper starts with a key that works.
     static readonly string ActiveFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GeminiChat", "active-key.txt");
-    static string OwnKey() {
-        try { if (File.Exists(KeyFile)) return Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(KeyFile), null, DataProtectionScope.CurrentUser)).Trim(); } catch { }
-        return "";
-    }
-    // The user's own key (if saved) first, then the built-in keys.
-    static List<string> AllKeys() { var list = new List<string>(); string own = OwnKey(); if (own.Length > 0) list.Add(own); foreach (var k in Builtins()) if (!list.Contains(k)) list.Add(k); return list; }
+    // The built-in keys only (owner request 2026-10-23: no user keys; an old saved key file is ignored).
+    static List<string> AllKeys() { var list = new List<string>(); foreach (var k in Builtins()) if (!list.Contains(k)) list.Add(k); return list; }
     static int ActiveIndex(int count) { try { int i; if (count > 0 && int.TryParse(File.ReadAllText(ActiveFile).Trim(), out i)) return ((i % count) + count) % count; } catch { } return 0; }
     static void SaveActiveIndex(int i) { try { Directory.CreateDirectory(Path.GetDirectoryName(ActiveFile)); File.WriteAllText(ActiveFile, i.ToString()); } catch { } }
     static string ReadKey() { var keys = AllKeys(); return keys.Count == 0 ? "" : keys[ActiveIndex(keys.Count)]; }
@@ -57,7 +53,7 @@ class GeminiChat : Form
 
     public GeminiChat()
     {
-        key.Text = ReadKey();     // the user's own key (AI assistant page) first, else the built-in key
+        key.Text = ReadKey();     // the built-in key that worked last
         AutoScaleMode = AutoScaleMode.None; Text = "Gemini Chat"; Width = 980; Height = 780; MinimumSize = new Size(680, 540);
         BackColor = Color.FromArgb(19,15,32); ForeColor = Color.FromArgb(238,233,255);
         Font = new Font("Segoe UI", 11); StartPosition = FormStartPosition.CenterScreen;
@@ -107,7 +103,7 @@ class GeminiChat : Form
     void Welcome() { Append("LET'S TALK", "What can I help you with?\n\nAsk a question, explore an idea, or make something new."); }
     void Append(string who, string message) { chat.SelectionStart = chat.TextLength; chat.SelectionColor = Color.FromArgb(179,155,255); chat.AppendText(who + "\n"); chat.SelectionColor = Color.WhiteSmoke; chat.AppendText(message + "\n\n"); chat.ScrollToCaret(); }
     void Busy(bool value) { busy = value; send.Enabled = refresh.Enabled = clear.Enabled = key.Enabled = model.Enabled = input.Enabled = !value; }
-    string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("No Gemini key yet. Paste your own free key on the AI assistant page (Get a free key)."); return value; }
+    string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("This version of RETWEAKS has no built-in AI key. Update RETWEAKS from GitHub."); return value; }
     async Task<Dictionary<string,object>> Request(string path, object body)
     {
         var keys = AllKeys();
