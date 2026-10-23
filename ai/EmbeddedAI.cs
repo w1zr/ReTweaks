@@ -205,10 +205,42 @@ class EmbeddedAI {
     static void FormatHistory(RichTextBox history) {
         if(formattingHistory)return;
         formattingHistory=true;
+        bool wasReadOnly=history.ReadOnly;
         try {
-            int start=history.SelectionStart,length=history.SelectionLength;
-            history.SelectAll();history.SelectionColor=fg;history.Select(start,length);
-        } finally { formattingHistory=false; }
+            int oldLength=history.TextLength,start=history.SelectionStart,length=history.SelectionLength;
+            bool atEnd=start>=oldLength;
+            history.ReadOnly=false;
+            ApplyMarkdown(history);
+            history.SelectAll();history.SelectionColor=fg;
+            if(atEnd) history.Select(history.TextLength,0); else history.Select(Math.Min(start,history.TextLength),Math.Min(length,Math.Max(0,history.TextLength-start)));
+        } finally { history.ReadOnly=wasReadOnly;formattingHistory=false; }
+    }
+    // Gemini answers in Markdown. Show it as formatting instead of raw symbols (owner report 2026-10-23: replies
+    // showed "**RETWEAKS**"): **bold**, *italic*, # headings (bold), "* " / "- " bullets (•), `code` (backticks removed).
+    static readonly System.Text.RegularExpressions.Regex MdBullet=new System.Text.RegularExpressions.Regex(@"^([ \t]*)[*\-][ \t]+(?=\S)",System.Text.RegularExpressions.RegexOptions.Multiline);
+    static readonly System.Text.RegularExpressions.Regex MdHeading=new System.Text.RegularExpressions.Regex(@"^[ \t]*#{1,6}[ \t]+([^\n]+?)[ \t#]*$",System.Text.RegularExpressions.RegexOptions.Multiline);
+    static readonly System.Text.RegularExpressions.Regex MdBold=new System.Text.RegularExpressions.Regex(@"\*\*(?=\S)([^\n]+?)(?<=\S)\*\*");
+    static readonly System.Text.RegularExpressions.Regex MdItalic=new System.Text.RegularExpressions.Regex(@"(?<![*\w])\*(?=[^\s*])([^*\n]+?)(?<=[^\s*])\*(?![*\w])");
+    static readonly System.Text.RegularExpressions.Regex MdCode=new System.Text.RegularExpressions.Regex(@"`([^`\n]+)`");
+    static void ApplyMarkdown(RichTextBox box) {
+        MdReplace(box,MdBullet,m=>m.Groups[1].Value+"\u2022 ",-1,FontStyle.Regular);
+        MdReplace(box,MdHeading,m=>m.Groups[1].Value,0,FontStyle.Bold);
+        MdReplace(box,MdBold,m=>m.Groups[1].Value,0,FontStyle.Bold);
+        MdReplace(box,MdItalic,m=>m.Groups[1].Value,0,FontStyle.Italic);
+        MdReplace(box,MdCode,m=>m.Groups[1].Value,-1,FontStyle.Regular);
+    }
+    // Replaces each match (last first, so earlier positions stay valid); styleFrom>=0 styles the replacement text.
+    static void MdReplace(RichTextBox box,System.Text.RegularExpressions.Regex rx,Func<System.Text.RegularExpressions.Match,string> make,int styleFrom,FontStyle style) {
+        var matches=rx.Matches(box.Text);
+        for(int i=matches.Count-1;i>=0;i--) {
+            var m=matches[i];string text=make(m);
+            box.Select(m.Index,m.Length);box.SelectedText=text;
+            if(styleFrom>=0 && text.Length>styleFrom) {
+                box.Select(m.Index+styleFrom,text.Length-styleFrom);
+                Font current=box.SelectionFont??box.Font;
+                box.SelectionFont=new Font(current,current.Style|style);
+            }
+        }
     }
     static void AttachPaintFixes(Control control) {
         if(control.GetType().Name=="RoundedPanel") control.Paint+=(s,e)=>e.Graphics.Clear(panel);
