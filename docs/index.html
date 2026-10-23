@@ -116,6 +116,7 @@ section{padding-block:72px 0}
 .shot .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-family:var(--display);font-size:.8rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
 .shot .bar i{width:8px;height:8px;border-radius:50%;background:var(--line-2);display:inline-block}
 .shot .img{position:relative;overflow:hidden;background:#000}
+.shot .img::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(transparent,var(--bg-2));pointer-events:none}
 .shot img{display:block;width:100%;height:auto;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .shot:hover img{transform:scale(1.015)}
 .shot .scanline{position:absolute;left:0;right:0;top:0;height:1px;background:var(--accent);opacity:.25;box-shadow:0 0 12px var(--accent);animation:shotscan 6s linear infinite;pointer-events:none}
@@ -367,7 +368,7 @@ footer a{color:var(--muted)}
   </div>
   <div class="shot reveal">
     <div class="bar"><i></i><i></i><i></i> RETWEAKS · Dashboard · screenshot</div>
-    <div class="img"><img src="dashboard-v2.png" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and two GPU entries showing live load, clock, temperature and VRAM" width="1277" height="864" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
+    <div class="img"><img src="dashboard-v2.png?v=2" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and two GPU entries showing live load, clock, temperature and VRAM" width="1277" height="830" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
     <div class="cap"><b>Live view of your PC, updated every second.</b> Processor load, clock and temperature; memory in use; per-GPU load, VRAM and temperature, each with a history graph.</div>
   </div>
   <div class="calls reveal">
