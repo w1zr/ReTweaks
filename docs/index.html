@@ -88,6 +88,12 @@ details p{color:var(--muted);margin-top:8px;max-width:60em;font-size:.95rem}
 footer{margin-top:64px;border-top:1px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:.88rem}
 footer a{color:var(--muted)}
 
+.report{border:1px solid var(--line);border-radius:12px;background:var(--bg-2);padding:20px;display:grid;gap:14px}
+.report textarea{width:100%;min-height:200px;font-family:var(--mono);font-size:.85rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:12px;resize:vertical}
+.report .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.report .status{font-size:.9rem;color:var(--muted)}
+.report p{color:var(--muted);font-size:.94rem}
+
 @media (max-width:760px){
   .hero{grid-template-columns:1fr}
   .chipwrap{order:-1}
@@ -110,7 +116,7 @@ footer a{color:var(--muted)}
     ReTweaks
   </div>
   <div class="links">
-    <a href="#features">Features</a><a href="#rules">How it works</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
+    <a href="#features">Features</a><a href="#rules">How it works</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="#report">Report a problem</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
 
@@ -122,7 +128,7 @@ footer a{color:var(--muted)}
     <div class="cta">
       <a class="btn primary" href="https://github.com/w1zr/ReTweaks/releases/latest" target="_blank" rel="noopener">Download RETWEAKS.exe</a>
       <a class="btn" href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">View source on GitHub</a>
-      <a class="btn" href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a>
+      <a class="btn" href="#report">Report a problem</a>
     </div>
   </div>
   <div class="chipwrap">
@@ -222,6 +228,24 @@ footer a{color:var(--muted)}
   </div>
 </section>
 
+<section id="report">
+  <div class="sechead">
+    <p class="eyebrow">Help</p>
+    <h2>Report a problem</h2>
+    <p>Step 1 copies the specs your browser can see. Step 2 opens a bug form on GitHub where you paste them. Lines marked Unavailable can't be read by a website; fill them in from the RETWEAKS Hardware and About pages.</p>
+  </div>
+  <div class="report">
+    <label for="specs" class="eyebrow">Detected by your browser</label>
+    <textarea id="specs" readonly aria-live="polite">Reading…</textarea>
+    <div class="row">
+      <button class="btn primary" type="button" id="copySpecs">1. Copy my specs</button>
+      <a class="btn" id="openIssue" href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AMy+specs%2A%2A+%28paste+what+the+website+copied%2C+then+fill+in+the+Unavailable+lines+from+RETWEAKS+%E2%86%92+Hardware+and+About%29%0A%0A%0A" target="_blank" rel="noopener">2. Open the bug form on GitHub</a>
+      <span class="status" id="copyStatus"></span>
+    </div>
+    <p>Nothing is sent anywhere by this page. The text only goes to your clipboard, and GitHub only receives what you paste and submit.</p>
+  </div>
+</section>
+
 <section id="faq">
   <div class="sechead">
     <p class="eyebrow">Questions</p>
@@ -232,14 +256,73 @@ footer a{color:var(--muted)}
   <details><summary>Why can't it show my CPU temperature?</summary><p>Windows has no API for CPU temperatures, fans or motherboard sensors without a kernel driver, and RETWEAKS does not ship one. Run LibreHardwareMonitor and RETWEAKS reads those values from it. Otherwise it shows "Unavailable" rather than a guess.</p></details>
   <details><summary>Will it make my FPS higher?</summary><p>It won't promise that. Tweaks are reversible changes to documented Windows settings. Use the FPS test and Snapshots to compare before and after on your own PC, and keep only what measurably helps.</p></details>
   <details><summary>Does the overlay work with anti-cheat?</summary><p>The overlay is a separate click-through window and never injects into a game process. It draws over borderless and windowed-fullscreen games; exclusive fullscreen draws over it.</p></details>
-  <details><summary>Something broke. Where do I report it?</summary><p>Use the Report a problem button. It opens a new issue on GitHub with a short form. Include your Windows version, the RETWEAKS version from the About page, your GPU, and what you did right before the problem. The Logs page in the app has details worth pasting in.</p></details>
+  <details><summary>Something broke. Where do I report it?</summary><p>Use the Report a problem button: it copies the specs your browser can see, then opens a bug form on GitHub where you paste them. Add the RETWEAKS version from the About page and what you did right before the problem. The Logs page in the app has details worth pasting in.</p></details>
   <details><summary>What was RYTWEAKS?</summary><p>The previous name. Version 1.6 renamed the project to RETWEAKS. Settings, themes and the Gemini credential migrate automatically, and old theme share codes still import.</p></details>
 </section>
 
 <footer>
   <span>RETWEAKS by w1zr</span>
-  <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a> · <a href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a></span>
+  <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a> · <a href="#report">Report a problem</a></span>
 </footer>
+<script>
+(function(){
+  var U="Unavailable";
+  function gpu(){
+    try{
+      var c=document.createElement("canvas");
+      var gl=c.getContext("webgl")||c.getContext("experimental-webgl");
+      if(!gl) return U;
+      var ext=gl.getExtension("WEBGL_debug_renderer_info");
+      var r=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);
+      if(!r) return U;
+      var m=/ANGLE \(([^,]+), ([^)]+?)(?: \(0x[0-9A-Fa-f]+\))? Direct3D/.exec(r)||/ANGLE \(([^,]+), ([^,)]+)/.exec(r);
+      return m?m[2].trim():String(r);
+    }catch(e){return U}
+  }
+  function build(win){
+    var ua=navigator.userAgent||"";
+    var browser=U, m;
+    if((m=/Edg\/([\d.]+)/.exec(ua))) browser="Edge "+m[1];
+    else if((m=/OPR\/([\d.]+)/.exec(ua))) browser="Opera "+m[1];
+    else if((m=/Chrome\/([\d.]+)/.exec(ua))) browser="Chrome "+m[1];
+    else if((m=/Firefox\/([\d.]+)/.exec(ua))) browser="Firefox "+m[1];
+    var lines=[
+      "Windows version: "+win,
+      "RETWEAKS version (About page): "+U,
+      "CPU: "+U+" (logical processors seen by browser: "+(navigator.hardwareConcurrency||U)+")",
+      "GPU: "+gpu(),
+      "RAM: "+U,
+      "Display: "+screen.width+" x "+screen.height+" @ "+(window.devicePixelRatio||1)+"x scaling",
+      "Browser: "+browser,
+      "Date: "+new Date().toISOString().slice(0,10)
+    ];
+    return lines.join("\n");
+  }
+  function windowsVersion(cb){
+    var ua=navigator.userAgent||"";
+    if(!/Windows/.test(ua)){cb("Not Windows ("+(navigator.platform||U)+")");return}
+    if(navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues){
+      navigator.userAgentData.getHighEntropyValues(["platformVersion"]).then(function(v){
+        var major=parseInt((v.platformVersion||"").split(".")[0],10);
+        if(isNaN(major)) cb("Windows ("+U+" which one)");
+        else if(major>=13) cb("Windows 11");
+        else if(major>0) cb("Windows 10");
+        else cb("Windows 8.1 or older");
+      },function(){cb("Windows ("+U+" which one)")});
+    } else cb("Windows ("+U+" which one; this browser doesn't say)");
+  }
+  var ta=document.getElementById("specs"),st=document.getElementById("copyStatus");
+  windowsVersion(function(w){ta.value=build(w)});
+  document.getElementById("copySpecs").addEventListener("click",function(){
+    var t=ta.value;
+    function fallback(){ta.focus();ta.select();st.textContent="Press Ctrl+C to copy, then open the form.";}
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){st.textContent="Copied. Now open the form and paste under My specs.";},fallback);
+    } else fallback();
+  });
+})();
+</script>
+
 </div>
 </body>
 </html>
