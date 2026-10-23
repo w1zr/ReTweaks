@@ -73,17 +73,24 @@ def build_browser():
 
 
 def gemini_key():
-    """The built-in AI key for this build: the RETWEAKS_GEMINI_KEY environment variable (a private GitHub
-    Actions secret on the release build) or the untracked file ai\\gemini_key.txt on a local PC. Never stored
-    in the public source code (Google disabled the previous key minutes after it appeared on GitHub)."""
-    key = os.environ.get("RETWEAKS_GEMINI_KEY", "").strip()
+    """The built-in AI keys for this build, joined with "|": the RETWEAKS_GEMINI_KEY environment variable (the
+    private GitHub Actions secret GEMINI_API_KEY on the release build) or the untracked file ai\\gemini_key.txt on a
+    local PC. One key per line (commas or spaces also work). The AI switches to the next key when Google says one
+    no longer works. Never stored in the public source code (Google disabled a key minutes after it appeared on
+    GitHub)."""
+    import re
+    raw = os.environ.get("RETWEAKS_GEMINI_KEY", "")
     path = os.path.join(ROOT, "ai", "gemini_key.txt")
-    if not key and os.path.isfile(path):
+    if not raw.strip() and os.path.isfile(path):
         with open(path, encoding="utf-8") as f:
-            key = f.read().strip()
-    if key and not all(c.isalnum() or c in "._-" for c in key):
-        sys.exit("The Gemini key contains unexpected characters; check RETWEAKS_GEMINI_KEY / ai\\gemini_key.txt.")
-    return key
+            raw = f.read()
+    keys = []
+    for k in re.split(r"[\s,|]+", raw.strip()):
+        if k and k not in keys:
+            if not all(c.isalnum() or c in "._-" for c in k):
+                sys.exit("A Gemini key contains unexpected characters; check RETWEAKS_GEMINI_KEY / ai\\gemini_key.txt.")
+            keys.append(k)
+    return "|".join(keys)
 
 
 def build_gemini_chat():
@@ -91,7 +98,8 @@ def build_gemini_chat():
     is a temporary file that is deleted right after compiling. With no key the app still builds; users then
     paste their own key on the AI assistant page."""
     key = gemini_key()
-    print("Built-in AI key:", "found" if key else "none (users add their own key on the AI assistant page)")
+    count = len(key.split("|")) if key else 0
+    print("Built-in AI keys:", count if count else "none (users add their own key on the AI assistant page)")
     src = os.path.join(ROOT, "ai", "GeminiChat.cs")
     tmp = os.path.join(ROOT, "ai", "GeminiChat.build.cs")
     with open(src, "rb") as f:

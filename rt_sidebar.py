@@ -33,7 +33,7 @@ NAV = [
                ("Auto clicker", 21), ("AI assistant", 20), ("Daily Tools", 26), ("App Starter", 23),
                ("PC Value Checker", 24), ("3D PC Builder", 25), ("Bottleneck", 19), ("Snapshots", "Snapshots"),
                ("Fun tools", "Fun tools"), ("Crosshair", "Crosshair"), ("Tools", 16), ("Advanced tools", 12), ("Backups & fixes", 11),
-               ("Tips", 5), ("Help", 6), ("Activity", 7), ("Notifications", 13)]),
+               ("Tips", 5), ("Help", 6), ("Activity", 7)]),   # Notifications removed (owner request 2026-10-23)
 ]
 BOTTOM = [("About", "About"), ("Settings", "Settings")]
 
@@ -85,7 +85,6 @@ KEYWORDS = {
     "Tips": "tips advice",
     "Help": "help guide how",
     "Activity": "activity log history results",
-    "Notifications": "notifications history requests",
     "About": "about version credits license",
     "Settings": "settings theme appearance accent color colour super black background animation theme maker "
                 "share code sidebar header banner discord tray close minimized start with windows updates "

@@ -25,14 +25,30 @@ class GeminiChat : Form
     readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 16000000 };
     readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
     bool busy;
-    // Built-in key: filled in at build time by build.py from the RETWEAKS_GEMINI_KEY secret (or the untracked
-    // ai\gemini_key.txt), so no key is ever stored in the public source code. Empty = no built-in key.
+    // Built-in keys: filled in at build time by build.py from the GEMINI_API_KEY secret (or the untracked
+    // ai\gemini_key.txt), one or more keys separated by "|", so no key is ever stored in the public source code.
     const string BundledKey = "@@RETWEAKS_GEMINI_KEY@@";
-    static string Builtin() { return BundledKey.StartsWith("@@") ? "" : BundledKey; }
+    static string[] Builtins() { return BundledKey.StartsWith("@@") ? new string[0] : BundledKey.Split(new[]{'|'}, StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()).Where(k => k.Length > 0).ToArray(); }
     static readonly string KeyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GeminiChat", "key-v2.dat");
-    static string ReadKey() {
-        try { if (File.Exists(KeyFile)) return Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(KeyFile), null, DataProtectionScope.CurrentUser)); } catch { }
-        return Builtin();
+    // Which key worked last (a number only, never the key), so every AI helper starts with a key that works.
+    static readonly string ActiveFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GeminiChat", "active-key.txt");
+    static string OwnKey() {
+        try { if (File.Exists(KeyFile)) return Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(KeyFile), null, DataProtectionScope.CurrentUser)).Trim(); } catch { }
+        return "";
+    }
+    // The user's own key (if saved) first, then the built-in keys.
+    static List<string> Keys() { var list = new List<string>(); string own = OwnKey(); if (own.Length > 0) list.Add(own); foreach (var k in Builtins()) if (!list.Contains(k)) list.Add(k); return list; }
+    static int ActiveIndex(int count) { try { int i; if (count > 0 && int.TryParse(File.ReadAllText(ActiveFile).Trim(), out i)) return ((i % count) + count) % count; } catch { } return 0; }
+    static void SaveActiveIndex(int i) { try { Directory.CreateDirectory(Path.GetDirectoryName(ActiveFile)); File.WriteAllText(ActiveFile, i.ToString()); } catch { } }
+    static string ReadKey() { var keys = Keys(); return keys.Count == 0 ? "" : keys[ActiveIndex(keys.Count)]; }
+    class KeyRejected : Exception { public KeyRejected(string m) : base(m) { } }
+    // Google says the key itself is unusable (invalid, expired, disabled, suspended). Usage limits (429), model
+    // problems and network errors are NOT key failures, so they never cause a switch.
+    static bool IsDeadKey(int code, string detail) {
+        string d = (detail ?? "").ToLowerInvariant();
+        if (code == 401) return true;
+        if (code == 400 || code == 403) return d.Contains("api key") || d.Contains("api_key") || d.Contains("suspended") || d.Contains("has been disabled") || d.Contains("expired");
+        return false;
     }
     void SaveKey() {
         Directory.CreateDirectory(Path.GetDirectoryName(KeyFile));
@@ -94,9 +110,23 @@ class GeminiChat : Form
     string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("No Gemini key yet. Paste your own free key on the AI assistant page (Get a free key)."); return value; }
     async Task<Dictionary<string,object>> Request(string path, object body)
     {
+        var keys = Keys();
+        if (keys.Count == 0) return await RequestOnce(path, body, ApiKey());
+        int current = keys.IndexOf(key.Text.Trim()), start = current >= 0 ? current : ActiveIndex(keys.Count);
+        Exception last = null;
+        for (int n = 0; n < keys.Count; n++) {
+            int i = (start + n) % keys.Count;
+            key.Text = keys[i];
+            try { var result = await RequestOnce(path, body, keys[i]); if (n > 0) SaveActiveIndex(i); return result; }
+            catch (KeyRejected ex) { last = ex; if (keys.Count > 1) status.Text = "A key stopped working; trying the next one..."; }
+        }
+        throw new Exception("Google rejected every key (" + keys.Count + "). " + (last == null ? "" : last.Message));
+    }
+    async Task<Dictionary<string,object>> RequestOnce(string path, object body, string apiKey)
+    {
         using (var request = new HttpRequestMessage(body == null ? HttpMethod.Get : HttpMethod.Post, "https://generativelanguage.googleapis.com/v1beta/" + path))
         {
-            request.Headers.Add("x-goog-api-key", ApiKey());
+            request.Headers.Add("x-goog-api-key", apiKey);
             if (body != null) request.Content = new StringContent(json.Serialize(body), Encoding.UTF8, "application/json");
             using (var response = await http.SendAsync(request))
             {
@@ -107,10 +137,11 @@ class GeminiChat : Form
                     try {
                         var parsed = json.Deserialize<Dictionary<string,object>>(raw);
                         var apiError = (Dictionary<string,object>)parsed["error"];
-                        detail = Convert.ToString(apiError["message"]).Replace(ApiKey(), "[redacted]");
+                        detail = Convert.ToString(apiError["message"]).Replace(apiKey, "[redacted]");
                     } catch { }
+                    if (IsDeadKey(code, detail)) throw new KeyRejected("Google HTTP " + code + ": " + (detail.Length > 0 ? detail : "the key was rejected."));
                     if (detail.Length > 0) throw new Exception("Google HTTP " + code + ": " + detail);
-                    throw new Exception(code == 429 ? "Google's usage limit was reached. Check your quota or try again later." : code == 400 || code == 401 || code == 403 ? "Google rejected the request. Check your API key, API access, and model permissions." : code == 404 ? "This model is unavailable. Click Load models and choose another model." : "Google returned HTTP " + code + ". Please try again later.");
+                    throw new Exception(code == 429 ? "Google's usage limit was reached. Try again later." : code == 400 || code == 401 || code == 403 ? "Google rejected the request. Check your API key, API access, and model permissions." : code == 404 ? "This model is unavailable. Click Load models and choose another model." : "Google returned HTTP " + code + ". Please try again later.");
                 }
                 return json.Deserialize<Dictionary<string,object>>(raw);
             }

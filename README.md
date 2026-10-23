@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/w1zr/retweaks/releases/latest"><b>Download the latest release</b></a> ·
-  <a href="https://retweaks.plumheron1.chatgpt.site/"><b>Website</b></a> ·
+  <a href="https://w1zr.github.io/ReTweaks/"><b>Website</b></a> ·
   <a href="https://discord.gg/fS5NwW9TPF"><b>Discord</b></a>
 </p>
 

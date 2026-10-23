@@ -33,7 +33,11 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   published in the code with v2.0 (owner decision) and Google disabled it minutes later. Since v2.0.1 **no key is in the
   repo**: `ai/GeminiChat.cs` has the placeholder `@@RETWEAKS_GEMINI_KEY@@`; `build.py` fills it from the env var
   `RETWEAKS_GEMINI_KEY` (GitHub Actions secret `GEMINI_API_KEY`) or the untracked `ai/gemini_key.txt` into a temporary
-  copy it deletes after compiling; `ai/GeminiChat.exe` is no longer tracked. Never commit a key again. Users can also
+  copy it deletes after compiling; `ai/GeminiChat.exe` is no longer tracked. Never commit a key again. Several keys are
+  allowed (one per line, joined with `|`); `GeminiChat.Request` switches to the next key only when Google says a key is
+  dead (401, or 400/403 about the key), never on 429 limits (owner choice 2026-10-23); the working key's index is kept in
+  `%LOCALAPPDATA%\GeminiChat\active-key.txt` (a number, never the key). The Notifications page was removed from the
+  sidebar (owner request 2026-10-23); its page object stays so later page indexes don't shift. Users can also
   paste their own key on the AI assistant page (`rt_pages/ai_key.py`, DPAPI file `%LOCALAPPDATA%\GeminiChat\key-v2.dat`,
   which the helper reads first).
 - **Base app v1.5 merge (owner decisions 2026-10-22):** added the base app's v1.5 Temperatures, Fan control, RGB lighting

@@ -29,10 +29,12 @@ assert len(hub.tabs)==28+len(REGISTRY)   # the base app tabs + RETWEAKS pages
 # RETWEAKS sidebar (rt_sidebar) replaced the original nav list; every original page is still reachable from it
 side=hub.sidebar_nav
 # every original page is in the sidebar except About (14, covered by RETWEAKS' About) and
-# Appearance (18, moved into Settings -> Appearance; show_tab(18) opens Settings)
-for idx in set(range(28))-{14,18}:
+# Appearance (18, moved into Settings -> Appearance; show_tab(18) opens Settings) and
+# Notifications (13, removed by owner request 2026-10-23)
+for idx in set(range(28))-{13,14,18}:
     assert idx in side.targets.values(), idx
 hub.show_tab(18); assert hub.cur_tab==hub.rt_tabs['Settings']
+assert 'Notifications' not in side.targets
 from rt_pages import EMBEDDED                    # pages shown inside another page (Exact-undo -> Individual tweaks)
 assert all(i in side.targets.values() for k, i in hub.rt_tabs.items() if k not in EMBEDDED)
 side.buttons['3D PC Builder'].command()

@@ -67,7 +67,7 @@ def test_build_activity_variants_and_limits():
     assert idle["timestamps"]["start"] == 100
     assert idle["assets"] == {"large_image": d.IMAGE_KEY, "large_text": "RETWEAKS"} and d.IMAGE_KEY == "ry" + "tweaks"
     assert idle["buttons"] == [{"label": "Get ReTweaks", "url": "https://github.com/w1zr/ReTweaks"},
-                               {"label": "Website", "url": "https://retweaks.plumheron1.chatgpt.site/"}]
+                               {"label": "Website", "url": "https://w1zr.github.io/ReTweaks/"}]
     long = d.build_activity({"game": "X" * 500}, True, 1)
     for a in (idle, g, hidden, long):
         for k in ("details", "state"):

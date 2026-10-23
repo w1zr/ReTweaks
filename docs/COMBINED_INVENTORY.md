@@ -95,3 +95,6 @@ Before (RETWEAKS Tk page around WebView2 in-process via pythonnet) -> after (ai/
 ### Checks that can only pass on Windows
 `check_sidebar_layout.py` (maximized state), `check_navigation_stress.py` (EmbeddedSite.exe),
 `check_window_chrome.py` (native frame), `check_first_run.py` (PowerShell).
+
+### Owner-approved removals
+- 2026-10-23: **Notifications** page removed from the sidebar and search (owner request). Its data (`history.json`, recent tweak requests) is kept and still used for the AI context; a saved start page of Notifications moves to Dashboard.

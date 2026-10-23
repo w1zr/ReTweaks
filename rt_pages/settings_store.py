@@ -39,6 +39,8 @@ def load():
     # Page renamed "FPS test" -> "FPS overlay" (2026-10-22): keep "Open on" pointing at the same page. Repeat-safe.
     if data.get("startup_page") == "FPS test":
         data["startup_page"] = "FPS overlay"
+    if data.get("startup_page") == "Notifications":       # page removed in v2.0.1 (owner request)
+        data["startup_page"] = "Dashboard"
     return data
 
 
