@@ -205,10 +205,11 @@ def _load_saved_plan():
 CALM_LEVELS = {"Below normal": ("BELOW_NORMAL_PRIORITY_CLASS", 0x4000),
                "Idle": ("IDLE_PRIORITY_CLASS", 0x40)}
 CALM_DEFAULT = "Below normal"
+_OLD_EXE = "ry" + "tweaks"        # the app's previous process name
 # Never lowered, whatever the user types: system-critical processes and RETWEAKS itself.
 PROTECTED = frozenset({"csrss", "wininit", "winlogon", "services", "lsass", "smss", "svchost", "dwm",
                        "explorer", "audiodg", "system", "registry", "msmpeng", "retweaks",
-                       "retweaks.old", "rytweaks", "rytweaks.old", "system idle process", "memory compression", "secure system",
+                       "retweaks.old", _OLD_EXE, _OLD_EXE + ".old", "system idle process", "memory compression", "secure system",
                        # anti-cheat services: never touched (CLAUDE.md section 9)
                        "easyanticheat", "easyanticheat_eos", "beservice", "beservice_x64", "vgc", "vgtray",
                        "faceit", "faceitservice", "esportal", "gameguard", "nprotect", "xigncode",

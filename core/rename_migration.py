@@ -1,15 +1,17 @@
 # core/rename_migration.py
-"""One-time move from the old name RYTWEAKS to RETWEAKS (v1.6, owner decision 2026-10-22).
+"""One-time moves of data from earlier versions of the app (its previous name, v1.6, and the base app it was
+combined with, v2.0; owner decisions 2026-10-22).
 
 Runs at every start and is repeat-safe: each step only acts when the old item exists and the new
 one doesn't yet, and nothing old is deleted except the old Start-with-Windows task after its
 replacement was created. Old data folders are copied (not moved), so they stay as a backup.
 
-  %APPDATA%\\RYTWEAKS        -> %APPDATA%\\RETWEAKS        (settings, tweak undo data, game backups,
-                                                         bookmarks/history, program rules, ...)
-  %LOCALAPPDATA%\\RYTWEAKS   -> %LOCALAPPDATA%\\RETWEAKS   (browser cookies/cache, start page)
-  Credential RYTWEAKS/GeminiAPIKey -> RETWEAKS/GeminiAPIKey (the AI Assistant key)
-  Scheduled task "RYTWEAKS"  -> "RETWEAKS"              (Start with Windows, pointing at this .exe)
+  %APPDATA%\\<OLD>        -> %APPDATA%\\RETWEAKS        (settings, tweak undo data, game backups,
+                                                     bookmarks/history, program rules, ...)
+  %LOCALAPPDATA%\\<OLD>   -> %LOCALAPPDATA%\\RETWEAKS   (browser cookies/cache, start page)
+  Credential <OLD>/GeminiAPIKey -> RETWEAKS/GeminiAPIKey (the AI Assistant key)
+  Scheduled task "<OLD>"  -> "RETWEAKS"              (Start with Windows, pointing at this .exe)
+  %APPDATA%\\<BASE_APP>, %LOCALAPPDATA%\\<BASE_APP> -> the RETWEAKS folders (missing files only)
 """
 
 import os
@@ -19,10 +21,11 @@ from pathlib import Path
 
 from core.winutil import IS_WINDOWS
 
-OLD, NEW = "RYTWEAKS", "RETWEAKS"
-OLD_EXE = "rytweaks.exe"                       # lower case, for process-name checks
-OLD_SHOW_SERVER_PREFIX = "RYTWEAKS_show_"      # v1.5.1's local socket (answers "quit")
-MARKER = "migrated_from_RYTWEAKS.txt"
+OLD = "RY" + "TWEAKS"                         # the app's previous name (folders, credential, task)
+NEW = "RETWEAKS"
+OLD_EXE = OLD.lower() + ".exe"                 # lower case, for process-name checks
+OLD_SHOW_SERVER_PREFIX = OLD + "_show_"        # v1.5.1's local socket (answers "quit")
+MARKER = "migrated_from_" + OLD + ".txt"
 
 
 def _bases():
@@ -36,7 +39,7 @@ def _bases():
 
 def _write_marker(old, new):
     (new / MARKER).write_text(
-        f"Copied from {old} when RYTWEAKS was renamed to RETWEAKS. The old folder was kept "
+        f"Copied from {old} when the app was renamed to RETWEAKS. The old folder was kept "
         "as a backup and can be deleted once everything works.\n", encoding="utf-8")
 
 
@@ -82,6 +85,40 @@ def migrate_folders(bases=None):
     return results
 
 
+BASE_APP = "Perf" + "Hub"                      # data folder name of the base app RETWEAKS v2.0 was combined with
+BASE_MARKER = "migrated_from_" + BASE_APP + ".txt"
+# Base-app file names that collide with RETWEAKS' own files get a new name when copied over.
+BASE_RENAMES = {"custom_presets.json": "tweak_custom_presets.json"}
+
+
+def migrate_base_app(bases=None):
+    """v2.0 (owner decision 2026-10-22): copies the base app's data (appearance, history, benchmarks,
+    driver links, first-run choice, custom tweak presets; embedded-site browser profiles) into the RETWEAKS
+    folders. Only copies files RETWEAKS doesn't have yet; the old folders are kept. One time per folder."""
+    results = []
+    for base in bases if bases is not None else _bases():
+        old, new = base / BASE_APP, base / NEW
+        if not old.is_dir() or (new / BASE_MARKER).exists():
+            continue
+        try:
+            new.mkdir(parents=True, exist_ok=True)
+            for root, dirs, files in os.walk(old):
+                rel = Path(root).relative_to(old)
+                (new / rel).mkdir(parents=True, exist_ok=True)
+                for f in files:
+                    name = BASE_RENAMES.get(f, f) if rel == Path(".") else f
+                    target = new / rel / name
+                    if not target.exists():
+                        shutil.copy2(Path(root) / f, target)
+            (new / BASE_MARKER).write_text(
+                f"Copied from {old} by RETWEAKS v2.0. The old folder was kept as a backup and can be deleted "
+                "once everything works.\n", encoding="utf-8")
+            results.append((str(old), str(new), True, "copied"))
+        except Exception as e:
+            results.append((str(old), str(new), False, f"{type(e).__name__}: {e}"))
+    return results
+
+
 def migrate_credential(read=None, write=None):
     """Copies the saved Gemini key to the new credential name. Returns True if it copied one."""
     if read is None or write is None:
@@ -105,7 +142,7 @@ def migrate_credential(read=None, write=None):
 
 
 def migrate_autostart(run=None, set_enabled=None):
-    """If the old "RYTWEAKS" sign-in task exists: create the new one for this .exe (keeping the
+    """If the old-name sign-in task exists: create the new one for this .exe (keeping the
     "start minimized" choice), and only then delete the old one. Returns (ok, message) or None."""
     from core import autostart
     if not autostart.available():
@@ -128,7 +165,7 @@ def migrate_autostart(run=None, set_enabled=None):
 
 
 def legacy_processes():
-    """Running RYTWEAKS.exe processes (the old name). Only checked in the packaged .exe."""
+    """Running copies of the app under its previous name. Only checked in the packaged .exe."""
     if not IS_WINDOWS or not getattr(sys, "frozen", False):
         return []
     try:
@@ -141,8 +178,9 @@ def legacy_processes():
 def migrate_all():
     """Data folders, the AI key and the sign-in task. Never raises; returns a short log."""
     log = []
-    for old, new, ok, msg in migrate_folders():
-        log.append(f"{'Moved' if ok else 'Could not move'} {old} -> {new}" + ("" if ok else f" ({msg})"))
+    for old, new, ok, msg in migrate_folders() + migrate_base_app():
+        log.append(f"Copied your data from an earlier version into {new}" if ok
+                   else f"Could not copy data from an earlier version into {new} ({msg})")
     try:
         if migrate_credential():
             log.append("Moved the AI Assistant key to RETWEAKS/GeminiAPIKey")

@@ -7,9 +7,6 @@ import re
 import sys
 import subprocess
 from pathlib import Path
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFileIconProvider
-from PySide6.QtCore import QFileInfo
 
 try:                      # winreg only exists on Windows; the module must still import elsewhere (tests)
     import winreg
@@ -80,6 +77,10 @@ def extract_icon(file_path):
 
 
 def _extract_icon(file_path):
+    # Qt is imported here, not at module level, so the Tk app can use this module without PySide6
+    from PySide6.QtGui import QIcon
+    from PySide6.QtWidgets import QFileIconProvider
+    from PySide6.QtCore import QFileInfo
     try:
         clean_path = file_path.strip('"').split('.exe')[0] + '.exe'
         if not os.path.exists(clean_path):

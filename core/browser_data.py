@@ -30,7 +30,7 @@ HOMEPAGES = {
     "Startpage": "https://www.startpage.com/",
 }
 CUSTOM = "Custom"
-NEWTAB_HOST = "retweaks.newtab"                    # RETWEAKS start page (core/browser_newtab.py)
+NEWTAB_HOST = "retweaks.newtab"                    # old RETWEAKS start page host (never saved to history)
 NEWTAB_URL = f"https://{NEWTAB_HOST}/index.html"
 NEWTAB_PRIVATE_URL = f"https://{NEWTAB_HOST}/private.html"
 DEFAULT_ENGINE = "Google"
@@ -223,6 +223,29 @@ class BrowserData:
                     self._save()
                     return True
         return False
+
+    def set_bookmarks(self, items):
+        """Replaces the bookmark list with [{'name'|'title', 'url'}] from the browser (its order is kept).
+        Bad entries are skipped; the original 'added' time of an existing bookmark is kept.
+        Returns True if anything changed."""
+        added = {b["url"]: b.get("added", 0) for b in self.bookmarks}
+        out, seen = [], set()
+        for it in items or []:
+            if not isinstance(it, dict):
+                continue
+            url = it.get("url")
+            if not isinstance(url, str) or not url.lower().startswith(("http://", "https://")) or url in seen:
+                continue
+            seen.add(url)
+            title = it.get("name", it.get("title", ""))
+            out.append({"title": display_title(title if isinstance(title, str) else "", url)[:200], "url": url,
+                        "added": added.get(url) or int(time.time())})
+        with self._lock:
+            if [(b["title"], b["url"]) for b in out] == [(b["title"], b["url"]) for b in self.bookmarks]:
+                return False
+            self.bookmarks = out
+            self._save()
+        return True
 
     # ---- history
     def add_history(self, title, url, private=False):

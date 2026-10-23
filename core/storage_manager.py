@@ -9,9 +9,6 @@ import threading
 import time
 import psutil
 from pathlib import Path
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFileIconProvider
-from PySide6.QtCore import QFileInfo
 
 def get_disk_drives():
     """Detects and returns metadata for all available storage drives."""
@@ -51,6 +48,9 @@ def browse_directory(path_str):
         if not path.exists() or not path.is_dir():
             return items
         
+        # Qt is imported here, not at module level, so the Tk app can use this module without PySide6
+        from PySide6.QtWidgets import QFileIconProvider
+        from PySide6.QtCore import QFileInfo
         provider = QFileIconProvider()
         for entry in path.iterdir():
             try:

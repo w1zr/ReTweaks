@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui.widgets.brand import paint_chip  # noqa: E402
 
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
-BACKGROUND = "#0b0d10"
+BACKGROUND = "#000000"   # black tile so the white chip shows on light taskbars (owner request 2026-10-22)
 
 
 def _small_chip(p, size):
@@ -148,6 +148,11 @@ def generate_icon():
     print(f"Chip icon (.exe, Explorer, shortcuts) saved to {out} ({', '.join(str(s) for s in SIZES)} px)")
     out = write_ico(os.path.join("assets", "taskbar.ico"), renderer=render_taskbar)
     print(f"Taskbar/window icon saved to {out}")
+    # The same black-tile drawing as PNGs for Tk's iconphoto (window + taskbar). The in-app chip PNGs
+    # (assets/chip-*.png) stay transparent; using those here made the taskbar icon plain white.
+    for s in (16, 32, 48, 256):
+        render_taskbar(s).save(os.path.join("assets", f"winicon-{s}.png"))
+    print("Window icon PNGs saved to assets/winicon-*.png")
 
 
 if __name__ == "__main__":

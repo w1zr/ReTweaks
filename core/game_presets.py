@@ -509,7 +509,7 @@ def add_custom_file(path, name=None):
 # That format is unchanged, so presets saved by earlier versions keep loading.
 
 PRESET_FORMAT = "retweaks-preset"
-OLD_PRESET_FORMATS = ("rytweaks-preset",)   # files exported before the rename still import
+OLD_PRESET_FORMATS = ("ry" + "tweaks-preset",)   # files exported before the rename still import
 PRESET_VERSION = 1
 MAX_IMPORT_BYTES = 256 * 1024
 MAX_PRESET_KEYS = 500

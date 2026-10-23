@@ -13,6 +13,11 @@ when the user runs it. Two ways, tried in this order:
    (and root\OpenHardwareMonitor by the old OpenHardwareMonitor).
 
 If neither is available, read() returns None and the UI says so.
+
+Combined app (2026-10-22, owner request): the base app's v1.5 bundled LibreHardwareMonitor 0.9.6 sensor host
+(ai/sensors/SensorHost.exe, run by temperatures.Temperatures) is tried first, so temperatures and fan speeds
+show without the user running LHM. Its readings come from the same LHM library; CPU/motherboard sensors still
+need the PawnIO driver the user installs.
 """
 
 import json
@@ -105,6 +110,47 @@ def parse_lhm(hardware_rows, sensor_rows, source="LibreHardwareMonitor"):
             result["cpu_temp"] = max(cpu_temps.values())
 
     return result
+
+
+_BUNDLED = None            # temperatures.Temperatures from the app (set_bundled_provider)
+BUNDLED_SOURCE = "LibreHardwareMonitor (built in)"
+_PART_TYPE = {"CPU": "Cpu", "GPU": "GpuNvidia", "Motherboard": "Motherboard", "Storage": "Storage",
+              "Memory": "Memory"}
+
+
+def set_bundled_provider(provider):
+    """provider: an object with .extended (temperature rows), .fans and .extended_time (time.monotonic())."""
+    global _BUNDLED
+    _BUNDLED = provider
+
+
+def bundled_to_lhm(rows, fans, source=BUNDLED_SOURCE):
+    """Sensor-host rows ({part, hardware, name 'HW / sensor', c}) and fans ({name, hardware, rpm}) -> the same
+    dict parse_lhm returns. Pure function (unit tested)."""
+    hardware, sensors = {}, []
+    for r in rows or []:
+        hw = str(r.get("hardware") or str(r.get("name", "")).split(" / ")[0] or r.get("part") or "Hardware")
+        hardware.setdefault(hw, {"Identifier": hw, "Name": hw, "HardwareType": _PART_TYPE.get(r.get("part"), "Motherboard")})
+        sensors.append({"Name": str(r.get("name", "")).split(" / ", 1)[-1], "SensorType": "Temperature",
+                        "Value": r.get("c"), "Parent": hw})
+    for f in fans or []:
+        hw = str(f.get("hardware") or "Fan controller")
+        is_gpu = "gpu" in (str(f.get("id", "")) + hw + str(f.get("name", ""))).lower()
+        hardware.setdefault(hw, {"Identifier": hw, "Name": hw, "HardwareType": "GpuNvidia" if is_gpu else "Motherboard"})
+        sensors.append({"Name": f.get("name") or "Fan", "SensorType": "Fan", "Value": f.get("rpm"), "Parent": hw})
+    if not sensors:
+        return None
+    return parse_lhm(list(hardware.values()), sensors, source)
+
+
+def read_bundled(max_age=15.0):
+    p = _BUNDLED
+    if p is None or time.monotonic() - (getattr(p, "extended_time", 0) or 0) > max_age:
+        return None
+    try:
+        return bundled_to_lhm(list(getattr(p, "extended", None) or []), list(getattr(p, "fans", None) or []))
+    except Exception:
+        return None
 
 
 def _kind_from_id(hardware_id):
@@ -200,6 +246,10 @@ class LhmReader:
     def read(self):
         if not IS_WINDOWS:
             return None
+        # 0) The bundled sensor host (combined app), when it is running and fresh
+        result = read_bundled()
+        if result:
+            return result
         # 1) Web server (LHM v0.9.5+). Local and fast, so it's tried every time.
         result = read_lhm_http()
         if result:

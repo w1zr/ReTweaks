@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'"><title>Bookmarks and history - RETWEAKS Browser</title><link rel="icon" href="chip-32.png"><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#101113;color:#eee;font:14px 'Segoe UI',sans-serif}
+header{position:sticky;top:0;background:#191a1d;padding:18px 30px;display:flex;gap:28px;align-items:center;z-index:2;border-bottom:1px solid #333}
+header b{font-size:20px;display:flex;align-items:center;gap:10px}header img{width:22px;height:22px}
+input,button{font:inherit;background:#25262a;color:#eee;border:1px solid #45464b;border-radius:20px;padding:9px 14px}button{cursor:pointer}button:hover{background:#303136}
+#search{width:min(520px,50vw)}main{max-width:900px;margin:24px auto 80px;padding:0 24px}
+h2{font-size:18px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.card{background:#1c1d20;border:1px solid #303136;border-radius:18px;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid #2a2b2f}.row:last-child{border:0}
+.row a{flex:1;min-width:0;color:#eee;text-decoration:none;display:flex;flex-direction:column}.row a:hover .t{text-decoration:underline}
+.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.u{color:#9a9aa0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{color:#9a9aa0;font-size:12px;white-space:nowrap}.small{padding:6px 12px;font-size:12px}.empty{padding:22px;color:#9a9aa0}
+#message{color:#9a9aa0;margin-left:auto}
+</style></head><body><header><b><img src="chip-32.png" alt="">Bookmarks and history</b><input id="search" placeholder="Search bookmarks and history" aria-label="Search bookmarks and history"><span id="message" role="status"></span></header>
+<main><section id="bookmarks"><h2>Bookmarks <span class="u">Also shown as shortcuts on the New tab page</span></h2><div class="card" id="bm"></div></section>
+<section id="history"><h2>History <button id="clear" class="small">Clear history</button></h2><div class="card" id="hist"></div><p class="u">Private tabs are never saved here.</p></section></main>
+<script>
+const send=data=>window.chrome.webview.postMessage(data);let data={bookmarks:[],history:[],total:0};
+const when=t=>{if(!t)return'';const d=new Date(t*1000);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})};
+function link(title,url){const a=document.createElement('a');a.href=url;a.onclick=e=>{e.preventDefault();send({op:e.ctrlKey||e.button===1?'open-tab':'open',url})};const t=document.createElement('span');t.className='t';t.textContent=title||url;const u=document.createElement('span');u.className='u';u.textContent=url;a.append(t,u);return a}
+function button(text,fn){const b=document.createElement('button');b.className='small';b.textContent=text;b.onclick=fn;return b}
+function render(){const q=document.querySelector('#search').value.toLowerCase().split(/\s+/).filter(Boolean);const match=x=>q.every(w=>((x.name||x.title||'')+' '+x.url).toLowerCase().includes(w));
+const bm=document.querySelector('#bm');bm.replaceChildren();const marks=data.bookmarks.filter(match);
+for(const b of marks){const row=document.createElement('div');row.className='row';row.append(link(b.name,b.url),button('New tab',()=>send({op:'open-tab',url:b.url})),button('Rename',()=>{const name=prompt('Bookmark name',b.name);if(name&&name.trim())send({op:'rename-shortcut',url:b.url,name:name.trim()})}),button('Remove',()=>send({op:'remove-shortcut',url:b.url})));bm.append(row)}
+if(!marks.length){const e=document.createElement('div');e.className='empty';e.textContent=q.length?'No bookmarks match.':'No bookmarks yet. Press the star in the address bar or Ctrl + D to add one.';bm.append(e)}
+const hist=document.querySelector('#hist');hist.replaceChildren();const items=data.history.filter(match).slice(0,500);
+for(const h of items){const row=document.createElement('div');row.className='row';const time=document.createElement('span');time.className='time';time.textContent=when(h.time);row.append(time,link(h.title,h.url));hist.append(row)}
+if(!items.length){const e=document.createElement('div');e.className='empty';e.textContent=q.length?'No history matches.':'No history yet.';hist.append(e)}
+document.querySelector('#message').textContent=data.total?data.total+(data.total===1?' page':' pages')+' in history':'';}
+window.renderLibrary=d=>{data=d;render()};document.querySelector('#search').oninput=render;
+document.querySelector('#clear').onclick=()=>{if(confirm('Delete all browsing history? Bookmarks are kept.'))send({op:'clear-history'})};
+if(location.hash==='#history')document.querySelector('#history').scrollIntoView();
+</script></body></html>

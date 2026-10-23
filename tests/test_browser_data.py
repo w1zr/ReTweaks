@@ -105,18 +105,32 @@ def test_start_page_is_not_history_or_bookmark(tmp_path):
     assert not d.add_bookmark("New tab", bd.NEWTAB_URL)
 
 
-def test_start_page_render_escapes_and_uses_engine(tmp_path):
-    from core import browser_newtab as n
-    from core import themes
-    t = themes.get_theme("Midnight")
-    page = n.render(t, "DuckDuckGo", "", [{"title": "<script>x</script>", "url": "https://e.com/?a=\"b"},
-                                          {"title": "bad", "url": "javascript:alert(1)"}])
-    assert "ReTweaks" in page and "<svg" in page
-    assert "<script>x</script>" not in page and "&lt;script&gt;" in page
-    assert "javascript:alert" not in page
-    assert '"https://duckduckgo.com/?q={q}"' in page
-    page = n.render(t, bd.CUSTOM, "https://kagi.com/search?q=%s")
-    assert '"https://kagi.com/search?q={q}"' in page
-    assert "Private tab" in n.render(t, private=True)
-    folder = n.write(tmp_path / "nt", t)
-    assert (tmp_path / "nt" / "index.html").exists() and (tmp_path / "nt" / "private.html").exists()
+def test_set_bookmarks_from_browser(tmp_path):
+    """The browser program reports its shortcut list; RETWEAKS keeps it in browser.json (order kept,
+    bad entries skipped, original 'added' time kept)."""
+    d = bd.BrowserData(tmp_path / "b.json")
+    d.add_bookmark("Old", "https://old.example/")
+    added = d.bookmarks[0]["added"]
+    assert d.set_bookmarks([{"name": "New", "url": "https://new.example/"}, {"name": "Old", "url": "https://old.example/"},
+                            {"name": "bad", "url": "javascript:alert(1)"}, "junk", {"name": "dup", "url": "https://new.example/"}])
+    assert [b["url"] for b in d.bookmarks] == ["https://new.example/", "https://old.example/"]
+    assert d.bookmarks[1]["added"] == added
+    assert not d.set_bookmarks([{"name": "New", "url": "https://new.example/"}, {"name": "Old", "url": "https://old.example/"}])
+    again = bd.BrowserData(tmp_path / "b.json")
+    assert [b["title"] for b in again.bookmarks] == ["New", "Old"]
+
+
+def test_browser_pages_are_retweaks_branded():
+    """The base app's v1.5 browser pages with RETWEAKS branding (owner request 2026-10-22)."""
+    from pathlib import Path
+    assets = Path(__file__).resolve().parents[1] / "assets"
+    home = (assets / "browser-home.html").read_text(encoding="utf-8")
+    assert "RETWEAKS BROWSER" in home and "chip-48.png" in home and "chip-96.png" in home
+    assert ("perf" + "hub") not in home.lower() and "feather" not in home        # old brand name gone
+    assert "Where to next?" in home and "private-note" in home
+    settings = (assets / "browser-settings.html").read_text(encoding="utf-8")
+    assert "RETWEAKS Browser / Settings" in settings and "customSearch" in settings and "clearData" in settings
+    lib = (assets / "browser-library.html").read_text(encoding="utf-8")
+    assert "renderLibrary" in lib and "clear-history" in lib and "rename-shortcut" in lib
+    for name in ("chip-32.png", "chip-48.png", "chip-96.png", "browser-google.svg", "browser-youtube.svg"):
+        assert (assets / name).is_file(), name

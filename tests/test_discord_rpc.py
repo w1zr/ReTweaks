@@ -65,8 +65,9 @@ def test_build_activity_variants_and_limits():
     hidden = d.build_activity({"game": "Fortnite"}, False, 100)
     assert hidden["details"] == "Gaming" and "Fortnite" not in json.dumps(hidden)
     assert idle["timestamps"]["start"] == 100
-    assert idle["assets"] == {"large_image": "rytweaks", "large_text": "RETWEAKS"}
-    assert idle["buttons"][0]["url"].startswith("https://github.com/w1zr/retweaks")
+    assert idle["assets"] == {"large_image": d.IMAGE_KEY, "large_text": "RETWEAKS"} and d.IMAGE_KEY == "ry" + "tweaks"
+    assert idle["buttons"] == [{"label": "Get ReTweaks", "url": "https://github.com/w1zr/ReTweaks"},
+                               {"label": "Website", "url": "https://retweaks.plumheron1.chatgpt.site/"}]
     long = d.build_activity({"game": "X" * 500}, True, 1)
     for a in (idle, g, hidden, long):
         for k in ("details", "state"):

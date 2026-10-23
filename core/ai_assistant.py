@@ -28,7 +28,7 @@ TIMEOUT_S = 60
 MAX_HISTORY = 20  # messages (user + assistant) sent as `contents`
 MAX_OUTPUT_TOKENS = 2048
 
-PAGE_NAMES = ["Dashboard", "Hardware", "Health Check", "FPS test", "Display & drivers", "Tweaks",
+PAGE_NAMES = ["Dashboard", "Hardware", "Health Check", "FPS overlay", "Display & drivers", "Tweaks",
               "Profiles", "Game presets", "Program rules", "Startup apps", "Network",
               "Storage & cleanup", "Audio mixer", "Auto clicker", "Snapshots", "Fun tools",
               "Settings"]

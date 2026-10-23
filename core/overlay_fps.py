@@ -19,8 +19,10 @@ from collections import deque
 from core import fps
 
 SESSION_NAME = "RETWEAKS_overlay"   # the FPS test uses RETWEAKS_FPS
-WINDOW_S = 10.0                     # span for the 1% low
-FPS_SPAN_MS = 1000.0                # "current FPS" = frames in the last second
+WINDOW_S = 10.0                     # default span for the 1% low (setting overlay_low_window_s)
+FPS_SPAN_MS = 1000.0                # default "current FPS" span (setting overlay_fps_span_s)
+LOW_WINDOWS_S = (5, 10, 30, 60)     # choices for the 1% low window (owner request 2026-10-22)
+FPS_SPANS_S = (0.5, 1.0, 2.0)       # choices for the FPS averaging span
 MIN_FRAMES_LOW = 100                # below this the 1% low is Unavailable
 STALE_S = 2.0                       # no frames for this long -> values show "–"
 
@@ -28,7 +30,32 @@ CORNERS = ("top-left", "top-right", "bottom-left", "bottom-right")
 SIZES = ("small", "medium", "large")
 SOURCES = ("builtin", "presentmon")     # v1.4.3: built-in Windows frame events (default) or PresentMon
 DEFAULTS = {"overlay_position": "top-left", "overlay_size": "medium",
-            "overlay_show_load": True, "overlay_opacity": 85, "overlay_source": "builtin"}
+            "overlay_show_load": True, "overlay_opacity": 85, "overlay_source": "builtin",
+            "overlay_low_window_s": 10, "overlay_fps_span_s": 1.0}
+
+# Timings every RollingMetrics without explicit values follows, so a change applies to a running overlay at once.
+_TIMINGS = {"low_window_s": WINDOW_S, "fps_span_s": FPS_SPAN_MS / 1000.0}
+
+
+def _pick(value, choices, default):
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    return v if any(abs(v - c) < 1e-9 for c in choices) else default
+
+
+def set_timings(low_window_s=None, fps_span_s=None):
+    """Change the live overlay timings (validated; bad values keep the current ones). Returns the timings."""
+    if low_window_s is not None:
+        _TIMINGS["low_window_s"] = _pick(low_window_s, LOW_WINDOWS_S, _TIMINGS["low_window_s"])
+    if fps_span_s is not None:
+        _TIMINGS["fps_span_s"] = _pick(fps_span_s, FPS_SPANS_S, _TIMINGS["fps_span_s"])
+    return dict(_TIMINGS)
+
+
+def timings():
+    return dict(_TIMINGS)
 SETTING_NOTE = ("Works over games in windowed fullscreen or borderless mode. Games in exclusive "
                 "fullscreen draw over it. Nothing is injected into the game; frame times come "
                 "straight from Windows (built-in), or from PresentMon if you choose it.")
@@ -46,7 +73,12 @@ def clean_settings(settings):
         op = DEFAULTS["overlay_opacity"]
     load = s.get("overlay_show_load", DEFAULTS["overlay_show_load"])
     src = s.get("overlay_source")
-    return {"overlay_position": pos if pos in CORNERS else DEFAULTS["overlay_position"],
+    low_w = _pick(s.get("overlay_low_window_s", DEFAULTS["overlay_low_window_s"]), LOW_WINDOWS_S,
+                  float(DEFAULTS["overlay_low_window_s"]))
+    span = _pick(s.get("overlay_fps_span_s", DEFAULTS["overlay_fps_span_s"]), FPS_SPANS_S,
+                 DEFAULTS["overlay_fps_span_s"])
+    return {"overlay_low_window_s": int(low_w), "overlay_fps_span_s": span,
+            "overlay_position": pos if pos in CORNERS else DEFAULTS["overlay_position"],
             "overlay_size": size if size in SIZES else DEFAULTS["overlay_size"],
             "overlay_show_load": bool(load),
             "overlay_opacity": min(100, max(50, op)),
@@ -104,17 +136,30 @@ class LineParser:
 # ---------------------------------------------------------------- rolling metrics
 class RollingMetrics:
     """Rolling frame-time window. Time is the running sum of frame times, so the numbers do not
-    depend on how bursty the pipe delivery is."""
+    depend on how bursty the pipe delivery is.
 
-    def __init__(self, window_s=WINDOW_S):
-        self.window_ms = window_s * 1000.0
+    - FPS = frames that ended in the last `fps_span_s` seconds, divided by the time those frames took.
+    - 1% low = average of the slowest 1% of frames in the last `window_s` seconds, shown as FPS; it
+      needs at least MIN_FRAMES_LOW frames in that window, otherwise it is Unavailable.
+    Without explicit values both spans follow set_timings() live (the user's overlay settings)."""
+
+    def __init__(self, window_s=None, fps_span_s=None):
+        self._window_s, self._span_s = window_s, fps_span_s
         self.frames = deque()       # (end_time_ms, frame_ms)
         self.clock = 0.0
+
+    @property
+    def window_ms(self):
+        return (self._window_s if self._window_s is not None else _TIMINGS["low_window_s"]) * 1000.0
+
+    @property
+    def span_ms(self):
+        return (self._span_s if self._span_s is not None else _TIMINGS["fps_span_s"]) * 1000.0
 
     def add(self, frame_ms):
         self.clock += frame_ms
         self.frames.append((self.clock, frame_ms))
-        cutoff = self.clock - self.window_ms
+        cutoff = self.clock - max(self.window_ms, self.span_ms)
         while self.frames and self.frames[0][0] <= cutoff:
             self.frames.popleft()
 
@@ -123,12 +168,15 @@ class RollingMetrics:
         out = {"fps": None, "low1": None, "frame_ms": None}
         if not self.frames:
             return out
-        recent = [ft for end, ft in self.frames if end > self.clock - FPS_SPAN_MS]
+        span = self.span_ms
+        recent = [ft for end, ft in self.frames if end > self.clock - span]
         if recent:
-            out["fps"] = float(len(recent))
-            out["frame_ms"] = sum(recent) / len(recent)
-        if len(self.frames) >= MIN_FRAMES_LOW:
-            desc = sorted((ft for _e, ft in self.frames), reverse=True)
+            covered = sum(recent)                  # the time those frames actually took
+            out["fps"] = len(recent) * 1000.0 / covered
+            out["frame_ms"] = covered / len(recent)
+        window = [ft for end, ft in self.frames if end > self.clock - self.window_ms]
+        if len(window) >= MIN_FRAMES_LOW:
+            desc = sorted(window, reverse=True)
             n = max(1, math.ceil(len(desc) * 0.01))
             out["low1"] = 1000.0 / (sum(desc[:n]) / n)
         return out

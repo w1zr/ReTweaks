@@ -22,7 +22,17 @@ from datetime import datetime
 from pathlib import Path
 
 RELEASES_URL = "https://github.com/GameTechDev/PresentMon/releases"
-DURATIONS = (10, 30, 60, 120)
+DURATIONS = (10, 30, 60, 120, 300)
+CUSTOM_MIN_S, CUSTOM_MAX_S = 5, 1800     # custom test length limits (owner request 2026-10-22)
+
+
+def clean_seconds(value, default=30):
+    """A test length in whole seconds between CUSTOM_MIN_S and CUSTOM_MAX_S, else `default`."""
+    try:
+        v = int(float(value))
+    except (TypeError, ValueError):
+        return default
+    return v if CUSTOM_MIN_S <= v <= CUSTOM_MAX_S else default
 METHOD_TEXT = ("1% low = average of the slowest 1% of frames (by frame time), shown as FPS. "
                "0.1% low = same for the slowest 0.1%. Percentile values use the 99th / 99.9th "
                "percentile frame time instead.")

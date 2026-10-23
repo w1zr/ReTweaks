@@ -1,0 +1,1060 @@
+{
+  "chrome": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/chrome.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "epic": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/epic-games.png",
+    "native_size": [
+      441,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "discord": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/discord.png",
+    "native_size": [
+      661,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "steam": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/steam.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "spotify": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/spotify.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "drive": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/google-drive.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "nvidia": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/nvidia.png",
+    "native_size": [
+      774,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "afterburner": {
+    "url": "https://cdn.jsdelivr.net/gh/mikeee/ChocoPackages/icons/msiafterburner.png",
+    "native_size": [
+      300,
+      300
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "logitech": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/logitech.png",
+    "native_size": [
+      745,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "rgb": {
+    "url": "https://www.signalrgb.com/assets/signalrgb-logo-mnml.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "capcut": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/cap-cut.png",
+    "native_size": [
+      652,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "obs": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/obs.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "medal": {
+    "url": "https://cdn.medal.tv/assets/next/img/medal-logo/logo-with-text-horizontal.93342752.webp",
+    "native_size": [
+      248,
+      59
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "firefox": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/firefox.png",
+    "native_size": [
+      496,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "edge": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/edge.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "brave": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/brave.png",
+    "native_size": [
+      437,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "opera": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/opera.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "vivaldi": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/vivaldi.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "librewolf": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/librewolf.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "thunderbird": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/thunderbird.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "teams": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/microsoft-teams.png",
+    "native_size": [
+      550,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "zoom": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/zoom.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "slack": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/slack.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "telegram": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/telegram.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "signal": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/signal.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "element": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/element.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "teamviewer": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/team-viewer.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "anydesk": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/anydesk.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "vlc": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/vlc.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "mpchc": {
+    "url": "https://raw.githubusercontent.com/clsid2/mpc-hc/master/src/mpc-hc/res/icon.ico",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "mpv": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/mpv.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "audacity": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/audacity.png",
+    "native_size": [
+      574,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "foobar": {
+    "url": "https://www.foobar2000.org/foobarlogo.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "aimp": {
+    "url": "https://www.google.com/s2/favicons?sz=256&domain_url=https%3A%2F%2Fwww.aimp.ru%2F",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "handbrake": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/handbrake.png",
+    "native_size": [
+      431,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "ffmpeg": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/ffmpeg.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "itunes": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/musique.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "libreoffice": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/libreoffice.png",
+    "native_size": [
+      423,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "onlyoffice": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/onlyoffice.png",
+    "native_size": [
+      550,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "notion": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/notion.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "obsidian": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/obsidian.png",
+    "native_size": [
+      397,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "joplin": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/joplin.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "calibre": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/calibre.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "adobereader": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/acroread.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "sumatra": {
+    "url": "https://raw.githubusercontent.com/sumatrapdfreader/sumatrapdf/master/src/ng/linux/icons/sumatrapdf-256.png",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "pdfgear": {
+    "url": "https://raw.githubusercontent.com/HeckmanK/chocolatey-packages/4a47c19936509302be1fe121bc89dea7210967b7/icons/pdfgear.png",
+    "native_size": [
+      128,
+      128
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "anki": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/anki.png",
+    "native_size": [
+      1280,
+      1280
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "todoist": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/todoist.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "bitwarden": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/bitwarden.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "keepassxc": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/keepassxc.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "protonvpn": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/proton-vpn.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "tailscale": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/tailscale.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "wireguard": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/wireguard.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "malwarebytes": {
+    "url": "https://www.malwarebytes.com/wp-content/uploads/sites/2/2026/10/app.png?w=180",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "sevenzip": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/7zip.png",
+    "native_size": [
+      894,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "peazip": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/peazip.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "nanazip": {
+    "url": "https://raw.githubusercontent.com/M2Team/NanaZip/main/Assets/PackageAssets/Square150x150Logo.scale-200.png",
+    "native_size": [
+      300,
+      300
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "everything": {
+    "url": "https://www.voidtools.com/sssmall4.png",
+    "native_size": [
+      282,
+      239
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "wiztree": {
+    "url": "https://diskanalyzer.com/apple-touch-icon.png",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "treesize": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/treesize.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "powertoys": {
+    "url": "https://www.google.com/s2/favicons?sz=256&domain_url=https%3A%2F%2Flearn.microsoft.com%2Fwindows%2Fpowertoys%2F",
+    "native_size": [
+      128,
+      128
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "terminal": {
+    "url": "https://raw.githubusercontent.com/microsoft/terminal/main/res/terminal.ico",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "rufus": {
+    "url": "https://raw.githubusercontent.com/pbatard/rufus/master/res/appstore/Images/Square44x44Logo.altform-unplated_targetsize-256.png",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "etcher": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/balena-etcher.png",
+    "native_size": [
+      465,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "ventoy": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/ventoy.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "crystalinfo": {
+    "url": "https://raw.githubusercontent.com/hiyohiyo/CrystalDiskInfo/master/resA/DiskInfo.ico",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "crystalmark": {
+    "url": "https://raw.githubusercontent.com/hiyohiyo/CrystalDiskMark/master/res/DiskMark.ico",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "hwinfo": {
+    "url": "https://www.hwinfo.com/images/hwi_logo_flat_square_192.png",
+    "native_size": [
+      192,
+      192
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "cpuz": {
+    "url": "https://www.cpuid.com/medias/images/apple-touch-icon-precomposed.png",
+    "native_size": [
+      194,
+      194
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "gpuz": {
+    "url": "https://raw.githubusercontent.com/TheCakeIsNaOH/chocolatey-packages/76473405f9bd2f91c67e23610608f11d87a50fc8/Icons/gpu-z.png",
+    "native_size": [
+      128,
+      128
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "fancontrol": {
+    "url": "https://www.google.com/s2/favicons?sz=256&domain_url=https%3A%2F%2Fgetfancontrol.com%2F",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "corsair": {
+    "url": "https://www.corsair.com/meta-icons/favicon-128.png",
+    "native_size": [
+      128,
+      128
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "steelseries": {
+    "url": "https://images.ctfassets.net/w5r1fvmogo3f/4xY1G1vn4lImNabbRiX9FE/b6a84eb35803bf99e119d5414c46ce6f/GG_app_purple_icon.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "vscode": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/vscode.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "vscodium": {
+    "url": "https://vscodium.com/img/apple-touch-icon.png",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "notepadplusplus": {
+    "url": "https://notepad-plus-plus.org/apple-touch-icon.png",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "sublime": {
+    "url": "https://www.sublimetext.com/images/icon.png",
+    "native_size": [
+      192,
+      192
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "git": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/git.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "github": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/github.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "python": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/python.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "node": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/nodejs.png",
+    "native_size": [
+      450,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "dotnet": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/dotnet.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "docker": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/docker.png",
+    "native_size": [
+      709,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "postman": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/postman.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "winscp": {
+    "url": "https://winscp.net/assets/images/logos/logo@240.jpg",
+    "native_size": [
+      240,
+      240
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "syncthing": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/syncthing.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "putty": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/putty.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "dbeaver": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/dbeaver.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "gimp": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/gimp.png",
+    "native_size": [
+      534,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "inkscape": {
+    "url": "https://media.inkscape.org/static/images/inkscape-favicon.png",
+    "native_size": [
+      134,
+      133
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "krita": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/krita.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "blender": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/blender.png",
+    "native_size": [
+      630,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "paintnet": {
+    "url": "https://www.getpaint.net/apple-touch-icon.png",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "sharex": {
+    "url": "https://raw.githubusercontent.com/ShareX/ShareX/master/ShareX.HelpersLib/Resources/ShareX_Icon.ico",
+    "native_size": [
+      256,
+      256
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "flameshot": {
+    "url": "https://flameshot.org/apple-touch-icon.png",
+    "native_size": [
+      179,
+      179
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "kdenlive": {
+    "url": "https://www.google.com/s2/favicons?sz=256&domain_url=https%3A%2F%2Fkdenlive.org%2F",
+    "native_size": [
+      180,
+      180
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "shotcut": {
+    "url": "https://raw.githubusercontent.com/PapirusDevelopmentTeam/papirus-icon-theme/master/Papirus/64x64/apps/shotcut.svg",
+    "native_size": "vector",
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "qbittorrent": {
+    "url": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/b409eb0d1fa960277f8510d3ae3a19093b910ca4/png/qbittorrent.png",
+    "native_size": [
+      512,
+      512
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "gog": {
+    "url": "https://www.gogalaxy.com/favicons/apple-icon-144x144.png",
+    "native_size": [
+      144,
+      144
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  },
+  "ubisoft": {
+    "url": "https://static-dm.ubisoft.com/ubisoft/prod/favicon-144x144.png",
+    "native_size": [
+      144,
+      144
+    ],
+    "canvas_size": [
+      256,
+      256
+    ]
+  }
+}

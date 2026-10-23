@@ -1,0 +1,5 @@
+OpenRGB 1.1 portable Windows x64
+Official release: https://openrgb.org/releases.html
+Binary: https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_Windows_64_8e16de2.zip
+Source (GPL-2.0): https://codeberg.org/OpenRGB/OpenRGB/src/tag/release_1.1
+Qt runtime libraries are included in the official distribution.

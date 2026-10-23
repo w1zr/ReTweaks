@@ -23,7 +23,7 @@ from core.version import BRAND
 from ui.widgets.brand import LOGO_COLOR, paint_chip
 
 WIDTH, HEIGHT = 600, 360
-BG, BORDER, SUBTEXT = "#0b0d10", "#1f232a", "#9aa0a6"
+BG, BORDER, SUBTEXT = "#000000", "#141518", "#9aa0a6"   # pure black (owner request 2026-10-22)
 
 # Timeline at normal speed, in seconds
 CHIP = (0.00, 0.55)

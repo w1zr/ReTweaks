@@ -209,13 +209,13 @@ def _exit(code):
 def _log_migration(window, lines):
     for line in lines or []:
         try:
-            window.log_action("Rename to RETWEAKS", "Move data from RYTWEAKS", line)
+            window.log_action("Rename to RETWEAKS", "Move data from the old name", line)
         except Exception:
             pass
 
 
 def _close_legacy_copy():
-    """RETWEAKS was called RYTWEAKS before v1.6. If the old RYTWEAKS.exe is still running (e.g. in the
+    """RETWEAKS had another name before v1.6. If the old-name .exe is still running (e.g. in the
     tray), it would keep using the old data folders, so close it first: normally via its "quit"
     command (v1.5.1 has it, so it cleans up as usual), otherwise by ending the process."""
     import time
@@ -224,7 +224,7 @@ def _close_legacy_copy():
         return
     from PySide6.QtWidgets import QMessageBox
     box = QMessageBox(QMessageBox.Question, "RETWEAKS",
-                      "RYTWEAKS (this app's old name) is still running.")
+                      "An older version of RETWEAKS is still running.")
     box.setInformativeText("Close it and open RETWEAKS? Your settings move over to RETWEAKS.")
     go = box.addButton("Close it and open RETWEAKS", QMessageBox.AcceptRole)
     box.addButton("Cancel", QMessageBox.RejectRole)
@@ -246,8 +246,8 @@ def _close_legacy_copy():
         except Exception:
             pass
     if rm.legacy_processes():
-        QMessageBox.warning(None, "RETWEAKS", "RYTWEAKS didn't close. Right-click its tray icon, choose "
-                            "Quit RYTWEAKS, then open RETWEAKS again.")
+        QMessageBox.warning(None, "RETWEAKS", "The older version didn't close. Right-click its tray icon, choose "
+                            "Quit, then open RETWEAKS again.")
         sys.exit(0)
 
 
@@ -267,7 +267,7 @@ def main():
     if instance_lock is None:
         instance_lock = _handle_running_copy()
 
-    # One-time move from the old name RYTWEAKS (v1.6): before any settings are read
+    # One-time move from the old name (v1.6): before any settings are read
     _close_legacy_copy()
     from core.rename_migration import migrate_all
     migration_log = migrate_all()

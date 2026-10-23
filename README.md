@@ -8,7 +8,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/w1zr/retweaks/releases/latest"><b>Download the latest release</b></a>
+  <a href="https://github.com/w1zr/retweaks/releases/latest"><b>Download the latest release</b></a> ·
+  <a href="https://retweaks.plumheron1.chatgpt.site/"><b>Website</b></a> ·
+  <a href="https://discord.gg/fS5NwW9TPF"><b>Discord</b></a>
 </p>
 
 ---
@@ -16,7 +18,7 @@
 ## What it does
 
 **Monitor**
-- **Dashboard and Hardware:** CPU, GPU (exact model and real VRAM), motherboard and BIOS, RAM, drives and disk health, monitors, audio and network, plus live CPU and GPU load and clocks. Temperatures and fans work when LibreHardwareMonitor is running.
+- **Dashboard and Hardware:** CPU, GPU (exact model and real VRAM), motherboard and BIOS, RAM, drives and disk health, monitors, audio and network, plus live CPU and GPU load and clocks. Live temperatures (°C or °F) on the Dashboard and a Temperatures page.
 - **Health Check:** one scan of startup apps, temp files, power plan, disk health, free space, pending restarts, Windows Update, Game Mode, refresh rate and RAM. Each check has a **Fix** button where RETWEAKS can help.
 - **FPS test:** real average FPS, 1% lows and 0.1% lows measured with Intel PresentMon, with saved runs you can compare.
 - **In-game FPS overlay:** live FPS, 1% low and frame time over games in borderless or windowed fullscreen. Nothing is injected into the game.
@@ -31,14 +33,33 @@
 - **Startup apps:** registry entries, Startup folders and scheduled tasks, which you can disable and re-enable at any time.
 - **Network:** pick your own DNS, or go back to automatic; DNS speed test; ping test to 1.1.1.1.
 
+- **Tuning library:** 117 more tweaks (including the Chris Titus Tech utility set), 12 quick presets (MAX FPS, Esports, Balanced, Streamer, Low-end, Laptop, Privacy, Clean & repair and more), Windows tweaks, and game profiles for 11 games.
+- **Drivers:** finds the latest NVIDIA, AMD and Intel drivers and Windows Update driver updates, and downloads and installs them inside RETWEAKS. It asks first and checks the file's digital signature.
+
 **Tools**
-- **Storage and cleanup:** disk space analyzer, file explorer, and temp cleanup that always shows a preview first.
-- **Browser:** RETWEAKS's own browser on Microsoft's Edge engine, with tabs, private tabs, bookmarks, history, downloads and your choice of search engine (Google, DuckDuckGo, Brave Search, Bing, Startpage or your own).
+- **Storage and cleanup:** file explorer with drive usage, disk space analyzer, file search, and temp cleanup that always shows a preview first.
+- **Daily Tools:** image to text (Windows OCR), image converter and resizer, images to PDF, text toolbox, file checksum and color picker. All local.
+- **App Starter:** 100 curated apps for setting up a new PC, installed only when you choose.
+- **PC Value Checker (beta), 3D PC Builder, Bottleneck tester and a render benchmark.**
+- **Browser:** RETWEAKS's own browser on Microsoft's Edge engine (it runs as its own program, so it can't take RETWEAKS down), with tabs, private tabs, bookmarks as home-page shortcuts, history, downloads, zoom and your choice of search engine (Google, DuckDuckGo, Brave Search, Bing, Startpage or your own).
+- **Fan control and RGB lighting:** fan speeds and temperature-based fan curves (Silent, Balanced, Performance, Full or your own), and fan + RAM lighting (Solid, Breathing, Color cycle, Rainbow, brightness, profiles). Fans go back to automatic if a temperature can't be read, at 85 °C, and when RETWEAKS closes.
+- **Crosshair overlay:** 33 built-in crosshairs, an editor, share codes and a [community gallery](crosshairs/README.md). It sits on top of borderless/windowed games without touching the game; F9 shows or hides it. Follow each game's rules.
 - **Audio mixer** (speakers, microphone and per-app volume), **auto clicker and Fun tools:** mouse polling rate test, clicks-per-second test and reaction time test.
-- **AI Assistant:** ask Google Gemini about your PC with your own free API key. The key is stored in Windows Credential Manager and never in a file. You must be 18+ under Google's terms.
+- **AI assistant:** ask Google Gemini about your PC and RETWEAKS' tools through the built-in Gemini connection (your messages are sent to Google). It also helps with driver links, failed app installs and PC value estimates.
 - **Snapshots and Logs:** sensor logging to CSV, and a log of every change RETWEAKS made.
 
+**Everywhere:** search pages, settings and tweaks from the top bar (Ctrl+K); English, Español, Français, Deutsch and Português (Brasil) (machine translations, corrections welcome); a welcome tour on first start; optional automatic updates; tray icon with its own menu.
+
 RETWEAKS never promises FPS gains. Use the FPS test to measure your own before and after.
+
+## Bundled tools
+
+Temperatures, fan control and RGB lighting use two bundled open-source programs:
+[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) 0.9.6 (MPL-2.0) and
+[OpenRGB](https://openrgb.org/) 1.1 (GPL-2.0), unmodified, in `ai/sensors` and `ai/openrgb` with their licenses.
+CPU and motherboard sensors and most fan controllers also need the free
+[PawnIO](https://github.com/namazso/PawnIO.Setup/releases) driver, which you install yourself; RETWEAKS doesn't
+install drivers.
 
 ## Install
 
@@ -57,11 +78,15 @@ git clone https://github.com/w1zr/retweaks.git
 cd retweaks
 python -m pip install -r requirements.txt
 python -m pytest tests     # run the tests
-python main.py             # run from source
-python build.py            # build dist\RETWEAKS.exe (Windows only)
+python retweaks.py         # run from source (Windows)
+python build.py            # build dist\RETWEAKS.exe (Windows only; compiles the C# helpers in ai\ first)
 ```
 
-Built with Python and PySide6 (Qt). Every release is built on GitHub Actions on a Windows runner.
+Built with Python and Tkinter, plus small C# helpers (in `ai/`) for the AI and embedded web tabs. Every release is built on GitHub Actions on a Windows runner.
+
+## License
+
+RETWEAKS is licensed under the **GNU General Public License v3.0 only** (see [LICENSE](LICENSE)). Third-party components keep their own licenses; the WebView2 license and notice files are in `ai/`.
 
 ## Reporting a problem
 

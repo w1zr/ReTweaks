@@ -1,0 +1,17 @@
+{
+ "fps": 40,
+ "stretch": 1.7,
+ "reveal_frames": 96,
+ "loop_frames": 122,
+ "reveal_end": 2.38,
+ "word": [
+  1.87,
+  2.38
+ ],
+ "hold": 0.3,
+ "fade": 0.55,
+ "bg": "#000000",
+ "border": "#141518",
+ "subtext": "#9aa0a6",
+ "logo": "#e8eaed"
+}

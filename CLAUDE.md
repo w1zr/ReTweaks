@@ -4,9 +4,75 @@ This is the single source of truth for RETWEAKS. Read the whole file before maki
 
 ---
 
+## 0. Combined app (RETWEAKS v2.0 and later)
+
+Owner decision 2026-10-22: RETWEAKS is combined with a friend's Tkinter app (v1.4), called **the base app** in this file.
+The base app's code is the base; every RETWEAKS feature the base app lacks was added; everything is named RETWEAKS with
+the RETWEAKS chip logo, the ReTweaks wordmark, the RETWEAKS sidebar (line icons) and the RETWEAKS chip-scan
+startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the base app's pages keep their contents.
+- **License:** GPL-3.0-only (the base app's license; the friend agreed). `LICENSE` is at the repo root (keep it). This
+  replaces "License: None" in section 1. **Owner rule (2026-10-22): never mention the base app's name or the app's
+  previous name ("RY"+"TWEAKS") anywhere — UI, docs, comments, release notes.** Only hidden technical identifiers needed
+  for data migration and Undo keep them, built from pieces in `core/rename_migration.py`, `retweaks_data.py`,
+  `core/app_rules.py`, `core/discord_rpc.py` (`IMAGE_KEY`) and `core/game_presets.py`.
+- **UI toolkit:** Tkinter (the base app) + small C# helpers in `ai/` (GeminiChat, EmbeddedAI, DriverAI, ValueAI,
+  EmbeddedSite). The PySide6 UI in `ui/` and `main.py` is legacy, kept for reference and for
+  `tools/make_branding.py` (renders the chip/startup/sidebar-icon PNGs with the original drawing code); it is
+  excluded from the build.
+- **Entry point:** `retweaks.py` (the base app's main, renamed). `retweaks_data.py` = the base app's 117 tweaks, 12 presets,
+  11 game profiles. `hubplus.py` = the base app's extra pages + hooks for RETWEAKS pages.
+- **RETWEAKS pages:** `rt_pages/` (registry in `rt_pages/__init__.py`, one class per page taking `(hub, tab, g)`,
+  using the unchanged `core/` modules). Sidebar: `rt_sidebar.py`. App shell (single instance over the same named
+  pipe protocol as v1.5.1, tray via pystray, reopen animation, update bar, Discord, auto game mode services,
+  6 s exit watchdog): `rt_shell.py`. Settings stay in `%APPDATA%\RETWEAKS\config.json` (`rt_pages/settings_store.py`).
+- **Data carried over once:** the base app's `%APPDATA%`/`%LOCALAPPDATA%` folders -> `\RETWEAKS` (its `custom_presets.json`
+  becomes `tweak_custom_presets.json` because RETWEAKS already uses that name), plus the previous-name migration (v1.6).
+  Undo for changes the base app made still works (its hosts backup and registry-backup task; `retweaks_data.py`
+  `_OLD_HOSTS_BAK`, `_OLD_REG_TASK`).
+- **AI (owner choice 2026-10-22):** the base app's shared-key Gemini helper. The key is hardcoded in `ai/GeminiChat.cs`
+  and the prebuilt helper .exe files. Publishing it in the public repo was decided by the owner on 2026-10-22, with
+  the key owner's (the base app's author's) permission relayed by the owner; this overrides sections 13 and 15 for that one
+  key only. Known risk, told to the owner: Google/GitHub may detect and disable a key found in public code.
+- **Base app v1.5 merge (owner decisions 2026-10-22):** added the base app's v1.5 Temperatures, Fan control, RGB lighting
+  and Run pages (`rt_pages/cooling.py` wrapping `cooling_panel.py`, `thermal_dashboard.py`, `run_panel.py`;
+  sensors `temperatures.py`, `gpu_metrics.py`; RGB `rgb_service.py`, `rgb_sync.py`) plus its fixes (rounded
+  dropdown popup, audio/PC-value pickers, sidebar slide, Blackout theme). **Bundled** (owner choice):
+  `ai/sensors` = LibreHardwareMonitor 0.9.6 + `SensorHost.exe` (temperatures, fans, fan control) and `ai/openrgb` =
+  OpenRGB 1.1 portable (RGB), licenses and SOURCE.txt alongside. This changes section 7 for this branch: CPU temps and
+  fans no longer need a separately running LHM (`core/sensors_lhm.set_bundled_provider`); RETWEAKS still installs no
+  driver — CPU/motherboard sensors and most fan control need **PawnIO**, which the user installs from its official page
+  (button on the pages). Fan safety: manual duty 30–100 % within the controller's range, pumps excluded, hardware
+  (BIOS) control returns on Quit, crash (sensor host stdin closes), 45 s without heartbeat and CPU/GPU >= 85 °C.
+  RETWEAKS additions: fan curves (`fan_curves.py`, `rt_pages/fan_curve_ui.py`; settings `fan_curves`,
+  `fan_curves_on_start` default off; 8 s missing-temperature failsafe) and RGB Breathing/Color cycle (only when every
+  controller has the mode), brightness, per-device on/off, profiles (`rgb_profiles`), `rgb_apply_on_start` (default
+  off). Nothing writes to fans or lighting at launch unless the user ticked those options. Not taken from v1.5:
+  its own browser, startup manager, health check, tray, Discord, updater and settings (RETWEAKS keeps its versions),
+  its empty-AI-key change (owner keeps the shared key), and the "Windows Activation" (massgrave.dev) page.
+- **v2.0 additions (owner requests 2026-10-22):** browser = the base app's v1.5 own-process `ai/EmbeddedBrowser.exe`
+  (`embedded_browser.py`, `rt_pages/browser.py`; RETWEAKS branding, data still in `browser.json` and
+  `%LOCALAPPDATA%\RETWEAKS\Browser`; the in-process pythonnet/WebView2 browser and `tools/browser_smoke.py` were
+  removed because a native fault there crashed the whole app). Global search in the top bar (`rt_search.py`, Ctrl+K;
+  results are a frame inside the main window). Themed rounded tray menu (`rt_traymenu.py`). Quit ends the process right
+  after cleanup (`os._exit`). Startup = the real v1.6 Qt splash in its own process (`rt_splash_qt.py` /
+  `rt_splash_client.py`, 1.7x slower), PySide6 bundled only for that. One °C/°F setting for every page
+  (`rt_pages/settings_store.set_temp_unit`). Crosshair overlay (`core/crosshair.py`, `rt_pages/crosshair.py`, share
+  codes `RTX1-`, gallery `crosshairs/gallery.json`). Welcome tour (`rt_welcome.py`, once from v2.0, setting
+  `welcome_done_version`) and automatic updates (`rt_autoupdate.py`, setting `auto_update`). Translations
+  (`rt_i18n.py`, `i18n/*.json`: es, fr, de, pt-BR; setting `language`; machine-made). Discord button "Get ReTweaks" ->
+  https://github.com/w1zr/ReTweaks. Super Black is the default theme. v2.0 was released by owner request on 2026-10-22.
+- **Inventory (rewrite protocol, section 4):** `docs/COMBINED_INVENTORY.md`. Nothing is released until every item
+  works or the owner approves each missing one.
+- **Testing on Linux:** `xvfb-run -a python3.12 tools/linux_shim.py <check script>` (inert fakes for Windows APIs);
+  `tools/tk_screens.py` saves screenshots of any page; page checks live in `checks/`, the base app's in `check_*.py`.
+- **Build:** `python build.py` compiles the C# helpers with the .NET Framework `csc.exe`, then PyInstaller
+  `RETWEAKS.spec` (single file, `uac_admin=True`, chip icon). Output `dist\RETWEAKS.exe`.
+
+---
+
 ## 1. Project overview
 
-- **Name:** RETWEAKS (written in all caps in text). The wordmark next to the chip logo (sidebar, splash, dashboard banner, browser, README banner `assets/brand/banner.png`) reads **ReTweaks** (`core/version.py` `BRAND`, owner choice 2026-10-22). Renamed from RYTWEAKS in v1.6 (owner decision 2026-10-22; `core/rename_migration.py` copies `%APPDATA%`/`%LOCALAPPDATA%` `\RYTWEAKS` to `\RETWEAKS`, moves the Gemini credential and the Start-with-Windows task, and offers to close a running RYTWEAKS.exe; old theme codes `RYT1-` and `rytweaks-preset` files still import). The old name only appears in that migration code. Never show the even older name "Galaxy Optimizer".
+- **Name:** RETWEAKS (written in all caps in text). The wordmark next to the chip logo (sidebar, splash, dashboard banner, browser, README banner `assets/brand/banner.png`) reads **ReTweaks** (`core/version.py` `BRAND`, owner choice 2026-10-22). Renamed from its previous name in v1.6 (owner decision 2026-10-22; `core/rename_migration.py` copies the old `%APPDATA%`/`%LOCALAPPDATA%` folders to `\RETWEAKS`, moves the Gemini credential and the Start-with-Windows task, and offers to close a running old-name .exe; old theme codes `RYT1-` and old preset files still import). The old name never appears in text; only that migration code builds it. Never show the even older name "Galaxy Optimizer".
 - **What it is:** A Windows PC diagnostics and optimization app, shipped as a single-file Windows `.exe`. It shows real hardware information and live readings, applies practical PC and game tweaks, and includes game profiles, storage tools, an audio mixer, an auto clicker and related utilities.
 - **Core goal:** Real functionality only. Every control must perform a real Windows action and report the true result. No mockups, stubs, placeholder data, fake math (for example, never `cpu_pct * 0.4` for GPU load) or hardcoded device hacks.
 - **Owner:** Ryder. GitHub user `w1zr`.
@@ -109,7 +175,7 @@ Rewrites are allowed, but they are the most likely way to lose features. Follow 
 - Dashboard banner (v1.4.1): setting `banner_style` = `cores` (default, live per-thread load), `wave` (live CPU load), `circuit`, `galaxy` or `off`. It animates only while visible and not minimized.
 - Custom accent color through a validated HEX input.
 - Theme maker (v1.4.3): users build themes from 10 editable colors (`core/themes.py` EDITABLE); the rest are derived. Saved in settings `custom_themes` {name: colors}; built-in names can't be reused. Share codes `RET1-` + base64 JSON (codes from before the rename, `RYT1-`, still import), validated on import (hex colors only).
-- Discord status (v1.4.3): `core/discord_rpc.py`, local Discord IPC only, off by default (`discord_status`, `discord_show_game`). Public Application ID 1562695957651521627; large image asset name `rytweaks` (the image key uploaded in the Discord Developer Portal before the rename; unchanged so the image keeps working).
+- Discord status (v1.4.3): `core/discord_rpc.py`, local Discord IPC only, off by default (`discord_status`, `discord_show_game`). Public Application ID 1562695957651521627; large image asset key `IMAGE_KEY` in `core/discord_rpc.py` (the image name uploaded in the Discord Developer Portal before the rename; unchanged so the image keeps working).
 - Use centralized theme tokens. Never hardcode colors across the UI.
 - Apply the theme consistently to buttons, active navigation, switches, sliders, highlights and focus states.
 - Keep the dark foundation unless the user picks a supported light mode.

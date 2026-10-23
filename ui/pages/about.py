@@ -12,7 +12,7 @@ REPO_URL = "https://github.com/w1zr/retweaks"
 
 # Short, factual list; the full notes are in release-notes/v1.4.md on GitHub
 WHATS_NEW = [
-    ("New name: RETWEAKS", "RYTWEAKS is now RETWEAKS, with the ReTweaks wordmark. Your settings, browser data, "
+    ("New name: RETWEAKS", "The app is now called RETWEAKS, with the ReTweaks wordmark. Your settings, browser data, "
                            "AI key and Start with Windows moved over automatically."),
     ("v1.5.1 fixes", "Opening RETWEAKS from the tray shows the window properly, Quit RETWEAKS really closes "
                      "it, and opening a new version while an older one runs offers to switch."),

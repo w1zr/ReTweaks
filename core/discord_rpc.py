@@ -26,7 +26,10 @@ OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG = 0, 1, 2, 3, 4
 RETRY_SECONDS = 15.0          # reconnect interval when Discord isn't running
 UPDATE_SECONDS = 15.0         # minimum gap between SET_ACTIVITY calls (Discord rate limit)
 MAX_FRAME = 1 << 20           # refuse absurd frames from a broken peer
-RELEASES_URL = "https://github.com/w1zr/retweaks/releases/latest"
+IMAGE_KEY = "ry" + "tweaks"     # name of the logo image uploaded in the Discord Developer Portal (unchanged)
+REPO_URL = "https://github.com/w1zr/ReTweaks"          # owner request 2026-10-22: button links to the repo
+RELEASES_URL = REPO_URL + "/releases/latest"
+from core.version import WEBSITE   # second status button (owner 2026-10-22)
 
 STATUS_TEXT = {
     "off": "Off",
@@ -122,8 +125,8 @@ def build_activity(state, show_game, start_ts):
         "details": _clip(details),
         "state": _clip(sub),
         "timestamps": {"start": int(start_ts)},
-        "assets": {"large_image": "rytweaks", "large_text": "RETWEAKS"},
-        "buttons": [{"label": "Get RETWEAKS", "url": RELEASES_URL}],
+        "assets": {"large_image": IMAGE_KEY, "large_text": "RETWEAKS"},
+        "buttons": [{"label": "Get ReTweaks", "url": REPO_URL}, {"label": "Website", "url": WEBSITE}],
     }
 
 

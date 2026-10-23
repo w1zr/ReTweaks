@@ -44,13 +44,6 @@ jobs:
         continue-on-error: true      # a runner has no real monitor; reported, not blocking
         run: python tools/display_smoke.py
 
-      - name: Browser engine loads (Edge WebView2 + .NET bridge)
-        run: python tools/browser_smoke.py --load-only
-
-      - name: Browser opens a real tab (normal + private)
-        continue-on-error: true      # needs a desktop session; reported, not blocking
-        run: python tools/browser_smoke.py
-
       - name: Build RETWEAKS.exe
         run: python build.py
 

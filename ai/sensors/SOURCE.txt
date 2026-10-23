@@ -1,0 +1,5 @@
+LibreHardwareMonitor 0.9.6
+https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6
+Unmodified library and dependencies. Source under MPL-2.0: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+
+CPU and motherboard sensors require the official PawnIO driver: https://github.com/namazso/PawnIO.Setup/releases

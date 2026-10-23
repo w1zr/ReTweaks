@@ -1,14 +1,16 @@
-# Runtime
-PySide6>=6.5
+# Runtime (the combined app: Tkinter UI from the base app + RETWEAKS core modules)
+Pillow>=10.0.0                             # images, OCR helpers, icons, tray icon
 psutil>=5.9.0
-pywin32>=306; sys_platform == "win32"  # Windows performance counters (GPU/CPU load), WMI, file info
-nvidia-ml-py>=12.535.0                  # "pynvml" module: NVIDIA temps/clocks/power; harmless on other GPUs
+pywin32>=306; sys_platform == "win32"      # performance counters (GPU/CPU load), WMI, named pipe (single instance)
+nvidia-ml-py>=12.535.0                     # "pynvml": NVIDIA temps/clocks/power; harmless on other GPUs
 pycaw>=20240210; sys_platform == "win32"   # Audio mixer (Windows Core Audio)
 comtypes>=1.4.0; sys_platform == "win32"   # used by pycaw
-pythonnet>=3.0.5; sys_platform == "win32"  # Browser (v1.5): talks to the Edge engine (WebView2) via .NET Framework 4.8
-pywebview>=5.0; sys_platform == "win32"    # Browser: only its bundled WebView2 SDK DLLs are used (~1 MB)
+pystray>=0.19.5                            # system tray icon (LGPL-3.0)
+openrgb-python==0.3.8                      # RGB lighting page: talks to the bundled OpenRGB (base app v1.5 pin)
+PySide6>=6.5                               # only the v1.6 startup screen (rt_splash_qt) + tools/make_branding.py
+
 
 # Build / dev tools
 PyInstaller>=6.0.0
-Pillow>=10.0.0                          # only used by create_logo.py
-pytest>=8.0                             # run: python -m pytest tests
+pytest>=8.0                                # python -m pytest tests (core logic)
+pypdf>=4.0                                 # check_daily_tools.py only
