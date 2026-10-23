@@ -326,14 +326,16 @@ footer a{color:var(--muted)}
   <div class="sechead reveal">
     <p class="eyebrow">Help</p>
     <h2>Report a problem</h2>
-    <p>Step 1 copies the specs your browser can see. Step 2 opens a bug form on GitHub where you paste them. Lines marked Unavailable can't be read by a website; fill them in from the RETWEAKS Hardware and About pages.</p>
+    <p>Open the bug form on GitHub and describe what happened. If you want, copy the specs your browser can see first and paste them into the form; it helps, but it's optional. Lines marked Unavailable can't be read by a website; the RETWEAKS Hardware and About pages have them.</p>
   </div>
   <div class="report reveal">
-    <label for="specs" class="eyebrow">Detected by your browser</label>
+    <div class="row">
+      <a class="btn primary" id="openIssue" href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AMy+specs%2A%2A+%28optional%3A+paste+what+the+website+copied%2C+or+fill+in+from+RETWEAKS+%E2%86%92+Hardware+and+About%29%0A%0A%0A" target="_blank" rel="noopener">Open the bug form on GitHub</a>
+    </div>
+    <label for="specs" class="eyebrow">Optional: specs detected by your browser</label>
     <textarea id="specs" readonly aria-live="polite">Reading…</textarea>
     <div class="row">
-      <button class="btn primary" type="button" id="copySpecs">1. Copy my specs</button>
-      <a class="btn" id="openIssue" href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AMy+specs%2A%2A+%28paste+what+the+website+copied%2C+then+fill+in+the+Unavailable+lines+from+RETWEAKS+%E2%86%92+Hardware+and+About%29%0A%0A%0A" target="_blank" rel="noopener">2. Open the bug form on GitHub</a>
+      <button class="btn" type="button" id="copySpecs">Copy these specs</button>
       <span class="st" id="copyStatus"></span>
     </div>
     <p>Nothing is sent anywhere by this page. The text only goes to your clipboard, and GitHub only receives what you paste and submit.</p>
@@ -348,7 +350,7 @@ footer a{color:var(--muted)}
   <details><summary>Why can't it show my CPU temperature?</summary><p>Windows has no API for CPU temperatures, fans or motherboard sensors without a kernel driver, and RETWEAKS does not ship one. Run LibreHardwareMonitor and RETWEAKS reads those values from it. Otherwise it shows "Unavailable" rather than a guess.</p></details>
   <details><summary>Will it make my FPS higher?</summary><p>It won't promise that. Tweaks are reversible changes to documented Windows settings. Use the FPS test and Snapshots to compare before and after on your own PC, and keep only what measurably helps.</p></details>
   <details><summary>Does the overlay work with anti-cheat?</summary><p>The overlay is a separate click-through window and never injects into a game process. It draws over borderless and windowed-fullscreen games; exclusive fullscreen draws over it.</p></details>
-  <details><summary>Something broke. Where do I report it?</summary><p>Use the Report a problem button: it copies the specs your browser can see, then opens a bug form on GitHub where you paste them. Add the RETWEAKS version from the About page and what you did right before the problem.</p></details>
+  <details><summary>Something broke. Where do I report it?</summary><p>Use the Report a problem button to open a bug form on GitHub and describe what happened. Adding your specs is optional: the page can copy what your browser sees, and the RETWEAKS Hardware and About pages have the rest.</p></details>
   <details><summary>What was RYTWEAKS?</summary><p>The previous name. Version 1.6 renamed the project to RETWEAKS. Settings, themes and the Gemini credential migrate automatically, and old theme share codes still import.</p></details>
   </div>
 </section>
@@ -438,8 +440,8 @@ footer a{color:var(--muted)}
     else cb("Windows ("+U+" which one; this browser doesn't say)")}
   var ta=document.getElementById("specs"),cs=document.getElementById("copyStatus");
   windowsVersion(function(w){ta.value=build(w)});
-  document.getElementById("copySpecs").addEventListener("click",function(){var t=ta.value;function fallback(){ta.focus();ta.select();cs.textContent="Press Ctrl+C to copy, then open the form."}
-    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cs.textContent="Copied. Now open the form and paste under My specs."},fallback)}else fallback()});
+  document.getElementById("copySpecs").addEventListener("click",function(){var t=ta.value;function fallback(){ta.focus();ta.select();cs.textContent="Press Ctrl+C to copy."}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cs.textContent="Copied. Paste them under My specs in the form if you like."},fallback)}else fallback()});
 })();
 </script>
 </body>
