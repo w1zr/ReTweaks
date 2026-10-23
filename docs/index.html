@@ -110,7 +110,7 @@ footer a{color:var(--muted)}
     ReTweaks
   </div>
   <div class="links">
-    <a href="#features">Features</a><a href="#rules">How it works</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
+    <a href="#features">Features</a><a href="#rules">How it works</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
 
@@ -122,6 +122,7 @@ footer a{color:var(--muted)}
     <div class="cta">
       <a class="btn primary" href="https://github.com/w1zr/ReTweaks/releases/latest" target="_blank" rel="noopener">Download RETWEAKS.exe</a>
       <a class="btn" href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="btn" href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a>
     </div>
   </div>
   <div class="chipwrap">
@@ -231,12 +232,13 @@ footer a{color:var(--muted)}
   <details><summary>Why can't it show my CPU temperature?</summary><p>Windows has no API for CPU temperatures, fans or motherboard sensors without a kernel driver, and RETWEAKS does not ship one. Run LibreHardwareMonitor and RETWEAKS reads those values from it. Otherwise it shows "Unavailable" rather than a guess.</p></details>
   <details><summary>Will it make my FPS higher?</summary><p>It won't promise that. Tweaks are reversible changes to documented Windows settings. Use the FPS test and Snapshots to compare before and after on your own PC, and keep only what measurably helps.</p></details>
   <details><summary>Does the overlay work with anti-cheat?</summary><p>The overlay is a separate click-through window and never injects into a game process. It draws over borderless and windowed-fullscreen games; exclusive fullscreen draws over it.</p></details>
+  <details><summary>Something broke. Where do I report it?</summary><p>Use the Report a problem button. It opens a new issue on GitHub with a short form. Include your Windows version, the RETWEAKS version from the About page, your GPU, and what you did right before the problem. The Logs page in the app has details worth pasting in.</p></details>
   <details><summary>What was RYTWEAKS?</summary><p>The previous name. Version 1.6 renamed the project to RETWEAKS. Settings, themes and the Gemini credential migrate automatically, and old theme share codes still import.</p></details>
 </section>
 
 <footer>
   <span>RETWEAKS by w1zr</span>
-  <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a></span>
+  <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a> · <a href="https://github.com/w1zr/ReTweaks/issues/new?title=%5BBug%5D+&labels=bug&body=%2A%2AWhat+happened%3F%2A%2A%0A%0A%0A%2A%2AWhat+did+you+expect%3F%2A%2A%0A%0A%0A%2A%2ASteps+to+reproduce%2A%2A%0A1.+%0A%0A%2A%2AYour+PC%2A%2A%0A-+Windows+version%3A+%0A-+RETWEAKS+version+%28About+page%29%3A+%0A-+GPU%3A+%0A" target="_blank" rel="noopener">Report a problem</a></span>
 </footer>
 </div>
 </body>
