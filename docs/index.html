@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="RETWEAKS: free Windows PC diagnostics and optimization. Real readings, undoable tweaks, nothing faked.">
+<meta name="description" content="RETWEAKS: free, open-source Windows PC diagnostics and optimization. Real readings, undoable tweaks, fan and RGB control, nothing faked.">
 <title>ReTweaks</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
 html,body{margin:0}
-/* Layout: dark instrument panel re-skinnable with the app's own 13 themes. Ambient canvas (circuit, or starfield on Galaxy) behind a narrow column; hero = splash animation; flat cells on hairlines; accent used sparingly for state. Dark-first. */
+/* Layout: dark instrument panel re-skinnable with the app's own 15 themes. Ambient canvas (circuit, or starfield on Galaxy) behind a narrow column; hero = splash animation; flat cells on hairlines; accent used sparingly for state. Dark-first. */
 :root{
-  --bg:#0f1115; --bg-2:#171a20; --bg-3:#1c2027; --line:#262b33; --line-2:#3a4049; --fg:#e8eaed; --muted:#9aa0a6; --accent:#8b95a5; --on-accent:#ffffff; --glow:rgba(139,149,165,.5); --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --bg:#000000; --bg-2:#0a0a0a; --bg-3:#141414; --line:#1f1f1f; --line-2:#343434; --fg:#e8eaed; --muted:#9aa0a6; --accent:#a3a3a3; --on-accent:#0f1115; --glow:rgba(163,163,163,.5); --ok:#3fb950; --warn:#d29922; --bad:#f85149;
   --display:"Chakra Petch","Segoe UI",Arial,sans-serif; --body:"Manrope","Segoe UI",Arial,sans-serif; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
   color-scheme:dark;
 }
@@ -297,9 +297,9 @@ footer a{color:var(--muted)}
 
 <header class="hero" id="top">
   <div>
-    <div class="top"><span class="eyebrow">Windows PC diagnostics &amp; optimization</span><span class="ver"><i></i><span id="verTop">v1.6</span> · free</span></div>
+    <div class="top"><span class="eyebrow">Windows PC diagnostics &amp; optimization</span><span class="ver"><i></i><span id="verTop">v2.0.3</span> · free</span></div>
     <h1><span class="w" style="animation-delay:.05s">Real readings.</span> <span class="w" style="animation-delay:.15s">Real tweaks.</span> <span class="w" style="animation-delay:.25s">Nothing faked.</span></h1>
-    <p class="lede">RETWEAKS shows what your PC is actually doing, applies Windows and game tweaks you can undo, and never reports a number it didn't measure. One file. No installer.</p>
+    <p class="lede">RETWEAKS shows what your PC is actually doing, applies Windows and game tweaks you can undo, controls fans and lighting, and never reports a number it didn't measure. One file. No installer. Free, GPL-3.0.</p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/w1zr/ReTweaks/releases/latest" target="_blank" rel="noopener">Download RETWEAKS.exe</a>
       <a class="btn" href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">View source</a>
@@ -330,10 +330,10 @@ footer a{color:var(--muted)}
 </header>
 
 <div class="facts reveal">
-  <div><b data-count="1">1</b><span>single .exe, no installer</span></div>
-  <div><b data-count="53">53</b><span>tweaks, each one undoable</span></div>
-  <div><b data-count="20">20</b><span>pages, Dashboard to Settings</span></div>
-  <div><b data-count="13">13</b><span>built-in themes, plus your own</span></div>
+  <div><b data-count="46">46</b><span>pages in one .exe, no installer</span></div>
+  <div><b data-count="117">117</b><span>tweaks, plus 53 with exact undo</span></div>
+  <div><b data-count="5">5</b><span>languages: EN, ES, FR, DE, PT-BR</span></div>
+  <div><b data-count="15">15</b><span>themes and 8 animated backgrounds</span></div>
 </div>
 
 <section id="features">
@@ -343,18 +343,18 @@ footer a{color:var(--muted)}
     <p>Hardware detection works for every brand. Anything Windows can't report shows "Unavailable" instead of a made-up value.</p>
   </div>
   <div class="grid reveal">
-    <article><h3><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4V2M15 4V2M9 22v-2M15 22v-2M4 9H2M4 15H2M22 9h-2M22 15h-2"/></svg>Hardware &amp; live data</h3><p>Exact GPU name from the driver, 64-bit VRAM via DirectX, live GPU load from the same counters Task Manager uses, real CPU clock, disk health, monitors, audio. Temps and fans read from LibreHardwareMonitor when you run it.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="18" cy="12" r="2"/></svg>Tweaks</h3><p>53 tweaks across Gaming, Privacy, Interface, Services and Maintenance, with a search box. Every one explains what it does and the trade-off, shows its current state, saves the original value first, and offers Undo and Undo everything.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>FPS test &amp; overlay</h3><p>Real FPS and 1% / 0.1% lows with Intel PresentMon. A click-through in-game FPS overlay with its own built-in frame counter, no PresentMon needed. Nothing is ever injected into a game process.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Game presets</h3><p>Low, High, Ultra and Ultra Performance presets for Fortnite, Minecraft Java, Minecraft Bedrock, Apex Legends and Rocket League. Config files are backed up first, only existing keys change, and nothing runs while the game is open.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Profiles &amp; program rules</h3><p>Esports, Max FPS, Balanced, Low-end PC, High quality, Ultra quality, Streamer and Privacy. Preview shows only the changes that would actually happen. Per-program GPU preference, CPU priority and auto game mode.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 14 0M3 12h2M19 12h2M12 3v2M8 19h8"/></svg>Network &amp; DNS</h3><p>Choose your own DNS per adapter, with presets, custom IPv4/IPv6, and an Automatic option. DNS speed test with real lookup times. Ping tests against 1.1.1.1 / 1.0.0.1.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h4"/></svg>Browser</h3><p>A built-in browser on Microsoft's Edge engine: tabs, private tabs, bookmarks, history, downloads, your choice of search engine, and a start page that follows your theme. It starts only when you open the page.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><path d="M4 18V8l5 4V8l5 4V8l5 4v6"/></svg>Audio mixer</h3><p>Master, per-app and microphone volume and mute, output and input device switching, and a volume lock that puts the level back within half a second if another app changes it.</p></article>
-    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/></svg>Display, storage &amp; more</h3><p>Stretched resolution per monitor with a 15-second Keep test, Health Check, startup apps with restore, Storage Explorer and cleanup with preview, sensor logging to CSV, auto clicker with emergency stop, Gemini AI Assistant with your own key, Discord status, in-app updates.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4V2M15 4V2M9 22v-2M15 22v-2M4 9H2M4 15H2M22 9h-2M22 15h-2"/></svg>Hardware &amp; live data</h3><p>Exact GPU name and 64-bit VRAM via DirectX, every GPU listed, live GPU load from the same counters Task Manager uses, the real CPU clock, per-thread load, disk and network speed, RAM sticks, disk health, monitors, audio. A hardware report you can export.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><path d="M12 3v8M8 11a4 4 0 1 0 8 0"/><path d="M12 15v6"/></svg>Temperatures &amp; fan control</h3><p>Live CPU, GPU and drive temperatures from the bundled LibreHardwareMonitor. Fan speeds in RPM, manual speed from 30 to 100 %, and fan curves that follow the CPU, the GPU or whichever is hotter. Fans return to BIOS control on quit, crash or 85 °C. CPU and board sensors need the free PawnIO driver.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="18" cy="12" r="2"/></svg>Tweaks</h3><p>117 tweaks in 13 categories, including the Chris Titus Tech set, plus 53 tweaks with exact undo that restore the value you had, not a Windows default. 12 one-click presets that preview what will change. Ctrl+K searches every page, setting and tweak.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.5"/></svg>Crosshair &amp; FPS overlay</h3><p>A click-through crosshair with 33 built-in designs, an editor, share codes and a gallery. An FPS overlay with 1 % lows and its own frame counter. Neither touches the game process, so they're safe with anti-cheat; both work over borderless and windowed-fullscreen games.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Game profiles &amp; config files</h3><p>Profiles for 11 games: Fortnite, Valorant, CS2, Apex, Warzone, Minecraft Java, GTA V, Roblox, League, Rocket League and Overwatch 2. Config-file presets (Low to Ultra Performance) that back up first, change only existing keys and refuse while the game runs.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 14 0M3 12h2M19 12h2M12 3v2M8 19h8"/></svg>Network &amp; drivers</h3><p>Choose your own DNS per adapter, with presets, custom IPv4/IPv6 and Automatic. A DNS speed test with real uncached lookups and a ping test to 1.1.1.1. Driver downloads for NVIDIA, AMD and Intel that ask before downloading, check the signature, and ask again before running.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><circle cx="12" cy="12" r="3"/><path d="M21 3l-5 5"/></svg>RGB lighting</h3><p>Fans, RAM or both through the bundled OpenRGB: solid colours, Rainbow, Breathing and Color cycle where every controller supports them, brightness, per-device on/off and saved profiles. Nothing changes your lighting at startup unless you turn that on.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h4"/></svg>Browser &amp; audio</h3><p>A built-in browser on Microsoft Edge's engine that runs as its own program, so a browser problem can't close RETWEAKS. An audio mixer with per-app volume, output and microphone switching, a pop-out mini mixer and a volume lock.</p></article>
+    <article><h3><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/></svg>And more</h3><p>Health Check with Fix buttons, stretched resolution with a 15-second Keep test, startup apps with restore, Storage Explorer and cleanup with preview, auto clicker with emergency stop, snapshots and sensor logging, Daily Tools (OCR, image tools, checksums), App Starter, a Gemini AI assistant, Discord status, in-app and optional automatic updates.</p></article>
   </div>
   <div class="marq" aria-label="App pages"><div class="track" id="track">
-    <span>Dashboard</span><span>Hardware</span><span>Health Check</span><span>FPS test</span><span>Display &amp; drivers</span><span>Tweaks</span><span>Profiles</span><span>Game presets</span><span>Program rules</span><span>Startup apps</span><span>Network</span><span>Storage &amp; cleanup</span><span>Audio mixer</span><span>Auto clicker</span><span>AI Assistant</span><span>Snapshots</span><span>Fun tools</span><span>Logs</span><span>About</span><span>Settings</span>
+    <span>Dashboard</span><span>Hardware</span><span>PC specs</span><span>Temperatures</span><span>Health Check</span><span>FPS overlay</span><span>Benchmark</span><span>Display</span><span>Quick start</span><span>Presets</span><span>Individual tweaks</span><span>CTT library</span><span>Windows tweaks</span><span>Customize</span><span>Game profiles</span><span>Game config files</span><span>Program rules</span><span>Startup apps</span><span>Network</span><span>Drivers</span><span>Browser</span><span>Storage</span><span>Cleanup</span><span>Audio Mixer</span><span>Fan control</span><span>RGB lighting</span><span>Run</span><span>Auto clicker</span><span>AI assistant</span><span>Daily Tools</span><span>App Starter</span><span>PC Value Checker</span><span>3D PC Builder</span><span>Bottleneck</span><span>Snapshots</span><span>Fun tools</span><span>Crosshair</span><span>Tools</span><span>Advanced tools</span><span>Backups &amp; fixes</span><span>Tips</span><span>Help</span><span>Activity</span><span>About</span><span>Settings</span>
   </div></div>
 </section>
 
@@ -362,11 +362,11 @@ footer a{color:var(--muted)}
   <div class="sechead reveal">
     <p class="eyebrow">Screenshot</p>
     <h2>The Dashboard</h2>
-    <p>A real screenshot from the owner's PC, not a mockup. Every number on it was read live from Windows at the moment it was taken. The build shown is the in-development version, so some labels may differ from the current release.</p>
+    <p>A real screenshot from the owner's PC, not a mockup. Every number on it was read live from Windows at the moment it was taken. The screenshot is from v2.0.1; later versions look the same apart from small fixes.</p>
   </div>
   <div class="shot reveal">
     <div class="bar"><i></i><i></i><i></i> RETWEAKS · Dashboard · screenshot</div>
-    <div class="img"><img src="dashboard.png" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and GPU showing live load, clock, temperature and VRAM" width="1210" height="790" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
+    <div class="img"><img src="dashboard.png" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and two GPU entries showing live load, clock, temperature and VRAM" width="1277" height="864" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
     <div class="cap"><b>Live view of your PC, updated every second.</b> Processor load, clock and temperature; memory in use; per-GPU load, VRAM and temperature, each with a history graph.</div>
   </div>
   <div class="calls reveal">
@@ -413,12 +413,12 @@ footer a{color:var(--muted)}
       </div>
       <div class="page" data-page="tw">
         <h3>Tweaks</h3>
-        <div class="sub">53 tweaks in Gaming, Privacy, Interface, Services and Maintenance.</div>
+        <div class="sub">117 tweaks in 13 categories, plus 53 with exact undo.</div>
         <p class="note">The Tweaks page lists every tweak with its current state, what it changes, the trade-off, whether it needs admin, and its own Undo. Try the flow with a real tweak in the <a href="#tweaks">How a tweak works</a> preview below.</p>
       </div>
       <div class="page" data-page="about">
         <h3>About</h3>
-        <div class="sub">RETWEAKS <span id="verAbout">v1.6</span></div>
+        <div class="sub">RETWEAKS <span id="verAbout">v2.0.3</span></div>
         <p class="note">Free. Source on <a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>. Community on <a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a>. Updates arrive through the Update now bar at the top of the app.</p>
       </div>
     </div>
@@ -459,15 +459,10 @@ footer a{color:var(--muted)}
   <div class="sechead reveal">
     <p class="eyebrow">Live on this page</p>
     <h2>Try the app's themes right here</h2>
-    <p>These are the 13 built-in RETWEAKS themes with their exact colors. Pick one and this whole site switches to it. Galaxy brings its starfield. The theme maker in the app lets you build your own from 10 colors and share it as a code.</p>
+    <p>These are the 15 built-in RETWEAKS themes with their exact colours from the app. Pick one and this whole site switches to it; Galaxy brings a starfield. The app also has a custom accent colour, a theme maker with share codes, and 8 animated backgrounds.</p>
   </div>
   <div class="themes reveal" id="themeGrid"></div>
-  <div class="codebox reveal">
-    <div class="row"><b style="font-family:var(--display)">Theme code for <span id="codeName">Midnight</span></b><button class="btn sm" type="button" id="copyCode">Copy code</button><span class="st" id="codeStatus" style="color:var(--muted);font-size:.9rem"></span></div>
-    <code id="themeCode"></code>
-    <p>Paste it in RETWEAKS under Settings → Appearance → Theme maker → Import. It's the same <code style="display:inline;padding:0 4px">RET1-</code> format the app exports, with the built-in theme's colors under a new name so it imports as your own copy.</p>
-  </div>
-</section>
+  </section>
 
 <section id="sources">
   <div class="sechead reveal">
@@ -482,11 +477,12 @@ footer a{color:var(--muted)}
       <tr><td>GPU load, VRAM in use</td><td>Windows "GPU Engine" performance counters</td><td>The same source Task Manager uses. Works on non-English Windows.</td></tr>
       <tr><td>Live CPU clock</td><td><code>Processor Frequency × % Processor Performance</code></td><td>The usual Python call only returns the base clock, so it isn't used.</td></tr>
       <tr><td>NVIDIA temperature, clocks, power, fan</td><td>NVIDIA NVML</td><td>NVIDIA cards only.</td></tr>
-      <tr><td>CPU temperature, fans, motherboard sensors</td><td>LibreHardwareMonitor (optional)</td><td>Windows has no API for these without a kernel driver, which RETWEAKS does not ship. Without LHM: Unavailable.</td></tr>
+      <tr><td>CPU, GPU and drive temperatures, fan speeds</td><td>Bundled LibreHardwareMonitor 0.9.6</td><td>Windows has no API for these without a kernel driver. RETWEAKS installs none; CPU and motherboard sensors need the free PawnIO driver, which you install from its official page. Without it: Unavailable.</td></tr>
       <tr><td>Motherboard and BIOS</td><td>CIM <code>Win32_BaseBoard</code>, <code>Win32_BIOS</code></td><td>Exact vendor and model as the firmware reports them.</td></tr>
       <tr><td>Disk health</td><td><code>Get-PhysicalDisk</code> status</td><td>SMART data only when the drive or driver exposes it.</td></tr>
       <tr><td>Monitors and audio</td><td><code>WmiMonitorID</code>, Qt, <code>Win32_SoundDevice</code></td><td>Real monitor names, resolution and refresh rate.</td></tr>
       <tr><td>Frame times (overlay)</td><td>Windows ETW present events</td><td>The data PresentMon reads. Measures time between frames, not display latency.</td></tr>
+      <tr><td>RGB lighting</td><td>Bundled OpenRGB 1.1</td><td>RAM lighting usually needs the PawnIO driver. Modes appear only when every controller supports them.</td></tr>
       <tr><td>Power supply</td><td>Shown only if the system reports it</td><td>Most don't. Then: Unavailable.</td></tr>
     </tbody>
   </table></div>
@@ -499,49 +495,10 @@ footer a{color:var(--muted)}
     <p id="wnNote">Summaries of the real release notes. Full notes are on each GitHub release.</p>
   </div>
   <div class="tl reveal" id="timeline">
-    <article>
-      <div class="v">v2.0 <span class="tag">Latest</span></div>
-      <ul>
-        <li>A full rebuild with 46 pages: temperatures, fan control and fan curves, fan and RAM RGB lighting, a crosshair overlay with share codes, and a built-in browser that runs as its own program.</li>
-        <li>117 more tweaks (including the Chris Titus Tech set), 12 quick presets, game profiles for 11 games, and driver downloads for NVIDIA, AMD and Intel.</li>
-        <li>Search everything with Ctrl+K, five languages, a welcome tour, optional automatic updates, and Super Black as the default theme. Your settings carry over.</li>
-      </ul>
-      <a href="https://github.com/w1zr/ReTweaks/releases/tag/v2.0" target="_blank" rel="noopener">Release notes</a>
-    </article>
-    <article>
-      <div class="v">v1.6</div>
-      <ul>
-        <li>The project gets its RETWEAKS name. Same app, same chip logo, new ReTweaks wordmark.</li>
-        <li>First start moves settings, themes, undo data, preset backups, program rules, bookmarks, browser logins, the AI key and Start with Windows to the new name. Old folders are kept as a backup.</li>
-        <li>v1.5.1 can't self-update because the file name changed: download RETWEAKS.exe once. After that, in-app updates work again.</li>
-      </ul>
-      <a href="https://github.com/w1zr/ReTweaks/releases/tag/v1.6" target="_blank" rel="noopener">Release notes</a>
-    </article>
-    <article>
-      <div class="v">v1.5.1</div>
-      <ul>
-        <li>Fixed the see-through window after reopening from the tray.</li>
-        <li>Fixed Quit leaving RETWEAKS running invisibly in the background.</li>
-        <li>Opening a newer version while an older one runs now asks to close the old one cleanly.</li>
-      </ul>
-    </article>
-    <article>
-      <div class="v">v1.5</div>
-      <ul>
-        <li>Browser page on Microsoft's Edge engine: tabs, private tabs, bookmarks, history, downloads, choice of search engine, themed start page.</li>
-        <li>Audio mixer gains a microphone section and a volume lock for speakers and mic.</li>
-        <li>Stretched resolution for the whole screen with a 15-second Keep test; NVIDIA cards get missing modes added through NVAPI.</li>
-        <li>Keep running in the tray when the window closes, on by default.</li>
-      </ul>
-    </article>
-    <article>
-      <div class="v">v1.4.4</div>
-      <ul>
-        <li>FPS overlay no longer needs PresentMon: built-in frame counter from Windows' own frame events.</li>
-        <li>Tweaks page search box, checkboxes, and "Select its tweaks" from a preset with a preview of what would actually change.</li>
-        <li>Four new presets and nine new tweaks, 53 in total.</li>
-      </ul>
-    </article>
+    <article><div class="v">v2.0.3 <span class="tag">Latest</span></div><ul><li>Startup and AI assistant status messages show "…" correctly.</li></ul><a href="https://github.com/w1zr/ReTweaks/releases/latest" target="_blank" rel="noopener">Release notes</a></article>
+    <article><div class="v">v2.0.2</div><ul><li>AI assistant works out of the box with a built-in Gemini connection that switches keys by itself if Google stops accepting one.</li><li>Model dropdown, formatted replies, "See my limits".</li><li>Notifications page removed; new website linked from About and Settings.</li></ul></article>
+    <article><div class="v">v2.0.1</div><ul><li>Fixed "API key not valid" in the AI assistant; keys are no longer stored in the public source.</li></ul></article>
+    <article><div class="v">v2.0</div><ul><li>Full rebuild: 46 pages, 117 tweaks plus 53 with exact undo, 15 themes, 8 animated backgrounds, five languages, Ctrl+K search.</li><li>New: Temperatures, fan control and fan curves, RGB lighting, crosshair overlay, driver downloads, a browser in its own process, optional automatic updates.</li><li>Settings from v1.6 carry over. License is now GPL-3.0.</li></ul></article>
   </div>
 </section>
 
@@ -554,7 +511,7 @@ footer a{color:var(--muted)}
     <div><h3>Nothing fake</h3><ul><li>Every control performs a real Windows action and reports the true result.</li><li>No placeholder data, no fake math, no hardcoded device hacks.</li><li>Loading indicators appear only for real work. No artificial waits.</li><li>No FPS or ping gain is claimed unless it was measured on your PC.</li></ul></div>
     <div><h3>Nothing you can't undo</h3><ul><li>Tweaks are never applied silently and never on launch.</li><li>Previous state is recorded before the first change. Undo restores it exactly.</li><li>Game config files, your power plan and your DNS are backed up before changes.</li><li>Cleanup always shows a preview. Nothing is deleted without you.</li></ul></div>
     <div><h3>Documented mechanisms only</h3><ul><li>Game Mode, HAGS, Ultimate Performance and service start types use the values Windows itself writes.</li><li>No invented registry keys and no "FPS boost" folklore presented as fact.</li><li>No anti-cheat bypass, no stealth features, no game process injection.</li></ul></div>
-    <div><h3>Your data stays yours</h3><ul><li>Settings persist between versions. Old settings are never reset.</li><li>The Gemini key lives only in Windows Credential Manager. No key is in the code or the repo.</li><li>The AI Assistant gives advice only and never runs commands or changes settings.</li></ul></div>
+    <div><h3>Your data stays yours</h3><ul><li>Settings persist between versions. Old settings are never reset.</li><li>Fans and lighting are never changed at startup unless you turn that on. Fans return to BIOS control on quit, crash or 85 °C.</li><li>The AI Assistant gives advice only and never runs commands or changes settings.</li></ul></div>
   </div>
 </section>
 
@@ -567,10 +524,10 @@ footer a{color:var(--muted)}
         <li><span>Download <code>RETWEAKS.exe</code> and run it. There is no installer. It asks for administrator rights because several tweaks change system-wide settings.</span></li>
         <li><span>Optional: check the download against the <code>.sha256</code> file. From then on the Update now bar at the top of the app installs new versions and verifies them for you.</span></li>
       </ol>
-      <p class="callout" style="margin-top:18px"><b>Windows SmartScreen may warn you.</b> The .exe is not code-signed, so Windows or your antivirus can show a warning on first run. All source files are viewable on GitHub, and every release is built from the committed code by GitHub Actions on a Windows runner.</p>
+      <p class="callout" style="margin-top:18px"><b>Windows SmartScreen may warn you.</b> The .exe is not code-signed, so Windows or your antivirus can show a warning on first run. All source is on GitHub under GPL-3.0, and every release is built from the committed code by GitHub Actions on a Windows runner. Some antivirus tools also flag the bundled LibreHardwareMonitor and OpenRGB, which ship with their licenses and source links.</p>
     </div>
     <div>
-      <p class="callout ok"><b>Requirements.</b> Windows 10 or 11, 64-bit. Optional: LibreHardwareMonitor for CPU temperatures and fan speeds, Intel PresentMon for the FPS test, and your own Gemini API key for the AI Assistant (18+ per Google's terms).</p>
+      <p class="callout ok"><b>Requirements.</b> Windows 10 or 11, 64-bit. LibreHardwareMonitor and OpenRGB are bundled. Optional: the free PawnIO driver for CPU and motherboard sensors, fan control and RAM lighting; Intel PresentMon for the FPS test. The AI assistant needs no account; Google's terms require users to be 18 or older.</p>
     </div>
   </div>
 </section>
@@ -598,19 +555,21 @@ footer a{color:var(--muted)}
 <section id="faq">
   <div class="sechead reveal"><p class="eyebrow">Questions</p><h2>FAQ</h2></div>
   <div class="reveal">
-  <details><summary>Is it free?</summary><p>Yes. RETWEAKS is free and its source is public on GitHub. A paid Pro tier was considered and is on hold.</p></details>
+  <details><summary>Is it free and open source?</summary><p>Yes. RETWEAKS is free and all source code is on GitHub under the GPL-3.0 license.</p></details>
   <details><summary>Why does it need administrator rights?</summary><p>Tweaks like the power plan, DNS, HAGS and service start types change system-wide Windows settings, which require admin. The app tells you which tweaks are system-wide, and a declined UAC prompt is handled without crashing.</p></details>
-  <details><summary>Why can't it show my CPU temperature?</summary><p>Windows has no API for CPU temperatures, fans or motherboard sensors without a kernel driver, and RETWEAKS does not ship one. Run LibreHardwareMonitor and RETWEAKS reads those values from it. Otherwise it shows "Unavailable" rather than a guess.</p></details>
+  <details><summary>Why can't it show my CPU temperature or control my fans?</summary><p>Windows has no API for CPU temperatures, motherboard sensors or fan control without a kernel driver, and RETWEAKS never installs drivers itself. Install the free PawnIO driver from its official page (there's a button on the Temperatures page) and those readings appear. Some motherboards don't allow fan control at all; RETWEAKS says so instead of pretending. Until then it shows "Unavailable".</p></details>
   <details><summary>Will it make my FPS higher?</summary><p>It won't promise that. Tweaks are reversible changes to documented Windows settings. Use the FPS test and Snapshots to compare before and after on your own PC, and keep only what measurably helps.</p></details>
-  <details><summary>Does the overlay work with anti-cheat?</summary><p>The overlay is a separate click-through window and never injects into a game process. It draws over borderless and windowed-fullscreen games; exclusive fullscreen draws over it.</p></details>
-  <details><summary>How do I update?</summary><p>An Update now bar appears at the top of every page when a new version is out. It downloads the new .exe, checks its SHA-256, and keeps the old one as RETWEAKS.old.exe. Your settings are kept. The one exception was the v1.5.1 → v1.6 rename, which needs one manual download.</p></details>
+  <details><summary>Do the FPS and crosshair overlays work with anti-cheat?</summary><p>Both are separate click-through windows and never inject into a game process. They draw over borderless and windowed-fullscreen games; exclusive fullscreen draws over them. Follow each game's rules on overlays and crosshairs.</p></details>
+  <details><summary>Which languages does it have?</summary><p>English, Español, Français, Deutsch and Português (Brasil), switchable in Settings without a restart. The translations are machine-made; corrections are welcome on GitHub or Discord.</p></details>
+  <details><summary>How do I update?</summary><p>An Update now bar appears at the top of every page when a new version is out. It downloads the new .exe, checks its SHA-256, and keeps the old one as RETWEAKS.old.exe. You can also turn on automatic updates, which download in the background and ask before restarting. Your settings are kept.</p></details>
   <details><summary>Is there a community?</summary><p>Yes, the RETWEAKS Discord: <a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">discord.gg/fS5NwW9TPF</a>. Questions, feedback and theme codes go there.</p></details>
   <details><summary>Something broke. Where do I report it?</summary><p>Ask on the Discord or use the Report a problem button to open a bug form on GitHub and describe what happened. Adding your specs is optional: the page can copy what your browser sees, and the RETWEAKS Hardware and About pages have the rest.</p></details>
+  <details><summary>I had an older version. Do my settings carry over?</summary><p>Yes. Settings, theme, tweak backups, game backups, program rules and browser bookmarks stay where they were, undo still works for tweaks applied with earlier versions, and old theme share codes still import.</p></details>
   </div>
 </section>
 
 <footer>
-  <span>RETWEAKS by w1zr · <span id="verFoot">v1.6</span></span>
+  <span>RETWEAKS by w1zr · <span id="verFoot">v2.0.3</span></span>
   <span><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">github.com/w1zr/ReTweaks</a> · <a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a> · <a href="#report">Report a problem</a></span>
 </footer>
 </div>
@@ -621,20 +580,22 @@ footer a{color:var(--muted)}
   var root=document.documentElement;
 
   /* ---------- themes: exact values from core/themes.py ---------- */
-  var BASE={bg:"#0f1115",sidebar:"#13161b",card:"#171a20",card_hover:"#1c2027",input:"#1b1f26",border:"#262b33",text:"#e8eaed",subtext:"#9aa0a6",muted:"#6b717a",good:"#3fb950",warn:"#d29922",bad:"#f85149"};
-  var ACCENTS={Midnight:"#8b95a5",Pink:"#e91e63",Blue:"#3b82f6",Purple:"#a855f7",Red:"#ef4444",Green:"#22c55e",Cyan:"#06b6d4"};
-  var THEMES={};
-  Object.keys(ACCENTS).forEach(function(n){THEMES[n]=Object.assign({},BASE,{accent:ACCENTS[n]})});
-  Object.assign(THEMES,{
-    "Super Black":{bg:"#000000",sidebar:"#000000",card:"#0a0a0a",card_hover:"#141414",input:"#101010",border:"#1f1f1f",text:"#f2f2f2",subtext:"#a3a3a3",muted:"#6b6b6b",good:"#3fb950",warn:"#d29922",bad:"#f85149",accent:"#a3a3a3"},
-    "Galaxy":{bg:"#0c0a1d",sidebar:"#100d24",card:"#171334",card_hover:"#1e1940",input:"#1d1840",border:"#2b2452",text:"#eeebff",subtext:"#aaa4d8",muted:"#726c9f",good:"#4ade80",warn:"#fbbf24",bad:"#f87171",accent:"#8b5cf6",stars:true},
-    "Ocean":{bg:"#0a1220",sidebar:"#0d1628",card:"#111d33",card_hover:"#16243d",input:"#15233d",border:"#1f3050",text:"#e6f0ff",subtext:"#9db2cf",muted:"#647a99",good:"#34d399",warn:"#fbbf24",bad:"#f87171",accent:"#22d3ee"},
-    "Ember":{bg:"#120e0c",sidebar:"#17120f",card:"#1e1814",card_hover:"#261f1a",input:"#251d18",border:"#352820",text:"#f5ece6",subtext:"#c2ad9f",muted:"#857266",good:"#4ade80",warn:"#facc15",bad:"#f87171",accent:"#f97316"},
-    "Forest":{bg:"#0b120f",sidebar:"#0e1713",card:"#131e19",card_hover:"#18261f",input:"#17251f",border:"#22342b",text:"#e7f3ec",subtext:"#a1b9ad",muted:"#677d72",good:"#4ade80",warn:"#fbbf24",bad:"#f87171",accent:"#10b981"},
-    "Light":{bg:"#f4f5f7",sidebar:"#eceef1",card:"#ffffff",card_hover:"#f0f2f5",input:"#e9ecf0",border:"#d6dae0",text:"#16181c",subtext:"#4b5260",muted:"#7a8190",good:"#15803d",warn:"#a16207",bad:"#b91c1c",accent:"#4b5563",logo:"#16181c",light:true}
-  });
-  var ORDER=["Midnight","Pink","Blue","Purple","Red","Green","Cyan","Super Black","Galaxy","Ocean","Ember","Forest","Light"];
-  var EDITABLE=["bg","sidebar","card","border","text","subtext","accent","good","warn","bad"];
+  /* v2 palette model (appearance.py): bg, sidebar, panel, raised panel, line, accent; text is fixed light */
+  var T6={
+    "Super Black":["#000000","#050505","#0a0a0a","#141414","#1f1f1f","#a3a3a3"],
+    "Blackout":["#000000","#030303","#070707","#101010","#202020","#f5f5f5"],
+    "Midnight":["#0c121b","#101925","#162130","#1e2e40","#2d435a","#71b7ed"],
+    "Graphite":["#09090b","#101012","#151518","#222226","#303035","#eeeef0"],
+    "Silver":["#1b1d20","#212428","#292d32","#343a40","#474f57","#c1cbd3"],
+    "Galaxy":["#0c0a1d","#100d24","#171334","#1e1940","#2b2452","#8b5cf6"],
+    "Ocean":["#0a1220","#0d1628","#111d33","#16243d","#1f3050","#22d3ee"],
+    "Ember":["#191310","#211a16","#2a211b","#372b23","#4d3c30","#e0aa72"],
+    "Forest":["#101613","#151e19","#1b2720","#24352b","#344a3c","#7cc6a1"]
+  };
+  var G=T6.Graphite,ACC={Pink:"#e91e63",Blue:"#3b82f6",Purple:"#a855f7",Red:"#ef4444",Green:"#22c55e",Cyan:"#06b6d4"};
+  Object.keys(ACC).forEach(function(n){T6[n]=G.slice(0,5).concat([ACC[n]])});
+  var THEMES={};Object.keys(T6).forEach(function(n){var t=T6[n];THEMES[n]={bg:t[0],sidebar:t[1],card:t[2],card_hover:t[3],border:t[4],accent:t[5],text:"#e8eaed",subtext:"#9aa0a6",good:"#3fb950",warn:"#d29922",bad:"#f85149",stars:n==="Galaxy"}});
+  var ORDER=["Super Black","Blackout","Midnight","Graphite","Silver","Galaxy","Ocean","Ember","Forest","Pink","Blue","Purple","Red","Green","Cyan"];
   function rgb(h){h=h.replace("#","");return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
   function hex(a){return "#"+a.map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return (v<16?"0":"")+v.toString(16)}).join("")}
   function mix(a,b,t){var x=rgb(a),y=rgb(b);return hex(x.map(function(v,i){return v+(y[i]-v)*t}))}
@@ -650,16 +611,8 @@ footer a{color:var(--muted)}
     canvasMode=t.stars?"stars":"circuit";if(typeof resizeCanvas==="function")resizeCanvas();
     document.querySelectorAll(".sw-card").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-theme")===name)});
     var sel=document.getElementById("themeSel");if(sel.value!==name)sel.value=name;
-    updateCode(name);
     if(save){try{localStorage.setItem("retweaks-site-theme",name)}catch(e){}}
   }
-  function exportCode(name,colors){
-    var c={};EDITABLE.forEach(function(k){c[k]=colors[k].toLowerCase()});
-    var raw=JSON.stringify({n:name,c:c});
-    var b64=btoa(unescape(encodeURIComponent(raw))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-    return "RET1-"+b64;
-  }
-  function updateCode(name){document.getElementById("codeName").textContent=name;document.getElementById("themeCode").textContent=exportCode(name+" copy",THEMES[name]);document.getElementById("codeStatus").textContent=""}
   var grid=document.getElementById("themeGrid"),sel=document.getElementById("themeSel");
   ORDER.forEach(function(n){var t=THEMES[n];
     var b=document.createElement("button");b.type="button";b.className="sw-card";b.setAttribute("data-theme",n);b.style.setProperty("--sw-accent",t.accent);
@@ -667,11 +620,8 @@ footer a{color:var(--muted)}
     b.addEventListener("click",function(){apply(n,true)});grid.appendChild(b);
     var o=document.createElement("option");o.value=n;o.textContent=n;sel.appendChild(o)});
   sel.addEventListener("change",function(){apply(sel.value,true)});
-  document.getElementById("copyCode").addEventListener("click",function(){var code=document.getElementById("themeCode"),st=document.getElementById("codeStatus");
-    function fb(){var r=document.createRange();r.selectNodeContents(code);var s=getSelection();s.removeAllRanges();s.addRange(r);st.textContent="Press Ctrl+C to copy."}
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code.textContent).then(function(){st.textContent="Copied."},fb);else fb()});
   var saved=null;try{saved=localStorage.getItem("retweaks-site-theme")}catch(e){}
-  if(saved&&THEMES[saved])apply(saved,false);else{sel.value="Midnight";updateCode("Midnight");document.querySelector('.sw-card[data-theme="Midnight"]').classList.add("on")}
+  if(saved&&THEMES[saved])apply(saved,false);else{sel.value="Super Black";document.querySelector('.sw-card[data-theme="Super Black"]').classList.add("on")}
 
   /* ---------- live version + release notes from GitHub (falls back to the typed text) ---------- */
   (function(){
