@@ -3171,7 +3171,18 @@
   "Bottom left": "Abajo izquierda",
   "Bottom right": "Abajo derecha",
   "RETWEAKS does not include PresentMon. Download the PresentMon console app from the official releases page and select PresentMon.exe below. It needs administrator rights.": "RETWEAKS no incluye PresentMon. Descarga la app de consola de PresentMon desde la página oficial de versiones y selecciona PresentMon.exe abajo. Requiere derechos de administrador.",
-  "No PresentMon.exe selected.": "No se ha seleccionado PresentMon.exe."
+  "No PresentMon.exe selected.": "No se ha seleccionado PresentMon.exe.",
+  "  Google rejected the key. Paste your own free key above (Get a free key).": "  Google rechazó la clave. Pega arriba tu propia clave gratuita (Obtener una clave gratis).",
+  "Get a free key": "Obtener una clave gratis",
+  "Keys come from Google AI Studio. Google's terms require you to be 18 or older. Your key is stored only on this PC, encrypted for your Windows account, and is sent only to Google.": "Las claves se obtienen en Google AI Studio. Los términos de Google exigen tener 18 años o más. Tu clave se guarda solo en este PC, cifrada para tu cuenta de Windows, y solo se envía a Google.",
+  "No key of your own saved: the AI uses the key built into this version, if it has one. If the AI shows a key error, paste your own free key here.": "No has guardado una clave propia: la IA usa la clave incluida en esta versión, si la tiene. Si la IA muestra un error de clave, pega aquí tu propia clave gratuita.",
+  "Remove my key": "Quitar mi clave",
+  "Save key": "Guardar clave",
+  "That doesn't look like a Gemini API key. Copy the whole key from Google AI Studio.": "Eso no parece una clave de API de Gemini. Copia la clave completa desde Google AI Studio.",
+  "Using your own key.": "Usando tu propia clave.",
+  "Your Gemini key": "Tu clave de Gemini",
+  "Your key is saved (encrypted for your Windows account). The AI reloads with it now.": "Tu clave está guardada (cifrada para tu cuenta de Windows). La IA se recarga con ella ahora.",
+  "Your key was removed.": "Tu clave se quitó."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nYa aplicados ({0}): ",
@@ -3671,6 +3682,8 @@
   "seconds ({0}–{1})": "segundos ({0}–{1})",
   "{0} found": "{0} encontrado",
   "{0} minutes": "{0} minutos",
-  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "El servidor de {0} redirigió a una dirección que no es de {1} ({2}); no se descargó nada."
+  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "El servidor de {0} redirigió a una dirección que no es de {1} ({2}); no se descargó nada.",
+  "Couldn't remove the key ({0}).": "No se pudo quitar la clave ({0}).",
+  "Couldn't save the key ({0}).": "No se pudo guardar la clave ({0})."
  }
 }

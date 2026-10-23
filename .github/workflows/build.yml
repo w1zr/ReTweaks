@@ -45,6 +45,8 @@ jobs:
         run: python tools/display_smoke.py
 
       - name: Build RETWEAKS.exe
+        env:
+          RETWEAKS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}   # private repo secret, never in the code
         run: python build.py
 
       - name: SHA-256 checksum (used by the in-app updater to verify downloads)

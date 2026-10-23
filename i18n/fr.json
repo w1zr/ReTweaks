@@ -3171,7 +3171,18 @@
   "Bottom left": "En bas à gauche",
   "Bottom right": "En bas à droite",
   "RETWEAKS does not include PresentMon. Download the PresentMon console app from the official releases page and select PresentMon.exe below. It needs administrator rights.": "RETWEAKS n'inclut pas PresentMon. Téléchargez l'application console PresentMon depuis la page officielle des versions et sélectionnez PresentMon.exe ci-dessous. Elle nécessite les droits administrateur.",
-  "No PresentMon.exe selected.": "Aucun PresentMon.exe sélectionné."
+  "No PresentMon.exe selected.": "Aucun PresentMon.exe sélectionné.",
+  "  Google rejected the key. Paste your own free key above (Get a free key).": "  Google a refusé la clé. Collez votre propre clé gratuite ci-dessus (Obtenir une clé gratuite).",
+  "Get a free key": "Obtenir une clé gratuite",
+  "Keys come from Google AI Studio. Google's terms require you to be 18 or older. Your key is stored only on this PC, encrypted for your Windows account, and is sent only to Google.": "Les clés s'obtiennent dans Google AI Studio. Les conditions de Google exigent d'avoir 18 ans ou plus. Votre clé est enregistrée uniquement sur ce PC, chiffrée pour votre compte Windows, et n'est envoyée qu'à Google.",
+  "No key of your own saved: the AI uses the key built into this version, if it has one. If the AI shows a key error, paste your own free key here.": "Aucune clé personnelle enregistrée : l'IA utilise la clé intégrée à cette version, s'il y en a une. Si l'IA affiche une erreur de clé, collez ici votre propre clé gratuite.",
+  "Remove my key": "Supprimer ma clé",
+  "Save key": "Enregistrer la clé",
+  "That doesn't look like a Gemini API key. Copy the whole key from Google AI Studio.": "Cela ne ressemble pas à une clé d'API Gemini. Copiez la clé complète depuis Google AI Studio.",
+  "Using your own key.": "Votre propre clé est utilisée.",
+  "Your Gemini key": "Votre clé Gemini",
+  "Your key is saved (encrypted for your Windows account). The AI reloads with it now.": "Votre clé est enregistrée (chiffrée pour votre compte Windows). L'IA se recharge maintenant avec elle.",
+  "Your key was removed.": "Votre clé a été supprimée."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nDéjà en place ({0}) : ",
@@ -3671,6 +3682,8 @@
   "seconds ({0}–{1})": "secondes ({0}–{1})",
   "{0} found": "{0} trouvé",
   "{0} minutes": "{0} minutes",
-  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "Le serveur de {0} a redirigé vers une adresse qui n'est pas celle de {1} ({2}) ; rien n'a été téléchargé."
+  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "Le serveur de {0} a redirigé vers une adresse qui n'est pas celle de {1} ({2}) ; rien n'a été téléchargé.",
+  "Couldn't remove the key ({0}).": "Impossible de supprimer la clé ({0}).",
+  "Couldn't save the key ({0}).": "Impossible d'enregistrer la clé ({0})."
  }
 }

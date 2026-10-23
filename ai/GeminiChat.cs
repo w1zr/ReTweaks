@@ -25,11 +25,14 @@ class GeminiChat : Form
     readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 16000000 };
     readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
     bool busy;
-    const string BundledKey = "AQ.Ab8RN6LKgDQcx-o016PLwjinorKrRq4HE5OJ0cVZfRvTDo4hhg";
+    // Built-in key: filled in at build time by build.py from the RETWEAKS_GEMINI_KEY secret (or the untracked
+    // ai\gemini_key.txt), so no key is ever stored in the public source code. Empty = no built-in key.
+    const string BundledKey = "@@RETWEAKS_GEMINI_KEY@@";
+    static string Builtin() { return BundledKey.StartsWith("@@") ? "" : BundledKey; }
     static readonly string KeyFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GeminiChat", "key-v2.dat");
     static string ReadKey() {
         try { if (File.Exists(KeyFile)) return Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(KeyFile), null, DataProtectionScope.CurrentUser)); } catch { }
-        return BundledKey;
+        return Builtin();
     }
     void SaveKey() {
         Directory.CreateDirectory(Path.GetDirectoryName(KeyFile));
@@ -38,7 +41,7 @@ class GeminiChat : Form
 
     public GeminiChat()
     {
-        key.Text = BundledKey;
+        key.Text = ReadKey();     // the user's own key (AI assistant page) first, else the built-in key
         AutoScaleMode = AutoScaleMode.None; Text = "Gemini Chat"; Width = 980; Height = 780; MinimumSize = new Size(680, 540);
         BackColor = Color.FromArgb(19,15,32); ForeColor = Color.FromArgb(238,233,255);
         Font = new Font("Segoe UI", 11); StartPosition = FormStartPosition.CenterScreen;
@@ -88,7 +91,7 @@ class GeminiChat : Form
     void Welcome() { Append("LET'S TALK", "What can I help you with?\n\nAsk a question, explore an idea, or make something new."); }
     void Append(string who, string message) { chat.SelectionStart = chat.TextLength; chat.SelectionColor = Color.FromArgb(179,155,255); chat.AppendText(who + "\n"); chat.SelectionColor = Color.WhiteSmoke; chat.AppendText(message + "\n\n"); chat.ScrollToCaret(); }
     void Busy(bool value) { busy = value; send.Enabled = refresh.Enabled = clear.Enabled = key.Enabled = model.Enabled = input.Enabled = !value; }
-    string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("Enter your Gemini API key first."); return value; }
+    string ApiKey() { var value = key.Text.Trim(); if (value.Length == 0) throw new Exception("No Gemini key yet. Paste your own free key on the AI assistant page (Get a free key)."); return value; }
     async Task<Dictionary<string,object>> Request(string path, object body)
     {
         using (var request = new HttpRequestMessage(body == null ? HttpMethod.Get : HttpMethod.Post, "https://generativelanguage.googleapis.com/v1beta/" + path))

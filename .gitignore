@@ -14,3 +14,8 @@ dist/
 verification/
 !RETWEAKS.spec
 !RETWEAKS-*.spec
+
+# AI key (build.py): never commit it
+ai/gemini_key.txt
+ai/GeminiChat.build.cs
+ai/GeminiChat.exe

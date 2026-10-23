@@ -3171,7 +3171,18 @@
   "Bottom left": "Unten links",
   "Bottom right": "Unten rechts",
   "RETWEAKS does not include PresentMon. Download the PresentMon console app from the official releases page and select PresentMon.exe below. It needs administrator rights.": "RETWEAKS enthält PresentMon nicht. Lade die PresentMon-Konsolen-App von der offiziellen Releaseseite herunter und wähle unten PresentMon.exe aus. Sie braucht Administratorrechte.",
-  "No PresentMon.exe selected.": "Keine PresentMon.exe ausgewählt."
+  "No PresentMon.exe selected.": "Keine PresentMon.exe ausgewählt.",
+  "  Google rejected the key. Paste your own free key above (Get a free key).": "  Google hat den Schlüssel abgelehnt. Füge oben deinen eigenen kostenlosen Schlüssel ein (Kostenlosen Schlüssel holen).",
+  "Get a free key": "Kostenlosen Schlüssel holen",
+  "Keys come from Google AI Studio. Google's terms require you to be 18 or older. Your key is stored only on this PC, encrypted for your Windows account, and is sent only to Google.": "Schlüssel gibt es in Google AI Studio. Laut Googles Bedingungen musst du mindestens 18 Jahre alt sein. Dein Schlüssel wird nur auf diesem PC gespeichert, für dein Windows-Konto verschlüsselt, und nur an Google gesendet.",
+  "No key of your own saved: the AI uses the key built into this version, if it has one. If the AI shows a key error, paste your own free key here.": "Kein eigener Schlüssel gespeichert: Die KI nutzt den in diese Version eingebauten Schlüssel, falls vorhanden. Zeigt die KI einen Schlüsselfehler, füge hier deinen eigenen kostenlosen Schlüssel ein.",
+  "Remove my key": "Meinen Schlüssel entfernen",
+  "Save key": "Schlüssel speichern",
+  "That doesn't look like a Gemini API key. Copy the whole key from Google AI Studio.": "Das sieht nicht wie ein Gemini-API-Schlüssel aus. Kopiere den ganzen Schlüssel aus Google AI Studio.",
+  "Using your own key.": "Dein eigener Schlüssel wird verwendet.",
+  "Your Gemini key": "Dein Gemini-Schlüssel",
+  "Your key is saved (encrypted for your Windows account). The AI reloads with it now.": "Dein Schlüssel ist gespeichert (für dein Windows-Konto verschlüsselt). Die KI lädt jetzt damit neu.",
+  "Your key was removed.": "Dein Schlüssel wurde entfernt."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nBereits gesetzt ({0}): ",
@@ -3671,6 +3682,8 @@
   "seconds ({0}–{1})": "Sekunden ({0}–{1})",
   "{0} found": "{0} gefunden",
   "{0} minutes": "{0} Minuten",
-  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "Der Server von {0} hat an eine Adresse umgeleitet, die nicht zu {1} gehört ({2}); nichts wurde heruntergeladen."
+  "{0}'s server redirected to an address that isn't {1}'s ({2}); nothing was downloaded.": "Der Server von {0} hat an eine Adresse umgeleitet, die nicht zu {1} gehört ({2}); nichts wurde heruntergeladen.",
+  "Couldn't remove the key ({0}).": "Der Schlüssel konnte nicht entfernt werden ({0}).",
+  "Couldn't save the key ({0}).": "Der Schlüssel konnte nicht gespeichert werden ({0})."
  }
 }

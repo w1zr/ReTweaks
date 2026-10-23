@@ -29,10 +29,13 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   becomes `tweak_custom_presets.json` because RETWEAKS already uses that name), plus the previous-name migration (v1.6).
   Undo for changes the base app made still works (its hosts backup and registry-backup task; `retweaks_data.py`
   `_OLD_HOSTS_BAK`, `_OLD_REG_TASK`).
-- **AI (owner choice 2026-10-22):** the base app's shared-key Gemini helper. The key is hardcoded in `ai/GeminiChat.cs`
-  and the prebuilt helper .exe files. Publishing it in the public repo was decided by the owner on 2026-10-22, with
-  the key owner's (the base app's author's) permission relayed by the owner; this overrides sections 13 and 15 for that one
-  key only. Known risk, told to the owner: Google/GitHub may detect and disable a key found in public code.
+- **AI (owner choice 2026-10-22, updated v2.0.1):** the base app's shared-key Gemini helper. The first shared key was
+  published in the code with v2.0 (owner decision) and Google disabled it minutes later. Since v2.0.1 **no key is in the
+  repo**: `ai/GeminiChat.cs` has the placeholder `@@RETWEAKS_GEMINI_KEY@@`; `build.py` fills it from the env var
+  `RETWEAKS_GEMINI_KEY` (GitHub Actions secret `GEMINI_API_KEY`) or the untracked `ai/gemini_key.txt` into a temporary
+  copy it deletes after compiling; `ai/GeminiChat.exe` is no longer tracked. Never commit a key again. Users can also
+  paste their own key on the AI assistant page (`rt_pages/ai_key.py`, DPAPI file `%LOCALAPPDATA%\GeminiChat\key-v2.dat`,
+  which the helper reads first).
 - **Base app v1.5 merge (owner decisions 2026-10-22):** added the base app's v1.5 Temperatures, Fan control, RGB lighting
   and Run pages (`rt_pages/cooling.py` wrapping `cooling_panel.py`, `thermal_dashboard.py`, `run_panel.py`;
   sensors `temperatures.py`, `gpu_metrics.py`; RGB `rgb_service.py`, `rgb_sync.py`) plus its fixes (rounded

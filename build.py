@@ -72,6 +72,42 @@ def build_browser():
     print("EmbeddedBrowser.cs could not be compiled; using the existing ai\\EmbeddedBrowser.exe.")
 
 
+def gemini_key():
+    """The built-in AI key for this build: the RETWEAKS_GEMINI_KEY environment variable (a private GitHub
+    Actions secret on the release build) or the untracked file ai\\gemini_key.txt on a local PC. Never stored
+    in the public source code (Google disabled the previous key minutes after it appeared on GitHub)."""
+    key = os.environ.get("RETWEAKS_GEMINI_KEY", "").strip()
+    path = os.path.join(ROOT, "ai", "gemini_key.txt")
+    if not key and os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            key = f.read().strip()
+    if key and not all(c.isalnum() or c in "._-" for c in key):
+        sys.exit("The Gemini key contains unexpected characters; check RETWEAKS_GEMINI_KEY / ai\\gemini_key.txt.")
+    return key
+
+
+def build_gemini_chat():
+    """ai\\GeminiChat.exe (the AI helper) from GeminiChat.cs with the built-in key filled in. The filled-in copy
+    is a temporary file that is deleted right after compiling. With no key the app still builds; users then
+    paste their own key on the AI assistant page."""
+    key = gemini_key()
+    print("Built-in AI key:", "found" if key else "none (users add their own key on the AI assistant page)")
+    src = os.path.join(ROOT, "ai", "GeminiChat.cs")
+    tmp = os.path.join(ROOT, "ai", "GeminiChat.build.cs")
+    with open(src, "rb") as f:
+        code = f.read()
+    with open(tmp, "wb") as f:
+        f.write(code.replace(b"@@RETWEAKS_GEMINI_KEY@@", key.encode("ascii")) if key else code)
+    try:
+        run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join("ai", "build.ps1"),
+             "-Source", tmp])
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
 def build_app():
     if sys.platform != "win32":
         sys.exit("RETWEAKS.exe must be built on Windows.")
@@ -79,7 +115,7 @@ def build_app():
     run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     if not os.path.isfile(CSC):
         sys.exit(f"The .NET Framework C# compiler was not found at {CSC}.")
-    run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", os.path.join("ai", "build.ps1")])
+    build_gemini_chat()
     for out, target, platform, extra, src in HELPERS:
         refs = REFS + extra
         run([CSC, "/nologo", f"/target:{target}", f"/platform:{platform}", f"/out:ai\\{out}",
