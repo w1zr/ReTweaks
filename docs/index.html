@@ -33,13 +33,14 @@ code,.mono{font-family:var(--mono)}
 /* progress + nav */
 #progress{position:fixed;top:env(safe-area-inset-top,0px);left:0;height:2px;width:0;background:var(--accent);z-index:30;transition:width .08s linear}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px;border-bottom:1px solid var(--line);flex-wrap:wrap;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 80%,transparent)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:10px 16px;padding-block:12px;border-bottom:1px solid var(--line);flex-wrap:wrap;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 80%,transparent)}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:1.15rem;letter-spacing:.02em;text-decoration:none}
 .brand svg{width:26px;height:26px}
-nav .links{display:flex;gap:2px;flex-wrap:wrap;font-size:.88rem;align-items:center}
+nav .links{display:flex;gap:2px;flex-wrap:wrap;font-size:.88rem;align-items:center;flex:1 1 auto}
+nav .pick{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;margin-left:auto}
 nav .links a{text-decoration:none;color:var(--muted);padding:6px 9px;border-radius:7px;transition:color .15s,background .15s}
 nav .links a:hover,nav .links a:focus-visible,nav .links a.active{color:var(--fg);background:var(--bg-3)}
-nav select{font-family:var(--display);font-size:.82rem;background:var(--bg-2);color:var(--fg);border:1px solid var(--line-2);border-radius:7px;padding:5px 8px;margin-left:6px}
+nav select{font-family:var(--display);font-size:.82rem;background:var(--bg-2);color:var(--fg);border:1px solid var(--line-2);border-radius:7px;padding:5px 8px}
 .ver{font-family:var(--display);font-size:.72rem;letter-spacing:.08em;border:1px solid var(--line-2);border-radius:999px;padding:2px 9px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 .ver i{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 8px var(--ok)}
 
@@ -117,7 +118,7 @@ section{padding-block:72px 0}
 .shot .img{position:relative;overflow:hidden;background:#000}
 .shot img{display:block;width:100%;height:auto;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .shot:hover img{transform:scale(1.015)}
-.shot .scanline{position:absolute;left:0;right:0;top:0;height:2px;background:var(--accent);opacity:.7;box-shadow:0 0 18px var(--accent);animation:shotscan 6s linear infinite;pointer-events:none}
+.shot .scanline{position:absolute;left:0;right:0;top:0;height:1px;background:var(--accent);opacity:.25;box-shadow:0 0 12px var(--accent);animation:shotscan 6s linear infinite;pointer-events:none}
 @keyframes shotscan{0%{top:0}100%{top:100%}}
 .shot .cap{padding:12px 16px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line)}
 .shot .cap b{color:var(--fg)}
@@ -291,8 +292,8 @@ footer a{color:var(--muted)}
   </a>
   <div class="links">
     <a href="#features">Features</a><a href="#dashboard">Dashboard</a><a href="#demo">Demo</a><a href="#tweaks">Tweaks</a><a href="#themes">Themes</a><a href="#sources">Data</a><a href="#whatsnew">What's new</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="#report">Report a problem</a><a href="https://discord.gg/fS5NwW9TPF" target="_blank" rel="noopener">Discord</a><a href="https://github.com/w1zr/ReTweaks" target="_blank" rel="noopener">GitHub</a>
-    <label class="eyebrow" for="themeSel" style="margin-left:6px">Theme</label><select id="themeSel" aria-label="Site theme"></select>
   </div>
+  <div class="pick"><label class="eyebrow" for="themeSel">Theme</label><select id="themeSel" aria-label="Site theme"></select></div>
 </nav>
 
 <header class="hero" id="top">
@@ -366,7 +367,7 @@ footer a{color:var(--muted)}
   </div>
   <div class="shot reveal">
     <div class="bar"><i></i><i></i><i></i> RETWEAKS · Dashboard · screenshot</div>
-    <div class="img"><img src="dashboard.png" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and two GPU entries showing live load, clock, temperature and VRAM" width="1277" height="864" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
+    <div class="img"><img src="dashboard-v2.png" alt="RETWEAKS Dashboard: sidebar with Monitor, Optimize and App sections; cards for Processor, Memory and two GPU entries showing live load, clock, temperature and VRAM" width="1277" height="864" loading="lazy"><div class="scanline" aria-hidden="true"></div></div>
     <div class="cap"><b>Live view of your PC, updated every second.</b> Processor load, clock and temperature; memory in use; per-GPU load, VRAM and temperature, each with a history graph.</div>
   </div>
   <div class="calls reveal">
