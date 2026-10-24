@@ -7,8 +7,9 @@
   GitHub Actions build (.github/workflows/build.yml), so a damaged or swapped download
   is never installed.
 - install_and_restart(): only for the packaged .exe. A small script waits for RETWEAKS to
-  close, keeps the old exe as RETWEAKS.old.exe (so it can be restored), puts the new one
-  in place and starts it (if the swap fails, the old exe is put back). User settings in %APPDATA%\\RETWEAKS are not touched.
+  close, moves the old exe aside only while swapping, puts the new one in place, deletes the old one and
+  starts the new one (if the swap fails, the old exe is put back). Since v2.0.7 (owner request) no
+  RETWEAKS.old.exe is kept; remove_old_exe() deletes one left by earlier versions. User settings in %APPDATA%\\RETWEAKS are not touched.
 - install_release_copy() (v2.0.6): when RETWEAKS runs from source (python retweaks.py), updates still come from
   the GitHub release: the verified RETWEAKS.exe goes to %LOCALAPPDATA%\\RETWEAKS\\app and starts after this copy
   closes. The source folder (the user's own files) is never changed and git is never used.
@@ -156,8 +157,8 @@ def release_install_dir():
 
 
 def install_release_copy(new_exe):
-    """From-source run: move the verified release exe to release_install_dir()\\RETWEAKS.exe (the previous one is
-    kept as RETWEAKS.old.exe there) and start it once this process has exited. Returns (ok, message);
+    """From-source run: move the verified release exe to release_install_dir()\\RETWEAKS.exe (replacing the
+    previous one; no RETWEAKS.old.exe is kept) and start it once this process has exited. Returns (ok, message);
     the caller must then quit the app."""
     if not IS_WINDOWS:
         return False, "Updates can only be installed on Windows."
@@ -166,12 +167,19 @@ def install_release_copy(new_exe):
     backup = os.path.join(folder, "RETWEAKS.old.exe")
     try:
         os.makedirs(folder, exist_ok=True)
+        if os.path.exists(backup):
+            os.remove(backup)
         if os.path.exists(target):
-            if os.path.exists(backup):
-                os.remove(backup)
             os.replace(target, backup)
         import shutil
-        shutil.move(new_exe, target)
+        try:
+            shutil.move(new_exe, target)
+        except OSError:
+            if os.path.exists(backup) and not os.path.exists(target):
+                os.replace(backup, target)          # put the previous exe back
+            raise
+        if os.path.exists(backup):
+            os.remove(backup)
     except OSError as e:
         return False, f"Couldn't save the update in {folder}: {e}"
 
@@ -190,6 +198,26 @@ def install_release_copy(new_exe):
         return True, f"Starting the new RETWEAKS.exe from {folder}."
     except Exception as e:
         return False, f"Couldn't start the new RETWEAKS.exe: {e}"
+
+
+def remove_old_exe():
+    """Delete a RETWEAKS.old.exe left beside the running exe (or in the from-source app folder) by v2.0.6 and
+    earlier. Only that exact file name is touched. Returns the paths removed."""
+    if not IS_WINDOWS:
+        return []
+    folders = {release_install_dir()}
+    if getattr(sys, "frozen", False):
+        folders.add(os.path.dirname(sys.executable))
+    removed = []
+    for folder in folders:
+        path = os.path.join(folder, "RETWEAKS.old.exe")
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+                removed.append(path)
+        except OSError:
+            pass
+    return removed
 
 
 def install_update(new_exe):
@@ -212,7 +240,8 @@ def install_and_restart(new_exe):
     # A --onefile exe runs as TWO processes: the bootloader (parent) and Python (this one).
     # The parent keeps RETWEAKS.exe open until it has cleaned up its temp folder, so wait
     # for both. Then rename the old exe to RETWEAKS.old.exe (retrying while Windows still has
-    # it locked), move the new one in, and start it. If anything fails, put the old exe back
+    # it locked), move the new one in, delete the old one (v2.0.7: not kept), and start it.
+    # If anything fails, put the old exe back
     # and write a note that RETWEAKS shows on its next start, so it never claims success falsely.
     status = os.path.join(os.path.dirname(UPDATE_STATUS_FILE()), "update_status.txt")
     ps = (
@@ -226,7 +255,7 @@ def install_and_restart(new_exe):
         f"    catch {{ Rename-Item -LiteralPath {q(backup)} -NewName {q(os.path.basename(current))}; throw }} "
         f"  }} catch {{ Start-Sleep -Milliseconds 500 }} "
         f"}}; "
-        f"if ($ok) {{ Set-Content -LiteralPath {q(status)} -Value 'OK' }} "
+        f"if ($ok) {{ Remove-Item -LiteralPath {q(backup)} -Force -ErrorAction SilentlyContinue; Set-Content -LiteralPath {q(status)} -Value 'OK' }} "
         f"else {{ Set-Content -LiteralPath {q(status)} -Value 'FAILED' }}; "
         f"Start-Process -FilePath {q(current)}"
     )

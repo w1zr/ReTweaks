@@ -473,6 +473,7 @@ class Shell:
         self.set_tray(hub.settings.get("tray_on_close", True))
         self._start_services()
         self._build_update_bar()
+        self._remove_old_exe()
         if hub.settings.get("check_updates", True):
             hub.after(3000, self.check_updates)
 
@@ -531,6 +532,19 @@ class Shell:
     def hide_update_bar(self):
         self.bar.pack_forget()
 
+    def _remove_old_exe(self):
+        """v2.0.7 (owner request): no RETWEAKS.old.exe is kept; delete one an earlier update left behind."""
+        from core import updater
+        from rt_pages.common import run_bg
+
+        def done(removed):
+            for path in removed if isinstance(removed, list) else []:
+                try:
+                    self.hub.log_action("Update", "Delete previous version", "Removed", path)
+                except Exception:
+                    pass
+        run_bg(self.hub, updater.remove_old_exe, done)
+
     def check_updates(self, done=None):
         from core import updater
         from rt_pages.common import run_bg
@@ -554,7 +568,7 @@ class Shell:
             messagebox.showinfo(APP_NAME, "Updates can only be installed on Windows.", parent=self.hub)
             return
         if updater.can_self_update():
-            where = "The current version is saved as RETWEAKS.old.exe."
+            where = "The current version is replaced."
         else:
             where = (f"You're running from source, so the released RETWEAKS.exe is saved in "
                      f"{updater.release_install_dir()} and starts instead. Your source files aren't changed.")

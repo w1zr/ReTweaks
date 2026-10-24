@@ -3593,7 +3593,11 @@
   "Enter a color like #ffffff, then press Apply.": "Gib eine Farbe wie #ffffff ein und klicke auf Anwenden.",
   "Original": "Original",
   "Theme accent": "Theme-Akzent",
-  "Updates can only be installed on Windows.": "Updates können nur unter Windows installiert werden."
+  "Updates can only be installed on Windows.": "Updates können nur unter Windows installiert werden.",
+  "Delete previous version": "Vorherige Version löschen",
+  "Removed": "Entfernt",
+  "The current version is replaced.": "Die aktuelle Version wird ersetzt.",
+  "Update": "Update"
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nBereits gesetzt ({0}): ",

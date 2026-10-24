@@ -53,4 +53,19 @@ def test_release_copy_moves_exe(monkeypatch, tmp_path):
     target.write_bytes(b"old")
     ok, _ = u.install_release_copy(str(new))
     assert ok and started and target.read_bytes() == b"new"
-    assert (target.parent / "RETWEAKS.old.exe").read_bytes() == b"old" and not new.exists()
+    assert not (target.parent / "RETWEAKS.old.exe").exists() and not new.exists()   # v2.0.7: no old exe kept
+
+
+def test_remove_old_exe(monkeypatch, tmp_path):
+    import sys
+    import core.updater as u
+    monkeypatch.setattr(u, "IS_WINDOWS", True)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "RETWEAKS.exe"))
+    (tmp_path / "RETWEAKS.exe").write_bytes(b"cur")
+    (tmp_path / "RETWEAKS.old.exe").write_bytes(b"old")
+    (tmp_path / "other.exe").write_bytes(b"x")
+    assert u.remove_old_exe() == [str(tmp_path / "RETWEAKS.old.exe")]
+    assert (tmp_path / "RETWEAKS.exe").exists() and (tmp_path / "other.exe").exists()
+    assert not (tmp_path / "RETWEAKS.old.exe").exists()
