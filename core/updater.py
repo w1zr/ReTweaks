@@ -1,7 +1,7 @@
 # core/updater.py
 """Update check and in-app updates.
 
-- check_for_update(): asks GitHub for the latest release of w1zr/retweaks (read-only).
+- check_for_update(): asks GitHub for the latest release of w1zr/ReTweaks (read-only).
 - download_update(): downloads RETWEAKS.exe and its .sha256 file from THAT release only,
   and refuses the file unless its SHA-256 matches. The .sha256 file is created by the
   GitHub Actions build (.github/workflows/build.yml), so a damaged or swapped download
@@ -9,6 +9,10 @@
 - install_and_restart(): only for the packaged .exe. A small script waits for RETWEAKS to
   close, keeps the old exe as RETWEAKS.old.exe (so it can be restored), puts the new one
   in place and starts it (if the swap fails, the old exe is put back). User settings in %APPDATA%\\RETWEAKS are not touched.
+- install_release_copy() (v2.0.6): when RETWEAKS runs from source (python retweaks.py), updates still come from
+  the GitHub release: the verified RETWEAKS.exe goes to %LOCALAPPDATA%\\RETWEAKS\\app and starts after this copy
+  closes. The source folder (the user's own files) is never changed and git is never used.
+- install_update(): picks install_and_restart (packaged) or install_release_copy (source).
 
 Nothing is downloaded or installed without the user clicking a button.
 """
@@ -24,7 +28,7 @@ import urllib.request
 from core.version import __version__
 from core.winutil import CREATE_NO_WINDOW, IS_WINDOWS
 
-REPO = "w1zr/retweaks"
+REPO = "w1zr/ReTweaks"
 LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 EXE_NAME = "RETWEAKS.exe"
 # Downloads are only accepted from these hosts (GitHub release assets)
@@ -140,10 +144,65 @@ def can_self_update():
     return IS_WINDOWS and getattr(sys, "frozen", False)
 
 
+def can_download_release():
+    """True on Windows: the GitHub release RETWEAKS.exe can be downloaded and started, packaged or from source."""
+    return IS_WINDOWS
+
+
+def release_install_dir():
+    """Where a from-source run keeps the released RETWEAKS.exe (never inside the source folder)."""
+    base = os.getenv("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    return os.path.join(base, "RETWEAKS", "app")
+
+
+def install_release_copy(new_exe):
+    """From-source run: move the verified release exe to release_install_dir()\\RETWEAKS.exe (the previous one is
+    kept as RETWEAKS.old.exe there) and start it once this process has exited. Returns (ok, message);
+    the caller must then quit the app."""
+    if not IS_WINDOWS:
+        return False, "Updates can only be installed on Windows."
+    folder = release_install_dir()
+    target = os.path.join(folder, EXE_NAME)
+    backup = os.path.join(folder, "RETWEAKS.old.exe")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        if os.path.exists(target):
+            if os.path.exists(backup):
+                os.remove(backup)
+            os.replace(target, backup)
+        import shutil
+        shutil.move(new_exe, target)
+    except OSError as e:
+        return False, f"Couldn't save the update in {folder}: {e}"
+
+    def q(path):
+        return "'" + path.replace("'", "''") + "'"
+    ps = (f"Wait-Process -Id {os.getpid()} -Timeout 90 -ErrorAction SilentlyContinue; "
+          f"Start-Process -FilePath {q(target)}")
+    try:
+        import base64
+        import subprocess
+        encoded = base64.b64encode(ps.encode("utf-16-le")).decode("ascii")
+        env = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+        subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                          "-EncodedCommand", encoded],
+                         creationflags=CREATE_NO_WINDOW, close_fds=True, env=env)
+        return True, f"Starting the new RETWEAKS.exe from {folder}."
+    except Exception as e:
+        return False, f"Couldn't start the new RETWEAKS.exe: {e}"
+
+
+def install_update(new_exe):
+    """Install a verified download: swap the running exe, or (from source) start the released exe."""
+    if can_self_update():
+        return install_and_restart(new_exe)
+    return install_release_copy(new_exe)
+
+
 def install_and_restart(new_exe):
     """Start the swap script; the caller must then quit the app. Returns (ok, message)."""
     if not can_self_update():
-        return False, "In-app updates only work in RETWEAKS.exe. When running from source, use git pull."
+        return False, "Replacing the running exe only works in RETWEAKS.exe."
     current = sys.executable
     backup = os.path.join(os.path.dirname(current), "RETWEAKS.old.exe")
 

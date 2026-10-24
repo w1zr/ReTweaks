@@ -3584,7 +3584,16 @@
   "Windows wallpaper controls are unavailable: ": "Die Windows-Hintergrundsteuerung ist nicht verfügbar: ",
   "Windows wallpaper controls require Windows 8 or newer.": "Die Windows-Hintergrundsteuerung erfordert Windows 8 oder neuer.",
   "Windows wallpapers…": "Windows-Hintergründe…",
-  "ZIP archive": "ZIP-Archiv"
+  "ZIP archive": "ZIP-Archiv",
+  "Banner color": "Bannerfarbe",
+  "Black & white": "Schwarz-Weiß",
+  "Custom (HEX)": "Eigene (HEX)",
+  "Custom banner color (HEX)": "Eigene Bannerfarbe (HEX)",
+  "Enter a color like #ffffff (6 hex digits).": "Gib eine Farbe wie #ffffff ein (6 Hex-Ziffern).",
+  "Enter a color like #ffffff, then press Apply.": "Gib eine Farbe wie #ffffff ein und klicke auf Anwenden.",
+  "Original": "Original",
+  "Theme accent": "Theme-Akzent",
+  "Updates can only be installed on Windows.": "Updates können nur unter Windows installiert werden."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nBereits gesetzt ({0}): ",
@@ -4111,6 +4120,8 @@
   "{0} from {1}?\n\n{2}\nVersion: {3}\nSize: {4}\nFrom: {5}\n\nSaved to: {6}\n\nNothing is installed until you click Run installer.": "{0} von {1}?\n\n{2}\nVersion: {3}\nGröße: {4}\nVon: {5}\n\nGespeichert in: {6}\n\nEs wird nichts installiert, bis du auf Installer ausführen klickst.",
   "{0} in RETWEAKS: {1}.\n\nUse the current feature observations in the hub context when enabled. Explain what the parts, readings, options, or task mean, then give specific next steps using the controls in RETWEAKS. Separate observed facts from possibilities. If a result has not been collected, say which scan to run. For parts, explain capabilities and compatibility without inventing current prices or specifications. For changes, explain the tradeoff, how to verify the result, and how to undo. I will review and apply actions myself. Ask only for information that is still missing.": "{0} in RETWEAKS: {1}.\n\nNutze die aktuellen Beobachtungen der Funktion im Hub-Kontext, wenn er aktiviert ist. Erkläre, was die Komponenten, Werte, Optionen oder die Aufgabe bedeuten, und nenne dann konkrete nächste Schritte mit den Bedienelementen in RETWEAKS. Trenne beobachtete Fakten von Möglichkeiten. Wenn ein Ergebnis noch nicht erfasst wurde, sag, welcher Scan nötig ist. Bei Komponenten erkläre Fähigkeiten und Kompatibilität, ohne aktuelle Preise oder Daten zu erfinden. Bei Änderungen erkläre den Kompromiss, wie man das Ergebnis prüft und wie man es rückgängig macht. Ich prüfe und wende Aktionen selbst an. Frag nur nach Informationen, die noch fehlen.",
   "{0} items. Ctrl/Shift selects files and folders together.": "{0} Elemente. Strg/Umschalt wählt Dateien und Ordner zusammen aus.",
-  "{0} selected: ": "{0} ausgewählt: "
+  "{0} selected: ": "{0} ausgewählt: ",
+  "Couldn't save the update in {0}: {1}": "Das Update konnte nicht in {0} gespeichert werden: {1}",
+  "Download {0} from GitHub releases, check it (SHA-256), and restart {1}?\n\nYour settings are kept. {2}": "{0} aus den GitHub-Releases herunterladen, prüfen (SHA-256) und {1} neu starten?\n\nDeine Einstellungen bleiben erhalten. {2}"
  }
 }

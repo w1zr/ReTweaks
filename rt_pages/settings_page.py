@@ -15,9 +15,11 @@ from rt_pages.common import NA, button_row, card, label, run_bg
 HEADER_STYLES = [("Small chip + wordmark", "chip"), ("Wordmark only", "wordmark")]
 BANNER_STYLES = [("CPU cores (live)", "cores"), ("Load wave (live)", "wave"), ("Circuit traces", "circuit"),
                  ("Galaxy", "galaxy"), ("Off", "off")]
+BANNER_COLORS = [("Original", "original"), ("Black & white", "mono"), ("Theme accent", "accent"),
+                 ("Custom (HEX)", "custom")]
 INTERVALS = {"Every second": 1.0, "Every 2 seconds": 2.0, "Every 5 seconds": 5.0}
 LHM_URL = "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases"
-REPO_URL = "https://github.com/w1zr/retweaks"
+REPO_URL = "https://github.com/w1zr/ReTweaks"
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -72,6 +74,20 @@ class SettingsPage:
         self.banner = g["RSelect"](row, [t for t, _ in BANNER_STYLES], width=180, command=self.set_banner)
         self.banner.set(next((t for t, k in BANNER_STYLES if k == cur), BANNER_STYLES[0][0]))
         self.banner.pack(side="left", padx=8)
+        # banner colour (v2.0.6): settings banner_color / banner_custom_color
+        row = self._row(b)
+        self._lbl(row, "Banner color")
+        cur_col = s.get("banner_color", "original")
+        self.banner_color = g["RSelect"](row, [t for t, _ in BANNER_COLORS], width=180, command=self.set_banner_color)
+        self.banner_color.set(next((t for t, k in BANNER_COLORS if k == cur_col), BANNER_COLORS[0][0]))
+        self.banner_color.pack(side="left", padx=(8, 20))
+        self._lbl(row, "Custom banner color (HEX)")
+        self.banner_hex = tk.StringVar(value=s.get("banner_custom_color") or "")
+        e = g["REntry"](row, self.banner_hex, width_px=110)
+        e.pack(side="left", padx=8)
+        e.entry.bind("<Return>", lambda ev: self.apply_banner_hex())
+        g["RButton"](row, "Apply", self.apply_banner_hex, kind="default").pack(side="left")
+        self.banner_hex_msg = label(b, "", g, 9, g["MUTED"])
         label(b, "Banners only animate while the Dashboard is open and RETWEAKS isn't minimized. CPU cores and Load "
                  "wave show real live readings; Circuit and Galaxy are decoration.", g, 9, g["MUTED"])
         from rt_pages.background_controls import BackgroundControls
@@ -251,6 +267,34 @@ class SettingsPage:
         if dash is not None and hasattr(dash, "on_banner_changed"):
             dash.on_banner_changed(key)
 
+    def _banner_color_changed(self):
+        dash = (getattr(self.hub, "rt_pages", {}) or {}).get("Dashboard")
+        if dash is not None and hasattr(dash, "on_banner_color_changed"):
+            dash.on_banner_color_changed()
+
+    def set_banner_color(self, text):
+        key = dict(BANNER_COLORS).get(text, "original")
+        if key == "custom" and not HEX_RE.match(self.hub.settings.get("banner_custom_color") or ""):
+            self.banner_hex_msg.configure(text="Enter a color like #ffffff, then press Apply.", fg=self.g["MUTED"])
+        else:
+            self.banner_hex_msg.configure(text="", fg=self.g["MUTED"])
+        self.set_setting("banner_color", key)
+        self._banner_color_changed()
+
+    def apply_banner_hex(self):
+        text = self.banner_hex.get().strip()
+        if text and not text.startswith("#"):
+            text = "#" + text
+        if not HEX_RE.match(text):
+            self.banner_hex_msg.configure(text="Enter a color like #ffffff (6 hex digits).", fg="#e07e81")
+            return
+        self.banner_hex.set(text)
+        self.banner_hex_msg.configure(text="", fg=self.g["MUTED"])
+        self.hub.settings["banner_custom_color"] = text
+        self.banner_color.set(dict((k, t) for t, k in BANNER_COLORS)["custom"])
+        self.set_setting("banner_color", "custom")
+        self._banner_color_changed()
+
     def set_interval(self, text):
         self.set_setting("interval", INTERVALS.get(text, 1.0))
         # the live service reads the setting on every sample; pages that show it update their text now
@@ -360,12 +404,12 @@ class SettingsPage:
         self.update_info = info
         if info.get("available"):
             self.b_page.pack(side="left", padx=(0, 6))
-            if updater.can_self_update() and info.get("exe_url") and info.get("sha_url"):
+            if updater.can_download_release() and info.get("exe_url") and info.get("sha_url"):
                 self.upd_msg.configure(text=f"{info['version']} is available.")
                 self.b_install.pack(side="left", padx=(0, 6), before=self.b_page)
             else:
-                self.upd_msg.configure(text=f"{info['version']} is available. You're running from source: use git "
-                                            "pull, or download the .exe from the release page.")
+                self.upd_msg.configure(text=f"{info['version']} is available. Download RETWEAKS.exe from the "
+                                            "release page.")
         else:
             self.upd_msg.configure(text=f"You're up to date (latest release is {info.get('version') or NA}).")
 

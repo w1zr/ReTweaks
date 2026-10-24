@@ -9,7 +9,7 @@ from PIL import Image, ImageTk
 from core.version import APP_NAME, BRAND, __version__
 from rt_pages.common import button_row, card, label
 
-REPO_URL = "https://github.com/w1zr/retweaks"
+REPO_URL = "https://github.com/w1zr/ReTweaks"
 GPL_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 ASSETS = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)) / "assets"
 

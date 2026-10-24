@@ -3584,7 +3584,16 @@
   "Windows wallpaper controls are unavailable: ": "Los controles de fondo de Windows no están disponibles: ",
   "Windows wallpaper controls require Windows 8 or newer.": "Los controles de fondo de Windows requieren Windows 8 o posterior.",
   "Windows wallpapers…": "Fondos de Windows…",
-  "ZIP archive": "Archivo ZIP"
+  "ZIP archive": "Archivo ZIP",
+  "Banner color": "Color del banner",
+  "Black & white": "Blanco y negro",
+  "Custom (HEX)": "Personalizado (HEX)",
+  "Custom banner color (HEX)": "Color del banner personalizado (HEX)",
+  "Enter a color like #ffffff (6 hex digits).": "Escribe un color como #ffffff (6 dígitos hex).",
+  "Enter a color like #ffffff, then press Apply.": "Escribe un color como #ffffff y pulsa Aplicar.",
+  "Original": "Original",
+  "Theme accent": "Acento del tema",
+  "Updates can only be installed on Windows.": "Las actualizaciones solo se pueden instalar en Windows."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nYa aplicados ({0}): ",
@@ -4111,6 +4120,8 @@
   "{0} from {1}?\n\n{2}\nVersion: {3}\nSize: {4}\nFrom: {5}\n\nSaved to: {6}\n\nNothing is installed until you click Run installer.": "¿{0} desde {1}?\n\n{2}\nVersión: {3}\nTamaño: {4}\nDesde: {5}\n\nSe guarda en: {6}\n\nNo se instala nada hasta que pulses Ejecutar instalador.",
   "{0} in RETWEAKS: {1}.\n\nUse the current feature observations in the hub context when enabled. Explain what the parts, readings, options, or task mean, then give specific next steps using the controls in RETWEAKS. Separate observed facts from possibilities. If a result has not been collected, say which scan to run. For parts, explain capabilities and compatibility without inventing current prices or specifications. For changes, explain the tradeoff, how to verify the result, and how to undo. I will review and apply actions myself. Ask only for information that is still missing.": "{0} en RETWEAKS: {1}.\n\nUsa las observaciones actuales de la función en el contexto del hub cuando esté activado. Explica qué significan los componentes, lecturas, opciones o la tarea y luego da pasos concretos usando los controles de RETWEAKS. Separa los hechos observados de las posibilidades. Si un resultado no se ha recopilado, di qué análisis ejecutar. Para componentes, explica capacidades y compatibilidad sin inventar precios ni especificaciones actuales. Para cambios, explica el compromiso, cómo verificar el resultado y cómo deshacerlo. Revisaré y aplicaré las acciones yo mismo. Pregunta solo por la información que aún falte.",
   "{0} items. Ctrl/Shift selects files and folders together.": "{0} elementos. Ctrl/Mayús selecciona archivos y carpetas a la vez.",
-  "{0} selected: ": "{0} seleccionados: "
+  "{0} selected: ": "{0} seleccionados: ",
+  "Couldn't save the update in {0}: {1}": "No se pudo guardar la actualización en {0}: {1}",
+  "Download {0} from GitHub releases, check it (SHA-256), and restart {1}?\n\nYour settings are kept. {2}": "¿Descargar {0} desde las versiones de GitHub, comprobarlo (SHA-256) y reiniciar {1}?\n\nTus ajustes se conservan. {2}"
  }
 }

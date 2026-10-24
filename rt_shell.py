@@ -550,13 +550,16 @@ class Shell:
         info = self.update_info
         if not info:
             return
-        if not updater.can_self_update():
-            messagebox.showinfo(APP_NAME, "In-app updates only work in RETWEAKS.exe. When running from source, "
-                                "use git pull.", parent=self.hub)
+        if not updater.can_download_release():
+            messagebox.showinfo(APP_NAME, "Updates can only be installed on Windows.", parent=self.hub)
             return
-        if not messagebox.askyesno(APP_NAME, f"Download {info['version']} from GitHub, check it, and restart "
-                                   f"{APP_NAME}?\n\nYour settings are kept. The current version is saved as "
-                                   "RETWEAKS.old.exe.", parent=self.hub):
+        if updater.can_self_update():
+            where = "The current version is saved as RETWEAKS.old.exe."
+        else:
+            where = (f"You're running from source, so the released RETWEAKS.exe is saved in "
+                     f"{updater.release_install_dir()} and starts instead. Your source files aren't changed.")
+        if not messagebox.askyesno(APP_NAME, f"Download {info['version']} from GitHub releases, check it (SHA-256), "
+                                   f"and restart {APP_NAME}?\n\nYour settings are kept. {where}", parent=self.hub):
             return
         self.bar_now.set_enabled(False)
         self.bar_text.configure(text=f"Downloading {info['version']}\u2026")
@@ -570,7 +573,7 @@ class Shell:
                 self.bar_now.set_enabled(True)
                 return
             self.bar_text.configure(text=f"Installing and restarting {APP_NAME}\u2026")
-            ok2, msg = updater.install_and_restart(payload)
+            ok2, msg = updater.install_update(payload)
             if ok2:
                 quit_app(self.hub)
             else:

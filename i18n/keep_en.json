@@ -425,7 +425,8 @@
   "{0} | {1} GB {2} {3} | health: {4}",
   "{0} | {1} cores / {2} threads | base {3} MHz",
   "{0}?TypeID=2",
-  "{0}?TypeID=3"
+  "{0}?TypeID=3",
+  "Wait-Process -Id {0} -Timeout 90 -ErrorAction SilentlyContinue; Start-Process -FilePath {1}"
  ],
  "note": "English text deliberately left untranslated: product, game, hardware and language names, commands, file names, internal text."
 }

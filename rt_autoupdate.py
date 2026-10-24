@@ -4,7 +4,8 @@ ON: shortly after start RETWEAKS checks GitHub (the same check as the update bar
 downloads the new RETWEAKS.exe, verifies it against the release's SHA-256 file (core.updater.download_update),
 then asks before restarting into it (core.updater.install_and_restart + the normal Quit). Saying "Later" keeps
 the usual Update now bar. OFF: only the update bar (check_updates setting), as before.
-Running from source can't replace an .exe, so then only the bar appears. Never installs without asking."""
+From source (v2.0.6) the released, verified RETWEAKS.exe is saved in %LOCALAPPDATA%\RETWEAKS\app and started
+instead (core.updater.install_update); the source folder is never changed. Never installs without asking."""
 import tkinter as tk
 from tkinter import messagebox
 
@@ -34,7 +35,7 @@ def _check(hub):
         if not (info.get("exe_url") and info.get("sha_url")):
             return
         from core import updater
-        if not updater.can_self_update():
+        if not updater.can_download_release():
             return                                    # the update bar (shown by check_updates) is all we can do
         _download(hub, shell, info)
     try:
@@ -68,7 +69,7 @@ def _download(hub, shell, info):
             pass
         if messagebox.askyesno(APP_NAME, f"{APP_NAME} {info['version']} was downloaded and checked (SHA-256).\n\n"
                                "Restart now to finish updating? Your settings are kept.", parent=hub):
-            ok2, msg = updater.install_and_restart(payload)
+            ok2, msg = updater.install_update(payload)
             if ok2:
                 import rt_shell
                 rt_shell.quit_app(hub)

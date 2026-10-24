@@ -3584,7 +3584,16 @@
   "Windows wallpaper controls are unavailable: ": "Les commandes de fond d'écran Windows ne sont pas disponibles : ",
   "Windows wallpaper controls require Windows 8 or newer.": "Les commandes de fond d'écran Windows nécessitent Windows 8 ou une version ultérieure.",
   "Windows wallpapers…": "Fonds d'écran Windows…",
-  "ZIP archive": "Archive ZIP"
+  "ZIP archive": "Archive ZIP",
+  "Banner color": "Couleur de la bannière",
+  "Black & white": "Noir et blanc",
+  "Custom (HEX)": "Personnalisée (HEX)",
+  "Custom banner color (HEX)": "Couleur de bannière personnalisée (HEX)",
+  "Enter a color like #ffffff (6 hex digits).": "Saisissez une couleur comme #ffffff (6 chiffres hex).",
+  "Enter a color like #ffffff, then press Apply.": "Saisissez une couleur comme #ffffff, puis cliquez sur Appliquer.",
+  "Original": "Originale",
+  "Theme accent": "Accent du thème",
+  "Updates can only be installed on Windows.": "Les mises à jour ne peuvent être installées que sous Windows."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nDéjà en place ({0}) : ",
@@ -4111,6 +4120,8 @@
   "{0} from {1}?\n\n{2}\nVersion: {3}\nSize: {4}\nFrom: {5}\n\nSaved to: {6}\n\nNothing is installed until you click Run installer.": "{0} depuis {1} ?\n\n{2}\nVersion : {3}\nTaille : {4}\nSource : {5}\n\nEnregistré dans : {6}\n\nRien n'est installé tant que vous ne cliquez pas sur Lancer l'installation.",
   "{0} in RETWEAKS: {1}.\n\nUse the current feature observations in the hub context when enabled. Explain what the parts, readings, options, or task mean, then give specific next steps using the controls in RETWEAKS. Separate observed facts from possibilities. If a result has not been collected, say which scan to run. For parts, explain capabilities and compatibility without inventing current prices or specifications. For changes, explain the tradeoff, how to verify the result, and how to undo. I will review and apply actions myself. Ask only for information that is still missing.": "{0} dans RETWEAKS : {1}.\n\nUtilise les observations actuelles de la fonctionnalité dans le contexte du hub lorsqu'il est activé. Explique ce que signifient les composants, mesures, options ou la tâche, puis donne des étapes précises avec les commandes de RETWEAKS. Sépare les faits observés des possibilités. Si un résultat n'a pas été collecté, indique quelle analyse lancer. Pour les composants, explique les capacités et la compatibilité sans inventer de prix ni de caractéristiques actuels. Pour les changements, explique le compromis, comment vérifier le résultat et comment annuler. J'examinerai et appliquerai les actions moi-même. Ne demande que les informations encore manquantes.",
   "{0} items. Ctrl/Shift selects files and folders together.": "{0} éléments. Ctrl/Maj sélectionne fichiers et dossiers ensemble.",
-  "{0} selected: ": "{0} sélectionnés : "
+  "{0} selected: ": "{0} sélectionnés : ",
+  "Couldn't save the update in {0}: {1}": "Impossible d'enregistrer la mise à jour dans {0} : {1}",
+  "Download {0} from GitHub releases, check it (SHA-256), and restart {1}?\n\nYour settings are kept. {2}": "Télécharger {0} depuis les versions GitHub, le vérifier (SHA-256) et redémarrer {1} ?\n\nVos réglages sont conservés. {2}"
  }
 }

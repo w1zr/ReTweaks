@@ -131,6 +131,7 @@ hub._autoupdate_started = False
 updater.check_for_update = lambda: {"available": True, "version": "9.9", "exe_url": "https://github.com/x/RETWEAKS.exe",
                                     "sha_url": "https://github.com/x/RETWEAKS.exe.sha256", "notes": "", "page": ""}
 updater.can_self_update = lambda: True
+updater.can_download_release = lambda: True
 updater.download_update = lambda info, progress=None: (calls.append("download") or (True, "C:/tmp/new.exe"))
 updater.install_and_restart = lambda p: (calls.append(("install", p)) or (True, "ok"))
 rt_autoupdate.messagebox.askyesno = lambda *a, **k: calls.append("ask") or True

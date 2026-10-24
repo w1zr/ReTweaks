@@ -6,6 +6,8 @@ extras), disk and network speed, each with a 60-second graph; temperatures and f
 LibreHardwareMonitor when it runs. All readings come from core.telemetry on a background thread that
 only runs while the Dashboard or Hardware page is on screen. The animated banner (setting
 `banner_style`: cores / wave / circuit / galaxy / off) only animates while visible.
+Banner colour (v2.0.6, setting `banner_color`: original / mono / accent / custom + `banner_custom_color`):
+`banner_palette` picks the galaxy background, nebula and star colours and the accent the live styles draw with.
 
 Also shared with the Hardware page: TelemetryService (live samples + data sources) and the one-time
 static hardware scan (core.hardware.scan_static), kept on the hub as hub.rt_static / hub.rt_last_sample
@@ -132,6 +134,40 @@ def make_stars(count=120, seed=7):
 def _rgb(c):
     c = c.lstrip("#")
     return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
+
+
+BANNER_COLORS = ("original", "mono", "accent", "custom")
+DEFAULT_COLOR = "original"
+
+
+def normalize_color(mode):
+    m = str(mode).strip().lower() if isinstance(mode, str) else ""
+    return m if m in BANNER_COLORS else DEFAULT_COLOR
+
+
+def valid_hex(text):
+    t = str(text or "").strip()
+    return len(t) == 7 and t[0] == "#" and all(ch in "0123456789abcdefABCDEF" for ch in t[1:])
+
+
+def banner_palette(mode, accent, custom=None):
+    """Colours for the banner. original = the purple galaxy + theme accent (unchanged default);
+    mono = black and white; accent = the theme's accent colour; custom = the user's HEX colour."""
+    mode = normalize_color(mode)
+    if mode == "custom" and not valid_hex(custom):
+        mode = "accent"
+    if mode == "mono":
+        return {"mode": mode, "space": "#030303", "nebula": ("#9a9a9a", "#d6d6d6"),
+                "stars": {"w": "#ffffff", "v": "#bdbdbd", "c": "#e2e2e2"},
+                "title": "#ffffff", "sub": "#a3a3a3", "accent": "#e6e6e6"}
+    if mode in ("accent", "custom"):
+        col = custom if mode == "custom" else (accent if valid_hex(accent) else "#7c3aed")
+        return {"mode": mode, "space": blend("#050505", col, 0.07), "nebula": (col, blend(col, "#ffffff", 0.45)),
+                "stars": {"w": "#ffffff", "v": blend(col, "#ffffff", 0.55), "c": blend(col, "#ffffff", 0.8)},
+                "title": "#f5f5f5", "sub": blend("#a3a3a3", col, 0.25), "accent": col}
+    return {"mode": "original", "space": "#0c0a1d", "nebula": ("#7c3aed", "#06b6d4"),
+            "stars": {"w": "#ffffff", "v": "#c4b5fd", "c": "#a5f3fc"},
+            "title": "#f4f1ff", "sub": "#a9a3c9", "accent": accent}
 
 
 def blend(c1, c2, t):
@@ -475,10 +511,16 @@ class Banner:
         self.job = self.hub.after(33, self._tick)
 
     # painting
+    def palette(self):
+        s = getattr(self.hub, "settings", None) or {}
+        return banner_palette(s.get("banner_color", DEFAULT_COLOR), self.g["ACC"], s.get("banner_custom_color"))
+
     def col(self, key):
         g = self.g
+        if key == "accent":
+            return self.palette()["accent"]
         return {"card": g["PANEL"], "border": g["LINE"], "input": g.get("PANEL2", g["LINE"]),
-                "accent": g["ACC"], "text": g["FG"], "subtext": g["MUTED"]}[key]
+                "text": g["FG"], "subtext": g["MUTED"]}[key]
 
     def draw(self):
         c = self.canvas
@@ -487,7 +529,7 @@ class Banner:
         if w < 50:
             return
         galaxy = self.style == "galaxy"
-        bg = "#0c0a1d" if galaxy else self.col("card")
+        bg = self.palette()["space"] if galaxy else self.col("card")
         c.configure(bg=self.g["BG"])
         c.create_polygon(rounded(1, 1, w - 2, h - 2, 12), smooth=True, fill=bg, outline="")
         getattr(self, "_paint_" + self.style, lambda *a: None)(c, w, h, bg)
@@ -496,9 +538,10 @@ class Banner:
     def _wordmark(self, c, x, sub, bg):
         from core.version import BRAND
         galaxy = self.style == "galaxy"
-        c.create_text(x, 44, text=BRAND, anchor="w", fill="#f4f1ff" if galaxy else self.col("text"),
+        pal = self.palette()
+        c.create_text(x, 44, text=BRAND, anchor="w", fill=pal["title"] if galaxy else self.col("text"),
                       font=(self.g["UI"], 19, "bold"))
-        c.create_text(x, 74, text=sub, anchor="w", fill="#a9a3c9" if galaxy else self.col("subtext"),
+        c.create_text(x, 74, text=sub, anchor="w", fill=pal["sub"] if galaxy else self.col("subtext"),
                       font=(self.g["UI"], 9))
 
     def _paint_cores(self, c, w, h, bg):
@@ -570,7 +613,8 @@ class Banner:
     def _galaxy_frames(self, w, h, bg):
         """Nebula glow as images (Tk can't draw transparency): 8 pulse levels, rendered once per size,
         with the banner's rounded corners masked to the page colour."""
-        key = (w, h, bg, self.g["BG"])
+        neb = self.palette()["nebula"]
+        key = (w, h, bg, self.g["BG"], neb)
         if getattr(self, "_gal_key", None) == key:
             return self._gal_frames
         try:
@@ -583,8 +627,8 @@ class Banner:
         for k in range(8):
             pulse = 0.8 + 0.2 * math.sin(k / 8 * 2 * math.pi)
             img = Image.new("RGB", (w, h), base_rgb)
-            for (cx, cy, rx, ry, col, a) in ((w * 0.78, h * 0.4, 300, 110, "#7c3aed", 0.27),
-                                              (w * 0.30, h * 0.8, 260, 100, "#06b6d4", 0.17)):
+            for (cx, cy, rx, ry, col, a) in ((w * 0.78, h * 0.4, 300, 110, neb[0], 0.27),
+                                              (w * 0.30, h * 0.8, 260, 100, neb[1], 0.17)):
                 layer = Image.new("L", (w, h), 0)
                 ImageDraw.Draw(layer).ellipse((cx - rx * 0.7, cy - ry * 0.7, cx + rx * 0.7, cy + ry * 0.7),
                                               fill=int(255 * a * pulse))
@@ -602,7 +646,7 @@ class Banner:
         if frames:
             c.create_image(0, 0, anchor="nw", image=frames[int(self.phase / 6.0 * 8) % len(frames)])
         shift = self.phase * 11.0
-        cols = {"w": "#ffffff", "v": "#c4b5fd", "c": "#a5f3fc"}
+        cols = self.palette()["stars"]
         for (sx, sy, r, a, k) in self.stars:
             x = 4 + (sx * w - shift * (0.4 + r / 2.0)) % (w - 8)
             y = 4 + sy * (h - 8)
@@ -761,6 +805,10 @@ class MonitorPage:
                 self.on_telemetry(sample, feed_banner=False)
             except Exception:
                 pass
+
+    def on_banner_color_changed(self):
+        """Settings changed `banner_color` / `banner_custom_color`: redraw now (the galaxy glow re-renders)."""
+        self.banner.draw()
 
     def on_banner_changed(self, style):
         style = normalize_style(style)

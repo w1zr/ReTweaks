@@ -21,3 +21,36 @@ def test_download_hosts_are_restricted():
     assert not _allowed("http://github.com/x")          # not https
     assert not _allowed("https://evil.example.com/RETWEAKS.exe")
     assert not _allowed(None)
+
+
+def test_update_comes_from_github_release(monkeypatch, tmp_path):
+    """v2.0.6: from source the verified release exe is started from LOCALAPPDATA, never the source folder."""
+    import core.updater as u
+    assert u.LATEST_URL == "https://api.github.com/repos/w1zr/ReTweaks/releases/latest"
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert u.release_install_dir() == str(tmp_path / "RETWEAKS" / "app")
+    calls = []
+    monkeypatch.setattr(u, "can_self_update", lambda: False)
+    monkeypatch.setattr(u, "install_release_copy", lambda p: calls.append(("copy", p)) or (True, ""))
+    monkeypatch.setattr(u, "install_and_restart", lambda p: calls.append(("swap", p)) or (True, ""))
+    u.install_update("new.exe")
+    monkeypatch.setattr(u, "can_self_update", lambda: True)
+    u.install_update("new.exe")
+    assert calls == [("copy", "new.exe"), ("swap", "new.exe")]
+
+
+def test_release_copy_moves_exe(monkeypatch, tmp_path):
+    import subprocess
+    import core.updater as u
+    monkeypatch.setattr(u, "IS_WINDOWS", True)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    started = []
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: started.append(a))
+    new = tmp_path / "dl.exe"
+    new.write_bytes(b"new")
+    target = tmp_path / "local" / "RETWEAKS" / "app" / "RETWEAKS.exe"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"old")
+    ok, _ = u.install_release_copy(str(new))
+    assert ok and started and target.read_bytes() == b"new"
+    assert (target.parent / "RETWEAKS.old.exe").read_bytes() == b"old" and not new.exists()
