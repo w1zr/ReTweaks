@@ -20,11 +20,60 @@ KEYS = REQUIRED + ('LastUserConfirmedResolutionSizeX', 'LastUserConfirmedResolut
                    'LastUserConfirmedDesiredScreenWidth', 'LastUserConfirmedDesiredScreenHeight')
 
 
+RELATIVE = Path('AppData', 'Local', 'FortniteGame', 'Saved', 'Config', 'WindowsClient', 'GameUserSettings.ini')
+
+
+def _users_dirs():
+    """Folders that hold Windows user profiles (normally C:\\Users)."""
+    dirs = []
+    for base in (os.getenv('USERPROFILE'), os.getenv('PUBLIC')):
+        if base:
+            dirs.append(Path(base).parent)
+    drive = os.getenv('SystemDrive')
+    if drive:
+        dirs.append(Path(drive + os.sep, 'Users'))
+    out = []
+    for d in dirs:
+        if d.is_dir() and d not in out:
+            out.append(d)
+    return out
+
+
+def find_files():
+    """Every Fortnite GameUserSettings.ini on this PC, newest first (v2.0.7, owner request: find it automatically).
+    Checks this account's %LOCALAPPDATA% first, then every user profile, because RETWEAKS runs as administrator and
+    an administrator account's %LOCALAPPDATA% isn't the player's when they differ."""
+    found = []
+    for p in gp.BY_ID['fortnite'].find_files():
+        found.append(os.path.normcase(os.path.abspath(p)))
+    for users in _users_dirs():
+        try:
+            profiles = list(users.iterdir())
+        except OSError:
+            continue
+        for profile in profiles:
+            candidate = profile / RELATIVE
+            try:
+                if candidate.is_file():
+                    key = os.path.normcase(os.path.abspath(candidate))
+                    if key not in found:
+                        found.append(key)
+            except OSError:
+                continue
+
+    def mtime(path):
+        try:
+            return os.path.getmtime(path)
+        except OSError:
+            return 0
+    return sorted(found, key=mtime, reverse=True)
+
+
 def find_file():
     saved = gp.load_custom().get('paths', {}).get('fortnite')
     if saved and Path(saved).is_file():
         return str(saved)
-    files = gp.BY_ID['fortnite'].find_files()
+    files = find_files()
     return files[0] if files else None
 
 

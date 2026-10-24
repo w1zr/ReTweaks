@@ -134,3 +134,27 @@ def test_mode_check_reads_card_modes(monkeypatch):
     assert fr.mode_check(1720, 1080)[0] is False
     monkeypatch.setattr(display, 'list_displays', lambda: [])
     assert fr.mode_check(1440, 1080)[0] is None
+
+
+def test_find_files_checks_every_user_profile(tmp_path, monkeypatch):
+    """v2.0.7: RETWEAKS runs as admin; the player's file can be in another profile than %LOCALAPPDATA%."""
+    import os
+    users = tmp_path / 'Users'
+    admin, player = users / 'Admin', users / 'Ryder'
+    for p in (admin, player):
+        p.mkdir(parents=True)
+    target = player / fr.RELATIVE
+    target.parent.mkdir(parents=True)
+    target.write_text('[/Script/FortniteGame.FortGameUserSettings]\n', encoding='utf-8')
+    monkeypatch.setenv('USERPROFILE', str(admin))
+    monkeypatch.setenv('LOCALAPPDATA', str(admin / 'AppData' / 'Local'))
+    monkeypatch.delenv('PUBLIC', raising=False)
+    monkeypatch.delenv('SystemDrive', raising=False)
+    monkeypatch.setattr(gp, 'load_custom', lambda: {})
+    assert fr.find_files() == [os.path.normcase(os.path.abspath(target))]
+    assert fr.find_file() == os.path.normcase(os.path.abspath(target))
+    own = admin / fr.RELATIVE
+    own.parent.mkdir(parents=True)
+    own.write_text('x', encoding='utf-8')
+    os.utime(own, (1, 1))
+    assert len(fr.find_files()) == 2 and fr.find_files()[0].endswith(os.path.normcase(str(fr.RELATIVE)))

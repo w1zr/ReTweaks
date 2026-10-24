@@ -35,8 +35,23 @@ class FortniteResolutionPanel:
         self.lock = tk.BooleanVar(value=bool(hub.settings.get('fortnite_resolution_lock', True)))
         g['RCheck'](body, 'Lock the settings file (read-only) so Fortnite can\'t reset the resolution', self.lock,
                     self.lock_changed).pack(anchor='w', padx=16, pady=(0, 4))
-        self.status = label(body, 'Fortnite settings are detected when you apply. Nothing changes on page open.',
-                            g, 9, g['MUTED'], pady=(0, 12))
+        self.status = label(body, 'Looking for Fortnite\'s settings file…', g, 9, g['MUTED'], pady=(0, 12))
+        self.found = None
+        self.detect()
+
+    def detect(self):
+        """Find GameUserSettings.ini in the background (read-only; nothing is changed)."""
+        def done(result):
+            if self.busy or self.path:
+                return
+            if isinstance(result, Exception) or not result:
+                self.found = None
+                self.status.config(text='Fortnite\'s settings file wasn\'t found. Start Fortnite once and close it, '
+                                        'or use Choose Fortnite settings file.')
+                return
+            self.found = result
+            self.status.config(text='Found Fortnite settings: ' + str(Path(result)))
+        run_bg(self.hub, fr.find_file, done)
 
     def lock_changed(self):
         self.hub.settings['fortnite_resolution_lock'] = bool(self.lock.get())
@@ -73,7 +88,7 @@ class FortniteResolutionPanel:
             self.status.config(text='Selected ' + str(Path(path)))
 
     def target(self):
-        return self.path or fr.find_file()
+        return self.path or self.found or fr.find_file()
 
     def apply(self):
         if self.busy:

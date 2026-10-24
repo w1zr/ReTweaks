@@ -9,7 +9,14 @@ from _tk_harness import FakeHub, g, pump
 from fortnite_resolution_ui import FortniteResolutionPanel
 
 hub = FakeHub()
-panel = FortniteResolutionPanel(hub, hub, g())
+with patch('fortnite_resolution_ui.fr.find_file', return_value=None):
+    panel = FortniteResolutionPanel(hub, hub, g())
+    assert pump(hub, lambda: "wasn't found" in panel.status.cget('text'))
+panel.destroy() if hasattr(panel, 'destroy') else None
+with patch('fortnite_resolution_ui.fr.find_file', return_value='C:/Users/R/GameUserSettings.ini'):
+    panel = FortniteResolutionPanel(hub, hub, g())
+    assert pump(hub, lambda: 'Found Fortnite settings' in panel.status.cget('text'))
+    assert panel.target().endswith('GameUserSettings.ini')
 try:
     with tempfile.TemporaryDirectory() as folder:
         target = Path(folder) / 'GameUserSettings.ini'
