@@ -678,7 +678,7 @@ class MonitorPage:
         tk.Label(self.notice.body, text=(
             "CPU temperature and fan speeds aren't available yet. Windows needs a hardware driver for those. "
             "RETWEAKS has LibreHardwareMonitor built in; it reads CPU and motherboard sensors once the free "
-            "PawnIO driver is installed (see the Temperatures page). A separately running LibreHardwareMonitor "
+            "PawnIO driver is installed (see Hardware & cooling → Temperatures). A separately running LibreHardwareMonitor "
             "with its web server on also works."), bg=self.notice.body.cget("bg"), fg=g["FG"],
             font=(g["UI"], 9), justify="left", anchor="w", wraplength=880).pack(fill="x", padx=16, pady=10)
         self.notice_shown = False

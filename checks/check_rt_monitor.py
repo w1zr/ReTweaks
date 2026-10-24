@@ -23,6 +23,23 @@ class Hub(tk.Tk):
     def log_action(self, *a):
         self.logged.append(a)
 
+    # 2.0.4 Dashboard: Quick start actions, Game Mode and the preset recommendation (the real app has these in
+    # hubplus.Hub; minimal stand-ins so the page can be built here)
+    detected = "No game detected"
+    rec_key = "balanced"
+
+    def game_mode_status(self):
+        return "Game Mode: on"
+
+    def toggle_game_mode(self):
+        self.logged.append(("toggle_game_mode",))
+
+    def show_tab(self, i):
+        self.logged.append(("show_tab", i))
+
+    def open_preset(self, key):
+        self.logged.append(("open_preset", key))
+
 
 # pure logic
 assert M.interval_seconds(1000) == 1.0 and M.interval_seconds(2.0) == 2.0 and M.interval_seconds("x") == 1.0

@@ -133,7 +133,9 @@ for code in ["es", "fr", "de", "pt-BR"]:
     # sidebar entries (canvas text) are translated too
     nav_txt = [t for it in side.buttons.values() if hasattr(it, "find_all")
                for t in [str(it.tk.call(it._w, "itemcget", i, "-text")) for i in it.find_all() if it.type(i) == "text"] if t]
-    assert rt_i18n.tr("Settings") in nav_txt and rt_i18n.tr("Temperatures") in nav_txt, (code, nav_txt[:8])
+    # since 2.0.4 the sidebar shows group names (Temperatures is a section inside Hardware & cooling)
+    for entry in ("Settings", "Hardware & cooling", "Tweaks & presets", "File Transfers", "Windows backgrounds"):
+        assert rt_i18n.tr(entry) != entry and rt_i18n.tr(entry) in nav_txt, (code, entry, nav_txt[:8])
     # global search finds the language card with any of the words, in this UI language
     gs = getattr(hub, "global_search", None)
     for word in ("language", "idioma", "langue", "sprache", "lingua"):
@@ -142,8 +144,8 @@ for code in ["es", "fr", "de", "pt-BR"]:
         if gs is not None:
             assert any(t == "Settings" for t, _d, _a in gs.search(word)), (code, word)
     # searching by the page name shown in this language finds the page
-    word = rt_i18n.tr("Temperatures").split()[0].lower()
-    assert "Temperatures" in side.matches(word) or "Temperatures" not in side.targets, (code, word)
+    word = rt_i18n.tr("Hardware & cooling").split()[0].lower()
+    assert "Hardware & cooling" in side.matches(word), (code, word, side.matches(word))
     print(code, "ok:", h)
 
 # ---- values keep working in another language: theme in German, temperature unit in French

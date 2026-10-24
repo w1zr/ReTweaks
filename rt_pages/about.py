@@ -84,7 +84,7 @@ class AboutPage:
         note = card(root, g, "Good to know")
         label(note, "RETWEAKS isn't code-signed, so Windows SmartScreen or antivirus may warn when you download it. "
                     "CPU and motherboard temperatures and most fan control need the free PawnIO driver (button on "
-                    "the Temperatures page).", g, 10,
+                    "Hardware & cooling → Temperatures).", g, 10,
               pady=(4, 12))
         import rt_i18n
         label(note, rt_i18n.NOTE, g, 9, g["MUTED"], pady=(0, 12))
