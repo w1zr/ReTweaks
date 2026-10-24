@@ -13,9 +13,10 @@ class FortniteResolutionPanel:
         body = card(parent, g, 'Fortnite-only stretched resolution')
         label(body, 'Sets Fortnite\'s own resolution and Fullscreen mode. Windows and other apps keep their normal '
               'desktop resolution. Close Fortnite before applying.\n\n'
-              'Fullscreen is required; Windowed Fullscreen can ignore custom sizes. GPU full-screen scaling may '
-              'be needed to remove black bars. If Fortnite overrides the mode, this feature will not stretch '
-              'the desktop to force it. Start the game afterward to check the result.', g, 10, g['MUTED'])
+              'Fullscreen is required; Windowed Fullscreen uses the desktop size. Fortnite resets its settings file '
+              'when it starts, so the file is made read-only (Restore unlocks it). Your graphics card must offer '
+              'the size, and its scaling must be set to Full-screen to stretch instead of showing black bars. '
+              'Start the game afterward to check the result.', g, 10, g['MUTED'])
         row = button_row(body, g)
         self.choices = g['RSelect'](row, ['1440 × 1080 (4:3)', '1280 × 960 (4:3)',
                                        '1720 × 1080', 'Custom'], width=230, command=self.choose)
@@ -31,8 +32,33 @@ class FortniteResolutionPanel:
         self.restore_button.pack(side='left', padx=(0, 6))
         self.file_button = g['RButton'](row, 'Choose Fortnite settings file', self.pick)
         self.file_button.pack(side='left')
+        self.lock = tk.BooleanVar(value=bool(hub.settings.get('fortnite_resolution_lock', True)))
+        g['RCheck'](body, 'Lock the settings file (read-only) so Fortnite can\'t reset the resolution', self.lock,
+                    self.lock_changed).pack(anchor='w', padx=16, pady=(0, 4))
         self.status = label(body, 'Fortnite settings are detected when you apply. Nothing changes on page open.',
                             g, 9, g['MUTED'], pady=(0, 12))
+
+    def lock_changed(self):
+        self.hub.settings['fortnite_resolution_lock'] = bool(self.lock.get())
+        save = getattr(self.hub, 'save_settings', None)
+        if callable(save):
+            save()
+
+    def mode_note(self, w, h):
+        """Read-only check of the graphics card's modes; never changes the display."""
+        try:
+            offered, shown = fr.mode_check(w, h)
+        except Exception:
+            return ''
+        if offered is None:
+            return ''
+        if offered:
+            return (f'\n\nYour graphics card offers {w} × {h}. If you see black bars, set the scaling to '
+                    'Full-screen (NVIDIA Control Panel → Adjust desktop size and position, or AMD/Intel display '
+                    'settings).')
+        return (f'\n\nYour graphics card does not offer {w} × {h} on this monitor yet, so Fortnite can\'t use it in '
+                'Fullscreen. Add it as a custom resolution in your graphics driver first (NVIDIA Control Panel → '
+                'Change resolution → Customize), and set scaling to Full-screen.')
 
     def choose(self, text):
         if text != 'Custom':
@@ -61,13 +87,17 @@ class FortniteResolutionPanel:
         if not changes:
             self.status.config(text='Fortnite already has these video settings. Windows desktop resolution is unchanged.')
             return
+        lock = bool(self.lock.get())
         lines = '\n'.join(f'{key}: {old} → {new}' for key, old, new in changes)
+        locked = ('\n\nThe file will be made read-only so Fortnite can\'t reset it. Restore unlocks it.' if lock
+                  else '')
         if not messagebox.askyesno('Fortnite-only resolution',
-                'Save these changes to Fortnite only?\n\n' + lines +
+                'Save these changes to Fortnite only?\n\n' + lines + locked +
                 '\n\nA backup is saved first. Windows desktop resolution will not change. '
-                'Start Fortnite afterward and check Fullscreen and resolution in Video settings.', parent=self.hub):
+                'Start Fortnite afterward and check Fullscreen and resolution in Video settings.' +
+                self.mode_note(w.strip(), h.strip()), parent=self.hub):
             return
-        self._run('Apply Fortnite-only resolution', lambda: fr.apply(path, w, h))
+        self._run('Apply Fortnite-only resolution', lambda: fr.apply(path, w, h, lock=lock))
 
     def restore(self):
         if self.busy:

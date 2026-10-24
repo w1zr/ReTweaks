@@ -3597,7 +3597,12 @@
   "Delete previous version": "Eliminar versión anterior",
   "Removed": "Eliminado",
   "The current version is replaced.": "La versión actual se reemplaza.",
-  "Update": "Actualizar"
+  "Update": "Actualizar",
+  "\n\nThe file will be made read-only so Fortnite can't reset it. Restore unlocks it.": "\n\nEl archivo se pondrá de solo lectura para que Fortnite no pueda restablecerlo. Restaurar lo desbloquea.",
+  " The file is not locked, so Fortnite may reset the resolution when it starts.": " El archivo no está bloqueado, así que Fortnite puede restablecer la resolución al iniciarse.",
+  " The file is read-only so Fortnite can't reset it when it starts; Restore unlocks it.": " El archivo es de solo lectura para que Fortnite no pueda restablecerlo al iniciarse; Restaurar lo desbloquea.",
+  "Lock the settings file (read-only) so Fortnite can't reset the resolution": "Bloquear el archivo de ajustes (solo lectura) para que Fortnite no restablezca la resolución",
+  "Sets Fortnite's own resolution and Fullscreen mode. Windows and other apps keep their normal desktop resolution. Close Fortnite before applying.\n\nFullscreen is required; Windowed Fullscreen uses the desktop size. Fortnite resets its settings file when it starts, so the file is made read-only (Restore unlocks it). Your graphics card must offer the size, and its scaling must be set to Full-screen to stretch instead of showing black bars. Start the game afterward to check the result.": "Ajusta la resolución propia de Fortnite y el modo Pantalla completa. Windows y las demás aplicaciones mantienen su resolución de escritorio normal. Cierra Fortnite antes de aplicar.\n\nSe necesita Pantalla completa; Pantalla completa en ventana usa el tamaño del escritorio. Fortnite restablece su archivo de ajustes al iniciarse, así que el archivo se pone de solo lectura (Restaurar lo desbloquea). Tu tarjeta gráfica debe ofrecer ese tamaño y su escalado debe estar en Pantalla completa para estirar la imagen en lugar de mostrar barras negras. Inicia el juego después para comprobar el resultado."
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nYa aplicados ({0}): ",
@@ -4126,6 +4131,10 @@
   "{0} items. Ctrl/Shift selects files and folders together.": "{0} elementos. Ctrl/Mayús selecciona archivos y carpetas a la vez.",
   "{0} selected: ": "{0} seleccionados: ",
   "Couldn't save the update in {0}: {1}": "No se pudo guardar la actualización en {0}: {1}",
-  "Download {0} from GitHub releases, check it (SHA-256), and restart {1}?\n\nYour settings are kept. {2}": "¿Descargar {0} desde las versiones de GitHub, comprobarlo (SHA-256) y reiniciar {1}?\n\nTus ajustes se conservan. {2}"
+  "Download {0} from GitHub releases, check it (SHA-256), and restart {1}?\n\nYour settings are kept. {2}": "¿Descargar {0} desde las versiones de GitHub, comprobarlo (SHA-256) y reiniciar {1}?\n\nTus ajustes se conservan. {2}",
+  "\n\nYour graphics card does not offer {0} × {1} on this monitor yet, so Fortnite can't use it in Fullscreen. Add it as a custom resolution in your graphics driver first (NVIDIA Control Panel → Change resolution → Customize), and set scaling to Full-screen.": "\n\nTu tarjeta gráfica aún no ofrece {0} × {1} en este monitor, así que Fortnite no puede usarla en Pantalla completa. Añádela primero como resolución personalizada en el controlador gráfico (Panel de control de NVIDIA → Cambiar resolución → Personalizar) y pon el escalado en Pantalla completa.",
+  "\n\nYour graphics card offers {0} × {1}. If you see black bars, set the scaling to Full-screen (NVIDIA Control Panel → Adjust desktop size and position, or AMD/Intel display settings).": "\n\nTu tarjeta gráfica ofrece {0} × {1}. Si ves barras negras, pon el escalado en Pantalla completa (Panel de control de NVIDIA → Ajustar el tamaño y la posición del escritorio, o los ajustes de pantalla de AMD/Intel).",
+  "Fortnite already had {0} and Fullscreen. The file is now read-only so Fortnite can't reset it.": "Fortnite ya tenía {0} y Pantalla completa. El archivo ahora es de solo lectura para que Fortnite no pueda restablecerlo.",
+  "Saved {0} and Fullscreen in Fortnite's settings. A backup was saved.{1} Windows desktop resolution is unchanged. Start Fortnite and check its Video settings.": "Se guardó {0} y Pantalla completa en los ajustes de Fortnite. Se guardó una copia de seguridad.{1} La resolución del escritorio de Windows no cambia. Inicia Fortnite y revisa sus ajustes de Vídeo."
  }
 }

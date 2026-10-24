@@ -26,13 +26,19 @@ try:
              patch('fortnite_resolution_ui.fr.apply', return_value='Saved game settings') as apply:
             panel.apply()
             assert pump(hub, lambda: not panel.busy)
-            apply.assert_called_once_with(str(target), '1280', '960')
+            apply.assert_called_once_with(str(target), '1280', '960', lock=True)
         assert panel.status.cget('text') == 'Saved game settings'
         with patch('fortnite_resolution_ui.messagebox.askyesno', return_value=True), \
              patch('fortnite_resolution_ui.fr.restore', return_value='Restored game settings') as restore:
             panel.restore()
             assert pump(hub, lambda: not panel.busy)
             restore.assert_called_once_with(str(target))
+        panel.lock.set(False); panel.lock_changed()
+        assert hub.settings['fortnite_resolution_lock'] is False
+        with patch('fortnite_resolution_ui.fr.mode_check', return_value=(False, {})):
+            assert 'does not offer 1440 × 1080' in panel.mode_note('1440', '1080')
+        with patch('fortnite_resolution_ui.fr.mode_check', return_value=(None, None)):
+            assert panel.mode_note('1440', '1080') == ''
         panel.width.set('invalid')
         panel.apply()
         assert 'whole numbers' in panel.status.cget('text')

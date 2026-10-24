@@ -1,4 +1,10 @@
-"""Fortnite video settings only. Never calls a Windows display-mode API."""
+"""Fortnite video settings only. Never changes a Windows display mode.
+
+v2.0.7 (owner request: make it work): Fortnite rewrites GameUserSettings.ini when it starts, so the saved size
+was reset (the game is `lockable` in core/game_presets for this reason). apply() now also sets the file read-only
+by default (lock=True) and writes the DesiredScreen* keys Fortnite keeps beside ResolutionSize*. restore() puts the
+file's previous read-only state back. mode_check() only READS the graphics card's mode list: Fullscreen at a size
+the card doesn't offer can't stretch, so the UI says so before saving."""
 import hashlib
 import json
 import os
@@ -10,7 +16,8 @@ SECTION = '/script/fortnitegame.fortgameusersettings'
 REQUIRED = ('ResolutionSizeX', 'ResolutionSizeY', 'FullscreenMode')
 KEYS = REQUIRED + ('LastUserConfirmedResolutionSizeX', 'LastUserConfirmedResolutionSizeY',
                    'LastConfirmedFullscreenMode', 'PreferredFullscreenMode',
-                   'bUseDesktopResolutionForFullscreen')
+                   'bUseDesktopResolutionForFullscreen', 'DesiredScreenWidth', 'DesiredScreenHeight',
+                   'LastUserConfirmedDesiredScreenWidth', 'LastUserConfirmedDesiredScreenHeight')
 
 
 def find_file():
@@ -58,7 +65,25 @@ def settings(width, height):
     return {'ResolutionSizeX': str(w), 'ResolutionSizeY': str(h), 'FullscreenMode': '0',
             'LastUserConfirmedResolutionSizeX': str(w), 'LastUserConfirmedResolutionSizeY': str(h),
             'LastConfirmedFullscreenMode': '0', 'PreferredFullscreenMode': '0',
-            'bUseDesktopResolutionForFullscreen': 'False'}
+            'bUseDesktopResolutionForFullscreen': 'False',
+            'DesiredScreenWidth': str(w), 'DesiredScreenHeight': str(h),
+            'LastUserConfirmedDesiredScreenWidth': str(w), 'LastUserConfirmedDesiredScreenHeight': str(h)}
+
+
+def mode_check(width, height):
+    """Read-only check of the primary display. Returns (offered, display) where offered is True/False when the
+    graphics card's mode list is known, or None when it can't be read (not Windows, no display data)."""
+    wanted = settings(width, height)
+    w, h = int(wanted['ResolutionSizeX']), int(wanted['ResolutionSizeY'])
+    try:
+        from core import display
+        shown = display.list_displays()
+    except Exception:
+        return None, None
+    main = next((d for d in shown if d.get('primary')), shown[0] if shown else None)
+    if not main or not main.get('modes'):
+        return None, main
+    return any(m[0] == w and m[1] == h for m in main['modes']), main
 
 
 def preview(path, width, height):
@@ -72,14 +97,14 @@ def _state_file(path):
     return gp.backup_dir('fortnite') / ('resolution-' + hashlib.sha256(identity.encode()).hexdigest()[:16] + '.json')
 
 
-def _write(path, text, encoding, state=None, original=None):
+def _write(path, text, encoding, state=None, original=None, lock=None):
     if gp.game_running('fortnite'):
         raise ValueError('Close Fortnite before changing its settings.')
     backup = gp.make_backup('fortnite', path)
     created_state = False
     if state is not None and not state.exists():
         tmp = state.with_suffix('.tmp')
-        tmp.write_text(json.dumps({'original': original}), encoding='utf-8')
+        tmp.write_text(json.dumps({'original': original, 'read_only': gp.is_read_only(path)}), encoding='utf-8')
         os.replace(tmp, state)
         created_state = True
     locked = gp.is_read_only(path)
@@ -92,24 +117,31 @@ def _write(path, text, encoding, state=None, original=None):
             state.unlink(missing_ok=True)
         raise
     finally:
-        if locked:
-            gp.set_read_only(path, True)
+        final = locked if lock is None else bool(lock)
+        if final or locked:
+            gp.set_read_only(path, final)
     return backup
 
 
-def apply(path, width, height):
+def apply(path, width, height, lock=True):
     if gp.game_running('fortnite'):
         raise ValueError('Close Fortnite before changing its settings.')
     _, encoding, before, body, after, values = _read(path)
     new_body, applied, _ = gp.FORMATS['ini'].write(body, settings(width, height))
+    size = f'{int(str(width).strip())} × {int(str(height).strip())}'
     if not any(old != new for old, new in applied.values()):
+        if lock and not gp.is_read_only(path):
+            gp.set_read_only(path, True)
+            return (f'Fortnite already had {size} and Fullscreen. The file is now read-only so Fortnite can\'t '
+                    'reset it.')
         return 'Fortnite already has these video settings. Windows desktop resolution is unchanged.'
     state = _state_file(path)
     original = {key: value for key, value in values.items() if key in KEYS}
-    _write(path, before + new_body + after, encoding, state, original)
-    return (f'Saved {int(str(width).strip())} × {int(str(height).strip())} and Fullscreen in Fortnite\'s settings. '
-            'A backup was saved. Windows desktop resolution is unchanged. Start Fortnite and check its Video settings; '
-            'the game or graphics driver may override the requested mode.')
+    _write(path, before + new_body + after, encoding, state, original, lock=lock)
+    kept = (' The file is read-only so Fortnite can\'t reset it when it starts; Restore unlocks it.' if lock else
+            ' The file is not locked, so Fortnite may reset the resolution when it starts.')
+    return (f'Saved {size} and Fullscreen in Fortnite\'s settings. A backup was saved.{kept} Windows desktop '
+            'resolution is unchanged. Start Fortnite and check its Video settings.')
 
 
 def restore(path):
@@ -118,11 +150,13 @@ def restore(path):
     state = _state_file(path)
     if not state.is_file():
         raise ValueError('No saved Fortnite-only resolution to restore for this file.')
-    original = json.loads(state.read_text(encoding='utf-8')).get('original', {})
+    saved = json.loads(state.read_text(encoding='utf-8'))
+    original = saved.get('original', {})
+    was_read_only = saved.get('read_only') if isinstance(saved.get('read_only'), bool) else None
     if not isinstance(original, dict) or not all(key in original for key in REQUIRED) or any(key not in KEYS for key in original):
         raise ValueError('The saved resolution profile is invalid. Use Game config files → Backups to restore a full backup.')
     _, encoding, before, body, after, _ = _read(path)
     new_body, _, _ = gp.FORMATS['ini'].write(body, original)
-    _write(path, before + new_body + after, encoding)
+    _write(path, before + new_body + after, encoding, lock=bool(was_read_only))
     state.unlink()
     return 'Restored the previous Fortnite video settings. Other game settings and Windows desktop resolution are unchanged.'

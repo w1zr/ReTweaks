@@ -93,3 +93,44 @@ def test_utf8_bom_and_line_endings_are_kept(config):
     fr.apply(config, 1440, 1080)
     data = config.read_bytes()
     assert data.startswith(b'\xef\xbb\xbf') and data.count(b'\r\n') == CONFIG.encode().count(b'\r\n')
+
+
+def test_apply_locks_file_and_restore_unlocks(config):
+    """v2.0.7: Fortnite rewrites the file on start, so apply makes it read-only; restore returns the old state."""
+    try:
+        fr.apply(config, 1440, 1080)
+        assert gp.is_read_only(config)
+        fr.restore(config)
+        assert not gp.is_read_only(config)
+        assert 'ResolutionSizeX=1920' in config.read_bytes().decode()
+    finally:
+        config.chmod(stat.S_IREAD | stat.S_IWRITE)
+
+
+def test_lock_off_leaves_file_writable(config):
+    fr.apply(config, 1440, 1080, lock=False)
+    assert not gp.is_read_only(config)
+
+
+def test_desired_screen_keys_change_only_when_present(config):
+    config.write_bytes(CONFIG.replace('FrameRateLimit', 'DesiredScreenWidth=1920\r\nDesiredScreenHeight=1080\r\n'
+                                      'LastUserConfirmedDesiredScreenWidth=1920\r\n'
+                                      'LastUserConfirmedDesiredScreenHeight=1080\r\nFrameRateLimit', 1).encode())
+    try:
+        fr.apply(config, 1440, 1080)
+        text = config.read_bytes().decode()
+        assert 'DesiredScreenWidth=1440\r\n' in text and 'LastUserConfirmedDesiredScreenHeight=1080\r\n' in text
+        fr.restore(config)
+        assert 'DesiredScreenWidth=1920\r\n' in config.read_bytes().decode()
+    finally:
+        config.chmod(stat.S_IREAD | stat.S_IWRITE)
+
+
+def test_mode_check_reads_card_modes(monkeypatch):
+    from core import display
+    monkeypatch.setattr(display, 'list_displays', lambda: [
+        {'primary': True, 'modes': [(1920, 1080, 32, 165), (1440, 1080, 32, 165)]}])
+    assert fr.mode_check(1440, 1080)[0] is True
+    assert fr.mode_check(1720, 1080)[0] is False
+    monkeypatch.setattr(display, 'list_displays', lambda: [])
+    assert fr.mode_check(1440, 1080)[0] is None
