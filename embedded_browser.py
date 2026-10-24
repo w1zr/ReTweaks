@@ -24,7 +24,9 @@ EXE = "EmbeddedBrowser.exe"
 
 
 def ai_folder():
-    return Path(__file__).with_name("ai")
+    # Frozen helpers are extracted beside the bundle data, independently of the
+    # working directory or the path of the Python module inside its archive.
+    return Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent)) / 'ai'
 
 
 def command(parent_id):
@@ -50,8 +52,9 @@ class EmbeddedBrowser(EmbeddedAI):
         if self.closed or self.starting or (self.process is not None and self.process.poll() is None):
             return
         if not available():
-            self.events.put({"type": "error", "message": "The browser files are missing from this build "
-                             f"({EXE}). Rebuild RETWEAKS with build.py."})
+            self.events.put({"type": "error", "reason": "missing_component",
+                             "message": f"This copy is missing its browser component ({EXE}). "
+                             "Open the latest complete ReTweaks build, then restart the app."})
             return
         args = command(self.parent.winfo_id())
         initial = {"op": "theme", **self.colors(), "data": self.data()}

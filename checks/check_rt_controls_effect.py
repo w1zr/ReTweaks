@@ -137,7 +137,11 @@ if PHASE == "change":
         check(page.auto_check)._click(None)
     check(page.auto_check)._click(None) if cfg()["check_updates"] else None
     assert cfg()["check_updates"] is False
-    check(page.discord_on)._click(None); assert cfg()["discord_status"] is True
+    before = bool(page.discord_on.get())
+    check(page.discord_on)._click(None); assert cfg()["discord_status"] is (not before)
+    if not page.discord_on.get():
+        check(page.discord_on)._click(None)
+    assert cfg()["discord_status"] is True
     # ---- buttons that open pages
     button("PawnIO download page ↗").command(); assert any("pawnio" in u.lower() or "PawnIO" in u for u in opened), opened
     button("Download LibreHardwareMonitor").command(); assert any("LibreHardwareMonitor" in u for u in opened)

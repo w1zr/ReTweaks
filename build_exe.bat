@@ -1,5 +1,4 @@
 @echo off
 cd /d "%~dp0"
-title Build RETWEAKS EXE
-where py >nul 2>&1 && (py build.py) || (python build.py)
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Setup-ReTweaks.ps1" -Build
 pause

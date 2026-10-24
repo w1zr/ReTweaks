@@ -29,7 +29,7 @@ hubplus.install(vars(app))
 hub = app.Hub(show_intro=False, enable_ai=False)
 hub.update()
 rgb = hub.rgb_lighting; rgb.tried = True; rgb.retry_at = time.monotonic() + 3600
-hub.sidebar_nav.buttons["RGB lighting"].command(); hub.update()
+hub.sidebar_nav.open("RGB lighting", hub.sidebar_nav.targets["RGB lighting"]); hub.update()
 modes = lambda: [SimpleNamespace(name='Static', color_mode=ModeColors.PER_LED)]
 dev = lambda i, name, kind: SimpleNamespace(id=i, name=name, type=kind, leds=[1], modes=modes(), active_mode=0,
                                             set_mode=Mock(), set_color=Mock(), zones=[])

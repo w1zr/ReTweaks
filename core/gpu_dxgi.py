@@ -44,6 +44,58 @@ def is_virtual(name):
     return any(h in n for h in _VIRTUAL_HINTS)
 
 
+def is_virtual_device(name, device_path=None):
+    """Remote/indirect adapters may copy the physical GPU's display name."""
+    path = (device_path or '').replace('#', '\\').upper()
+    return is_virtual(name) or any(part in path for part in
+                                  ('ROOT\\DISPLAY\\', 'ROOT\\RDP', 'SWD\\', 'ROOT\\INDIRECT'))
+
+
+def unique_adapters(adapters):
+    """Use device identity, never model names: identical physical cards are valid."""
+    seen, result = set(), []
+    for adapter in adapters:
+        path = adapter.get('device_path') or adapter.get('pnp_id')
+        if is_virtual_device(adapter.get('name'), path):
+            continue
+        identity = (path or adapter.get('luid') or '').casefold()
+        if identity and identity in seen:
+            continue
+        if identity:
+            seen.add(identity)
+        result.append(adapter)
+    return result
+
+
+def _adapter_device_path(high, low):
+    """DisplayConfig resolves a DXGI LUID to its PnP device interface path."""
+    from ctypes import wintypes
+
+    class LUID(ctypes.Structure):
+        _fields_ = [('low', wintypes.DWORD), ('high', wintypes.LONG)]
+
+    class Header(ctypes.Structure):
+        _fields_ = [('type', wintypes.UINT), ('size', wintypes.UINT),
+                    ('luid', LUID), ('id', wintypes.UINT)]
+
+    class AdapterName(ctypes.Structure):
+        _fields_ = [('header', Header), ('path', wintypes.WCHAR * 128)]
+
+    request = AdapterName()
+    request.header.type = 4  # DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME
+    request.header.size = ctypes.sizeof(request)
+    request.header.luid = LUID(low, high)
+    try:
+        query = ctypes.WinDLL('user32').DisplayConfigGetDeviceInfo
+        query.argtypes = [ctypes.c_void_p]
+        query.restype = wintypes.LONG
+        if query(ctypes.byref(request)) == 0:
+            return request.path or None
+    except (OSError, AttributeError):
+        pass
+    return None
+
+
 def _guess_integrated(vendor, dedicated_bytes):
     """True / False / None (unknown).
 
@@ -134,6 +186,7 @@ def _list_adapters_windows():
                     if not software and not is_virtual(name):
                         adapters.append({
                             "name": name,
+                            "device_path": _adapter_device_path(desc.AdapterLuid.HighPart, desc.AdapterLuid.LowPart),
                             "vendor": VENDORS.get(desc.VendorId) or vendor_from_name(name),
                             "vendor_id": desc.VendorId,
                             "vram_gb": round(desc.DedicatedVideoMemory / (1024 ** 3), 1) or None,
@@ -147,12 +200,7 @@ def _list_adapters_windows():
     finally:
         release(factory)
 
-    # The same physical GPU can be listed twice (one per output); keep one per LUID
-    seen, unique = set(), []
-    for a in adapters:
-        if a["luid"] not in seen:
-            seen.add(a["luid"])
-            unique.append(a)
+    unique = unique_adapters(adapters)
     # Dedicated GPUs first, so the dashboard shows the gaming GPU as GPU 1
     unique.sort(key=lambda a: (a["integrated"] is True, -(a["vram_gb"] or 0)))
     return unique

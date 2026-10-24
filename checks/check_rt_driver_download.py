@@ -254,7 +254,7 @@ page.open()
 pump(hub, lambda: page.rows["NVIDIA"]["check"].enabled)
 ok(page.rows["NVIDIA"]["check"].enabled and page.rows["Intel"]["check"].enabled, "NVIDIA GPU + Intel CPU offered")
 ok(not page.rows["AMD"]["check"].enabled and "No AMD" in page.rows["AMD"]["status"].cget("text"),
-   "AMD greyed with the reason")
+   "AMD absent hardware stays hidden")
 page.check("NVIDIA")
 pump(hub, lambda: "NVIDIA" in page.offers)
 st = page.rows["NVIDIA"]["status"].cget("text")
@@ -281,6 +281,25 @@ ok(not api.ran and asked[-1][0] == "Run installer", "run asks first; no = not ru
 answers[:] = [True]
 page.run("NVIDIA")
 ok(api.ran, "run after yes")
+before_runs, before_prompts = len(api.ran), len(asked)
+answers[:] = [True]
+page.install("NVIDIA")
+pump(hub, lambda: not page.jobs)
+ok(len(api.ran) == before_runs + 1 and len(asked) == before_prompts + 1
+   and asked[-1][0] == 'Install driver', 'combined install asks once, verifies, then launches setup')
+api.sig = (False, 'Wrong publisher')
+before_runs = len(api.ran)
+answers[:] = [True]
+page.install("NVIDIA")
+pump(hub, lambda: not page.jobs)
+ok(len(api.ran) == before_runs and not page.run_after_download,
+   'combined install never launches an unverified installer')
+api.sig = (True, 'Signature valid · signed by NVIDIA Corporation')
+before_downloads = len(api.downloads)
+answers[:] = [False]
+page.install("NVIDIA")
+pump(hub, lambda: not page.jobs)
+ok(len(api.downloads) == before_downloads, 'declining combined install downloads nothing')
 api.block = threading.Event()
 answers[:] = [True]
 page.download("NVIDIA")
@@ -301,6 +320,18 @@ ok("Installed: Realtek" in page.wu_status.cget("text") and "Restart" in page.wu_
    "WU per-driver result + restart note")
 ok(any(l[0] == "Drivers" for l in hub.logs), "actions logged")
 pump(hub, lambda: not page.jobs, 3)
+# Refine from a present-device scan: unrelated vendors disappear, including after rescan.
+page.set_components([{'kind':'Graphics','name':'Intel Iris Xe','vendor_key':'intel'}])
+pump(hub,lambda:True)
+ok(page.rows['Intel']['frame'].winfo_manager()=='pack', 'Intel-only PC shows Intel installer')
+ok(not page.rows['AMD']['frame'].winfo_manager() and not page.rows['NVIDIA']['frame'].winfo_manager(),
+   'Intel-only PC hides NVIDIA and AMD installers entirely')
+page.set_components([{'kind':'CPU / chipset','name':'AMD Ryzen','vendor_key':'asus','device_vendor':'amd'},
+                     {'kind':'Network','name':'Intel Wi-Fi','vendor_key':'dell','device_vendor':'intel'}])
+ok(page.rows['AMD']['frame'].winfo_manager()=='pack' and page.rows['Intel']['frame'].winfo_manager()=='pack',
+   'actual AMD CPU and Intel network adapter both match, even with OEM support URLs')
+page.set_components([])
+ok(all(not r['frame'].winfo_manager() for r in page.rows.values()),'rescan without matching hardware hides all vendor installers')
 page.destroy()
 hub.destroy()
 print("ALL PASS" if not fails else f"{len(fails)} FAILED")

@@ -18,7 +18,7 @@ DEFAULTS = {
     "tray_on_close": True,
     "start_minimized": True,
     "check_updates": True,
-    "discord_status": False,
+    "discord_status": True,
     "discord_show_game": True,
     "temp_unit": "C",
     "interval": 1.0,          # seconds, as the original RETWEAKS stored it

@@ -61,13 +61,13 @@ def test_build_activity_variants_and_limits():
     idle = d.build_activity({"game": None}, True, 100)
     assert idle["details"] == "Optimizing with RETWEAKS" and idle["state"] == "Windows PC tweaks"
     g = d.build_activity({"game": "Fortnite"}, True, 100)
-    assert g["details"] == "Gaming: Fortnite" and g["state"] == "Boosted by RETWEAKS"
+    assert g["details"] == "Optimizing with RETWEAKS" and g["state"] == "Playing Fortnite"
     hidden = d.build_activity({"game": "Fortnite"}, False, 100)
-    assert hidden["details"] == "Gaming" and "Fortnite" not in json.dumps(hidden)
+    assert hidden["state"] == "Gaming" and "Fortnite" not in json.dumps(hidden)
+    assert idle["type"] == 0
     assert idle["timestamps"]["start"] == 100
-    assert idle["assets"] == {"large_image": d.IMAGE_KEY, "large_text": "RETWEAKS"} and d.IMAGE_KEY == "ry" + "tweaks"
-    assert idle["buttons"] == [{"label": "Get ReTweaks", "url": "https://github.com/w1zr/ReTweaks"},
-                               {"label": "Website", "url": "https://w1zr.github.io/ReTweaks/"}]
+    assert idle["assets"] == {"large_image": "retweaks-logo-1024", "large_text": "RETWEAKS"}
+    assert idle["buttons"] == [{"label": "Get Retweaks", "url": "https://w1zr.github.io/ReTweaks/"}]
     long = d.build_activity({"game": "X" * 500}, True, 1)
     for a in (idle, g, hidden, long):
         for k in ("details", "state"):
@@ -126,7 +126,8 @@ def test_connect_handshake_and_send_then_rate_limit():
     assert len(pipe.written) == 2                 # rate limited
     clock.t += 15
     p.step()
-    assert pipe.frames()[-1][1]["args"]["activity"]["details"] == "Gaming: Fortnite"
+    assert pipe.frames()[-1][1]["args"]["activity"]["details"] == "Optimizing with RETWEAKS"
+    assert pipe.frames()[-1][1]["args"]["activity"]["state"] == "Playing Fortnite"
     clock.t += 30
     p.step()
     assert len(pipe.written) == 3                 # unchanged -> no resend
@@ -209,3 +210,13 @@ def test_thread_start_stop_idempotent():
     p.stop()
     p.stop()
     assert pipe.closed
+
+
+def test_discord_settings_defaults_preserve_opt_out(tmp_path, monkeypatch):
+    from rt_pages import settings_store
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    assert settings_store.load()["discord_status"] is True
+    assert settings_store.save({"discord_status": False, "custom_setting": 42})
+    saved = settings_store.load()
+    assert saved["discord_status"] is False
+    assert saved["custom_setting"] == 42

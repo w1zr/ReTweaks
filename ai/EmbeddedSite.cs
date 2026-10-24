@@ -140,10 +140,21 @@ class EmbeddedSite {
             Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
             host=new Form {TopLevel=false,FormBorderStyle=FormBorderStyle.None,ShowInTaskbar=false,MinimumSize=Size.Empty};
             view=new WebView2 {Dock=DockStyle.Fill};host.Controls.Add(view);
+            host.KeyPreview=true;
+            KeyEventHandler globalSearch=(s,e)=>{if(e.Control&&e.KeyCode==Keys.K){e.Handled=true;e.SuppressKeyPress=true;Emit(new{type="global-search"});}};
+            host.KeyDown+=globalSearch;view.KeyDown+=globalSearch;
             var initial=json.Deserialize<Dictionary<string,object>>(Console.ReadLine());
             if(initial.ContainsKey("builder") && Convert.ToBoolean(initial["builder"])) {
                 Url="https://www.buildcores.com/new-build";SiteTitle="BuildCores 3D PC Builder";
                 if(!offline)profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"RETWEAKS","BuildCoresBrowser");
+            }
+            if(initial.ContainsKey("activation") && Convert.ToBoolean(initial["activation"])) {
+                Url="https://massgrave.dev/";SiteTitle="Windows Activation";
+                if(!offline)profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"RETWEAKS","ActivationBrowser");
+            }
+            if(initial.ContainsKey("windhawk") && Convert.ToBoolean(initial["windhawk"])) {
+                Url="https://windhawk.net/mods";SiteTitle="Windhawk";
+                if(!offline)profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"RETWEAKS","WindhawkBrowser");
             }
             if(offline && initial.ContainsKey("test_url")) {
                 Uri test;

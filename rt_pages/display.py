@@ -79,8 +79,10 @@ class DisplayPage:
         self._loaded = False
         g["page_header"](tab, "RETWEAKS", "Display & drivers",
                          "Checks whether each monitor runs at the highest refresh rate it supports at its current "
-                         "resolution, sets a stretched resolution, and shows how old your graphics driver is.")
+                         "resolution, offers Fortnite-only and whole-display resolution settings, and shows graphics driver information.")
         self.body = hub._scroll_area(tab)
+        from fortnite_resolution_ui import FortniteResolutionPanel
+        self.fortnite_resolution = FortniteResolutionPanel(hub, self.body, g)
         self.mon_box = tk.Frame(self.body, bg=g["BG"])
         self.mon_box.pack(fill="x")
         self.drv_box = tk.Frame(self.body, bg=g["BG"])
@@ -161,12 +163,12 @@ class DisplayPage:
         nw, nh = dsp.native_size(d)
         if not choices or not nw:
             return
-        label(b, "Stretched resolution", g, 12, bold=True, pady=(10, 2))
+        label(b, "Whole-display stretched resolution", g, 12, bold=True, pady=(10, 2))
         stretched = (d["width"], d["height"]) != (nw, nh)
         label(b, (f"Now running {d['width']}×{d['height']} on a {nw}×{nh} screen." if stretched else
                   f"Runs the whole screen at a narrower resolution stretched to fill it (native: {nw}×{nh}). "
-                  "Games in Windowed Fullscreen, like Fortnite, use it automatically. Characters look wider; "
-                  "you don't see more of the map. Fortnite's Arena and tournaments stay 16:9 (Epic's rule)."),
+                  "This changes the desktop and other apps too. Use Fortnite-only stretched resolution above "
+                  "to edit Fortnite's video settings without changing Windows."),
               g, 9, g["MUTED"])
         texts = [f"{w} × {h}" + (f"  ({hz} Hz)" if hz else "  (not on your graphics card yet)")
                  for w, h, hz in choices]

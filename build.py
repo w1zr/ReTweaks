@@ -95,11 +95,10 @@ def gemini_key():
 
 def build_gemini_chat():
     """ai\\GeminiChat.exe (the AI helper) from GeminiChat.cs with the built-in key filled in. The filled-in copy
-    is a temporary file that is deleted right after compiling. With no key the app still builds; users then
-    paste their own key on the AI assistant page."""
+    is a temporary file that is deleted right after compiling. With no key the app still builds; AI responses remain unavailable until a shared key is configured at build time."""
     key = gemini_key()
     count = len(key.split("|")) if key else 0
-    print("Built-in AI keys:", count if count else "none (users add their own key on the AI assistant page)")
+    print("Built-in AI keys:", count if count else "none (AI responses unavailable until a shared build key is configured)")
     src = os.path.join(ROOT, "ai", "GeminiChat.cs")
     tmp = os.path.join(ROOT, "ai", "GeminiChat.build.cs")
     with open(src, "rb") as f:

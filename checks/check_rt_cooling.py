@@ -49,7 +49,7 @@ try:
         assert name in side.targets and side.targets[name] == hub.rt_tabs[name], name
         assert hub.rt_pages[name] is not None, name
     fan_tab = hub.rt_tabs["Fan control"]
-    side.buttons["Fan control"].command(); hub.update()
+    side.open("Fan control", side.targets["Fan control"]); hub.update()
     assert hub.cur_tab == fan_tab
     sampler = hub.temperatures
     sampler.stop.set(); sampler.extended_time = time.monotonic()
@@ -115,7 +115,7 @@ try:
 
     # ---------------- RGB lighting
     rgb = hub.rgb_lighting; rgb.tried = True; rgb.retry_at = time.monotonic() + 3600
-    side.buttons["RGB lighting"].command(); hub.update()
+    side.open("RGB lighting", side.targets["RGB lighting"]); hub.update()
     assert hub.cur_tab == hub.rt_tabs["RGB lighting"]
     assert not rgb.advanced.winfo_manager() and rgb.quick_apply.winfo_ismapped()
     rgb.toggle_advanced(); hub.update()

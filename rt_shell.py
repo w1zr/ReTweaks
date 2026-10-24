@@ -500,7 +500,7 @@ class Shell:
         try:
             from core.discord_rpc import DiscordPresence
             self.discord = DiscordPresence()
-            self.discord.configure(hub.settings.get("discord_status", False),
+            self.discord.configure(hub.settings.get("discord_status", True),
                                    hub.settings.get("discord_show_game", True))
             self.discord.start()
         except Exception as e:

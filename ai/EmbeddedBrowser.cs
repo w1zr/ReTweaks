@@ -111,11 +111,44 @@ class EmbeddedBrowser {
         public override Color SeparatorDark{get{return line;}}
         public override Color SeparatorLight{get{return ToolStripDropDownBackground;}}
     }
+    class BrowserMenuRenderer:ToolStripProfessionalRenderer {
+        public BrowserMenuRenderer():base(new MenuColors()) {RoundedEdges=false;}
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
+            e.TextColor=e.Item.Enabled?fg:muted;base.OnRenderItemText(e);
+        }
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e){
+            e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            var r=e.ImageRectangle;using(var pen=new Pen(fg,2)){
+                pen.StartCap=pen.EndCap=LineCap.Round;
+                e.Graphics.DrawLines(pen,new[]{new Point(r.Left+3,r.Top+r.Height/2),new Point(r.Left+6,r.Bottom-4),new Point(r.Right-2,r.Top+3)});
+            }
+        }
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e){
+            e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            using(var shape=Shape(e.ToolStrip.ClientRectangle,12))using(var pen=new Pen(line))e.Graphics.DrawPath(pen,shape);
+        }
+    }
+    static HashSet<ToolStripDropDown> styledMenus=new HashSet<ToolStripDropDown>();
+    static void StyleMenu(ToolStripDropDown menu){
+        menu.BackColor=panel;menu.ForeColor=fg;menu.Renderer=new BrowserMenuRenderer();
+        menu.Padding=new Padding(7);
+        if(styledMenus.Add(menu))menu.SizeChanged+=(s,e)=>RoundMenu(menu);
+        RoundMenu(menu);
+        foreach(ToolStripItem item in menu.Items){
+            item.BackColor=panel;item.ForeColor=fg;
+            var child=item as ToolStripDropDownItem;
+            if(child!=null&&child.HasDropDownItems)StyleMenu(child.DropDown);
+        }
+    }
+    static void RoundMenu(ToolStripDropDown menu){
+        if(menu.Width<2||menu.Height<2)return;
+        using(var shape=Shape(menu.ClientRectangle,12)){var old=menu.Region;menu.Region=new Region(shape);if(old!=null)old.Dispose();}
+    }
     static ContextMenuStrip browserMenu;static ToolStripMenuItem settingsMenuItem;
-    static ToolStripMenuItem MenuItem(string label,string shortcut,Action action){var item=new ToolStripMenuItem(label){ShortcutKeyDisplayString=shortcut,Padding=new Padding(12,7,12,7)};item.Click+=(s,e)=>{if(!closing)host.BeginInvoke((Action)(()=>{if(!closing)action();}));};return item;}
+    static ToolStripMenuItem MenuItem(string label,string shortcut,Action action){var item=new ToolStripMenuItem(label){ShortcutKeyDisplayString=shortcut,Padding=new Padding(12,7,12,7),ForeColor=fg,BackColor=panel};item.Click+=(s,e)=>{if(!closing)host.BeginInvoke((Action)(()=>{if(!closing)action();}));};return item;}
     static void Menu(Control anchor){
         if(browserMenu==null){
-            browserMenu=new ContextMenuStrip{BackColor=panel,ForeColor=fg,ShowImageMargin=false,ShowCheckMargin=false,Font=new Font("Segoe UI",10),Padding=new Padding(7),Renderer=new ToolStripProfessionalRenderer(new MenuColors())};
+            browserMenu=new ContextMenuStrip{BackColor=panel,ForeColor=fg,ShowImageMargin=false,ShowCheckMargin=false,Font=new Font("Segoe UI",10),Padding=new Padding(7),Renderer=new BrowserMenuRenderer()};
             browserMenu.Items.Add(MenuItem("New tab","Ctrl+T",()=>Add(Home)));
             browserMenu.Items.Add(MenuItem("Reopen closed tab","Ctrl+Shift+T",Reopen));
             browserMenu.Items.Add(MenuItem("New private tab","Ctrl+Shift+N",()=>Add(Home,true)));
@@ -124,7 +157,7 @@ class EmbeddedBrowser {
             browserMenu.Items.Add(MenuItem("Reload without cache","Ctrl+Shift+R",()=>Reload(true)));
             browserMenu.Items.Add(new ToolStripSeparator());
             var search=MenuItem("Search engine","",()=>{});search.DropDownItems.Add(new ToolStripMenuItem("x"));
-            search.DropDownOpening+=(s,e)=>{search.DropDownItems.Clear();foreach(string choice in engineNames){string value=choice;var item=MenuItem(value,"",()=>{SetEngine(value);SaveSettings();});item.Checked=value==engine;search.DropDownItems.Add(item);}};browserMenu.Items.Add(search);
+            search.DropDownOpening+=(s,e)=>{search.DropDownItems.Clear();foreach(string choice in engineNames){string value=choice;var item=MenuItem(value,"",()=>{SetEngine(value);SaveSettings();});item.Checked=value==engine;search.DropDownItems.Add(item);}StyleMenu(search.DropDown);};browserMenu.Items.Add(search);
             browserMenu.Items.Add(MenuItem("Zoom in","Ctrl +",()=>Zoom(zoom+.1)));browserMenu.Items.Add(MenuItem("Zoom out","Ctrl -",()=>Zoom(zoom-.1)));browserMenu.Items.Add(MenuItem("Reset zoom","Ctrl+0",()=>Zoom(1)));
             browserMenu.Items.Add(new ToolStripSeparator());
             settingsMenuItem=MenuItem("Settings","",()=>Add(SettingsPage));browserMenu.Items.Add(settingsMenuItem);
@@ -136,7 +169,7 @@ class EmbeddedBrowser {
             browserMenu.Items.Add(MenuItem("About this browser","",()=>Status("RETWEAKS Browser · Microsoft Edge WebView2 "+(engineVersion==""?"(version unknown)":engineVersion))));
             browserMenu.SizeChanged+=(s,e)=>{using(var shape=Shape(browserMenu.ClientRectangle,12)){var old=browserMenu.Region;browserMenu.Region=new Region(shape);if(old!=null)old.Dispose();}};
         }
-        browserMenu.BackColor=panel;browserMenu.ForeColor=fg;foreach(ToolStripItem item in browserMenu.Items)item.ForeColor=fg;
+        StyleMenu(browserMenu);
         browserMenu.Show(anchor,new Point(anchor.Width,anchor.Height+7),ToolStripDropDownDirection.BelowLeft);
     }
     static void EmitBookmarks(){var items=new List<object>();foreach(var x in shortcuts)items.Add(new{name=x.name,url=x.url});Emit(new{type="bookmarks",items=items});}
@@ -201,6 +234,7 @@ class EmbeddedBrowser {
         if(key==Keys.F5){Reload((modifiers&Keys.Control)==Keys.Control);return true;}
         if(key==Keys.Escape&&active!=null&&active.busy){Reload();return true;}
         if((modifiers&Keys.Control)==Keys.Control){
+            if(key==Keys.K){Emit(new{type="global-search"});return true;}
             if(key==Keys.T&&(modifiers&Keys.Shift)==Keys.Shift){Reopen();return true;}
             if(key==Keys.N&&(modifiers&Keys.Shift)==Keys.Shift){Add(Home,true);return true;}
             if(key==Keys.H){OpenLibrary();return true;}
@@ -296,6 +330,16 @@ class EmbeddedBrowser {
         else if(op=="navigate"){Navigate(Convert.ToString(data["url"]));}
         else if(op=="new-tab"){Add(Home,data.ContainsKey("private")&&Convert.ToBoolean(data["private"]));}
         else if(op=="inspect"){string document=active!=null&&active.view.CoreWebView2!=null?await active.view.ExecuteScriptAsync("JSON.stringify({title:document.title,settings:document.querySelectorAll('[data-option]').length,message:document.querySelector('#message')?.textContent,shortcuts:document.querySelectorAll('.tile').length,icons:Array.from(document.querySelectorAll('.tile .icon img')).filter(i=>i.complete&&i.naturalWidth>0).length})"):"null";Emit(new{type="state",history=history.Count,bookmarks=shortcuts.Count,privateTabs=tabs.FindAll(t=>t.priv).Count,engines=engineNames,newTabAfterActive=active!=null&&strip.Controls.GetChildIndex(newTab)==strip.Controls.GetChildIndex(active.chip)+1,engine=engine,zoom=zoom,options=options,tabs=tabs.Count,url=active==null?"":active.url,embedded=IsChild(parent,host.Handle),visible=host.Visible,width=host.Width,height=host.Height,document=document,canBack=active!=null&&active.view.CanGoBack,canForward=active!=null&&active.view.CanGoForward});}
+        else if(testing&&op=="test-engine-menu"){
+            Menu(newTab);
+            var search=(ToolStripMenuItem)browserMenu.Items[7];search.ShowDropDown();
+            var choices=new List<object>();foreach(ToolStripItem child in search.DropDownItems){
+                var item=child as ToolStripMenuItem;if(item!=null)choices.Add(new{text=item.Text,foreground=item.ForeColor.ToArgb(),background=item.BackColor.ToArgb(),selected=item.Checked});
+            }
+            Emit(new{type="menu-state",choices=choices,foreground=fg.ToArgb(),background=panel.ToArgb(),rounded=search.DropDown.Region!=null,renderer=search.DropDown.Renderer is BrowserMenuRenderer});
+            search.HideDropDown();browserMenu.Close();
+        }
+        else if(testing&&op=="test-global-search"){ShortcutKey(Keys.K,Keys.Control);}
         else if(testing&&op=="test-settings"){Menu(newTab);browserMenu.Close(ToolStripDropDownCloseReason.ItemClicked);settingsMenuItem.PerformClick();Emit(new{type="test-done"});}
         else if(testing&&op=="test-save-settings"&&active.url==SettingsPage){await active.view.ExecuteScriptAsync("document.querySelector('#engine').value='Bing';document.querySelector('#zoom').value='1.25';document.querySelector('#showHome').checked=false;document.querySelector('#permissions').value='Block';document.querySelector('#save').click()");}
         else if(testing&&op=="test-reset-settings"&&active.url==SettingsPage){await active.view.ExecuteScriptAsync("window.chrome.webview.postMessage({op:'reset-settings'})");}

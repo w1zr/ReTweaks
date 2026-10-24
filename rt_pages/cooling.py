@@ -15,8 +15,8 @@ import webbrowser
 
 PAWNIO_URL = "https://github.com/namazso/PawnIO.Setup/releases"   # linked from LibreHardwareMonitor 0.9.6's notes
 PAWNIO_NOTE = ("CPU and motherboard temperatures and most fan controllers need the free PawnIO driver. Windows "
-               "doesn't let apps read those sensors without a driver, and RETWEAKS doesn't install one for you: "
-               "install PawnIO once from its official page, then press Retry sensor detection.")
+               "doesn't let apps read those sensors without a driver. Missing PawnIO installs automatically on this page: "
+               "if setup fails, install from the official page and press Retry sensor detection.")
 
 
 def _pawnio_card(hub, parent, g):

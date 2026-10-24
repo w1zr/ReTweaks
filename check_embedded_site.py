@@ -9,7 +9,7 @@ from embedded_site import EmbeddedSite
 root=tk.Tk();root.title('RETWEAKS local embedded browser check');root.geometry('900x620')
 frame=tk.Frame(root);frame.pack(fill='both',expand=True);root.update()
 events=queue.Queue()
-bridge=EmbeddedSite(frame,lambda:{'BG':'#101214'},events,offline_test=True, builder='--builder' in sys.argv)
+bridge=EmbeddedSite(frame,lambda:{'BG':'#101214'},events,offline_test=True, builder='--builder' in sys.argv, activation='--activation' in sys.argv, windhawk='--windhawk' in sys.argv)
 def wait(kind,timeout=30):
     deadline=time.monotonic()+timeout
     while time.monotonic()<deadline:
@@ -27,7 +27,7 @@ try:
         document=json.loads(json.loads(state['document']))
         if document['iframe'] or time.monotonic()>deadline:break
         time.sleep(.1)
-    assert state['url']==('https://www.buildcores.com/new-build' if '--builder' in sys.argv else 'https://pc-builds.com/bottleneck-calculator/')
+    assert state['url']==('https://windhawk.net/mods' if '--windhawk' in sys.argv else 'https://massgrave.dev/' if '--activation' in sys.argv else 'https://www.buildcores.com/new-build' if '--builder' in sys.argv else 'https://pc-builds.com/bottleneck-calculator/')
     assert state['embedded'] and document['iframe'] and document['src'] is None,state
     assert state['width']==frame.winfo_width() and state['height']==frame.winfo_height()
     bridge.send({'op':'visibility','visible':False});frame.pack_forget();root.update()

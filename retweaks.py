@@ -8,6 +8,12 @@ Run-and-done from a shortcut / command line:
     RETWEAKS.exe --list                     (show preset names)
 """
 import os, sys, threading, queue, datetime, re, math
+if '--verify-startup' in sys.argv:
+    def _verify_error(kind, value, tb):
+        import traceback
+        with open(os.path.join(os.path.dirname(sys.executable), 'startup-check-error.txt'), 'w', encoding='utf-8') as report:
+            traceback.print_exception(kind, value, tb, file=report)
+    sys.excepthook = _verify_error
 import tkinter as tk
 from tkinter import messagebox, filedialog
 import tkinter.font as tkfont
@@ -1053,15 +1059,53 @@ class Hub(tk.Tk):
             side="right", padx=(8, 12))
         RButton(bot, "Undo selected", lambda: self.start_custom("undo"), height=38, radius=13).pack(side="right")
 
+        search_row = tk.Frame(tab, bg=BG)
+        search_row.pack(fill="x", pady=(0, 8))
+        self.tweak_search = tk.StringVar()
+        self.tweak_search_entry = REntry(search_row, self.tweak_search)
+        self.tweak_search_entry.pack(side="left", fill="x", expand=True)
+        RButton(search_row, "Clear search", lambda:self.tweak_search.set(""), kind="ghost").pack(side="left", padx=8)
+        self.tweak_search_count = tk.Label(search_row, bg=BG, fg=MUTED, font=(UI, 9))
+        self.tweak_search_count.pack(side="right")
         inner = self._scroll_area(tab)
+        self.tweak_scroll = inner.master
+        def fit_filtered_region(event=None):
+            cv=self.tweak_scroll
+            cv.configure(scrollregion=(0,0,max(inner.winfo_width(),cv.winfo_width()),
+                                       max(inner.winfo_reqheight(),cv.winfo_height())))
+        inner.bind('<Configure>',fit_filtered_region,add='+')
+        self.tweak_scroll.bind('<Configure>',fit_filtered_region,add='+')
+        self.tweak_groups = []
         for cat in CATS:
             rows = [x for x in TWEAKS if x["cat"] == cat]
-            tk.Label(inner, text=f"{cat.upper()}   ({len(rows)})", bg=BG, fg=ACC, font=(UI, 9, "bold")).pack(
-                anchor="w", pady=(14, 4))
+            heading = tk.Label(inner, text=f"{cat.upper()}   ({len(rows)})", bg=BG, fg=ACC, font=(UI, 9, "bold"))
+            heading.pack(anchor="w", pady=(14, 4))
+            group = []
             for t in rows:
                 v = tk.BooleanVar(value=False)
                 self.vars[t["id"]] = v
-                self.tweak_row(inner, t, v)
+                widget = self.tweak_row(inner, t, v)
+                group.append((t, widget))
+            self.tweak_groups.append((heading, group))
+        self.tweak_search.trace_add("write", self.filter_individual_tweaks)
+        self.filter_individual_tweaks()
+
+    def filter_individual_tweaks(self, *_):
+        """Filter existing widgets; selected tweaks keep their values while hidden."""
+        words = self.tweak_search.get().strip().lower().split()
+        visible = []
+        for heading, group in self.tweak_groups:
+            heading.pack_forget()
+            for _, widget in group:widget.pack_forget()
+        for heading, group in self.tweak_groups:
+            matches = [(t,w) for t,w in group if all(word in (t['name']+' '+t['desc']+' '+t['cat']).lower() for word in words)]
+            if matches:heading.pack(anchor="w", pady=(14,4))
+            for t,widget in matches:
+                widget.pack(fill="x",padx=(0,12),pady=3)
+                visible.append(t['id'])
+        self.tweak_visible_ids = visible
+        self.tweak_search_count.config(text=f"{len(visible)} / {len(TWEAKS)} tweaks")
+        self.tweak_scroll.yview_moveto(0)
 
     def show_tweaks_tab(self, key, save=True):
         """'all' (every tweak) or 'exact' (exact-undo tweaks) on the Individual tweaks page."""
@@ -1798,7 +1842,17 @@ if __name__ == "__main__":
         sys.exit(rt_splash_qt.main())
     from hubplus import install
     install(globals())
+    if '--verify-browser' in sys.argv:
+        from browser_check import main as verify_browser
+        sys.exit(verify_browser())
     if '--verify-startup' in sys.argv:
+        from PySide6.QtWidgets import QApplication
+        qt_probe = QApplication.instance() or QApplication([])
+        from ui.splash import RetweaksSplash
+        splash_probe = RetweaksSplash()
+        splash_probe.show()
+        qt_probe.processEvents()
+        splash_probe.close()
         # Exercise the packaged native image modules without tuning or elevation.
         from PIL import Image, ImageTk
         from audio_panel import WindowsAudio

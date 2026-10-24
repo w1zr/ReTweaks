@@ -32,6 +32,24 @@ SOURCES = ("builtin", "presentmon")     # v1.4.3: built-in Windows frame events 
 DEFAULTS = {"overlay_position": "top-left", "overlay_size": "medium",
             "overlay_show_load": True, "overlay_opacity": 85, "overlay_source": "builtin",
             "overlay_low_window_s": 10, "overlay_fps_span_s": 1.0}
+METRIC_OPTIONS = (
+    ('fps', 'Show FPS', True), ('low1', 'Show 1% lows', True),
+    ('low01', 'Show 0.1% lows', False), ('avg', 'Average FPS', False),
+    ('min', 'Minimum FPS', False), ('max', 'Maximum FPS', False),
+    ('frame_ms', 'Frame time', True), ('frames', 'Frames in window', False),
+    ('cpu', 'CPU utilization', True), ('gpu', 'GPU utilization', True),
+    ('ram', 'RAM utilization', False), ('ram_gb', 'RAM used / total', False),
+    ('vram', 'VRAM used / total', False), ('cpu_temp', 'CPU temperature', False),
+    ('gpu_temp', 'GPU temperature', False), ('cpu_clock', 'CPU clock', False),
+    ('gpu_clock', 'GPU clock', False), ('gpu_power', 'GPU power', False),
+    ('gpu_name', 'GPU name', False), ('game', 'Game name', False))
+DEFAULTS.update({'overlay_show_' + key: default for key, _, default in METRIC_OPTIONS})
+DEFAULTS.update(overlay_layout='stacked', overlay_refresh_ms=400, overlay_margin=16,
+                overlay_decimals=0)
+
+
+def empty_metrics():
+    return dict.fromkeys(('fps', 'low1', 'low01', 'avg', 'min', 'max', 'frame_ms', 'frames'))
 
 # Timings every RollingMetrics without explicit values follows, so a change applies to a running overlay at once.
 _TIMINGS = {"low_window_s": WINDOW_S, "fps_span_s": FPS_SPAN_MS / 1000.0}
@@ -77,12 +95,20 @@ def clean_settings(settings):
                   float(DEFAULTS["overlay_low_window_s"]))
     span = _pick(s.get("overlay_fps_span_s", DEFAULTS["overlay_fps_span_s"]), FPS_SPANS_S,
                  DEFAULTS["overlay_fps_span_s"])
-    return {"overlay_low_window_s": int(low_w), "overlay_fps_span_s": span,
+    result = {"overlay_low_window_s": int(low_w), "overlay_fps_span_s": span,
             "overlay_position": pos if pos in CORNERS else DEFAULTS["overlay_position"],
             "overlay_size": size if size in SIZES else DEFAULTS["overlay_size"],
             "overlay_show_load": bool(load),
             "overlay_opacity": min(100, max(50, op)),
             "overlay_source": src if src in SOURCES else DEFAULTS["overlay_source"]}
+    for key, _, default in METRIC_OPTIONS:
+        value = s.get('overlay_show_' + key, default)
+        result['overlay_show_' + key] = value if isinstance(value, bool) else default
+    result['overlay_layout'] = s.get('overlay_layout') if s.get('overlay_layout') in ('stacked', 'compact') else 'stacked'
+    for key, choices in (('overlay_refresh_ms', (100, 250, 400, 1000)),
+                         ('overlay_margin', (8, 16, 24, 32, 48)), ('overlay_decimals', (0, 1))):
+        result[key] = int(_pick(s.get(key), choices, DEFAULTS[key]))
+    return result
 
 
 # ---------------------------------------------------------------- command line
@@ -165,7 +191,7 @@ class RollingMetrics:
 
     def snapshot(self):
         """{'fps', 'low1', 'frame_ms'}; each is None (Unavailable) when it cannot be computed."""
-        out = {"fps": None, "low1": None, "frame_ms": None}
+        out = empty_metrics()
         if not self.frames:
             return out
         span = self.span_ms
@@ -175,24 +201,33 @@ class RollingMetrics:
             out["fps"] = len(recent) * 1000.0 / covered
             out["frame_ms"] = covered / len(recent)
         window = [ft for end, ft in self.frames if end > self.clock - self.window_ms]
+        if window:
+            out.update(avg=len(window) * 1000.0 / sum(window), min=1000.0 / max(window),
+                       max=1000.0 / min(window), frames=len(window))
         if len(window) >= MIN_FRAMES_LOW:
             desc = sorted(window, reverse=True)
             n = max(1, math.ceil(len(desc) * 0.01))
             out["low1"] = 1000.0 / (sum(desc[:n]) / n)
+            if len(window) >= 1000:
+                n01 = max(1, math.ceil(len(window) * 0.001))
+                out['low01'] = 1000.0 / (sum(desc[:n01]) / n01)
         return out
 
 
 # ---------------------------------------------------------------- display text
 def _num(v, digits=0):
-    return "–" if v is None else f"{v:.{digits}f}"
+    return f"{v:.{digits}f}" if isinstance(v, (int, float)) and math.isfinite(v) else "–"
 
 
-def format_lines(snap, cpu=None, gpu=None, show_load=True, state="running"):
+def format_lines(snap, cpu=None, gpu=None, show_load=True, state="running", settings=None,
+                 hardware=None, game_name=''):
     """Overlay text lines. Missing values are '–'; never an invented number."""
     if state == "closed":
         return ["Game closed"]
     if state == "error":
         return ["Overlay stopped"]
+    if settings is not None:
+        return _configured_lines(snap or {}, clean_settings(settings), hardware or {}, game_name)
     snap = snap or {}
     lines = [f"FPS {_num(snap.get('fps'))}",
              f"1% low {_num(snap.get('low1'))}",
@@ -202,6 +237,62 @@ def format_lines(snap, cpu=None, gpu=None, show_load=True, state="running"):
         g = "–" if gpu is None else f"{gpu:.0f}%"
         lines.append(f"CPU {c} · GPU {g}")
     return lines
+
+
+def hardware_from_sample(sample, now=None, max_age=5):
+    """Fresh system-wide measurements; GPU readings all refer to the busiest adapter."""
+    sample = sample or {}
+    stamp = sample.get('time')
+    if not isinstance(stamp, (int, float)) or not math.isfinite(stamp) or (time.time() if now is None else now) - stamp > max_age:
+        return {}
+    cpu, ram = sample.get('cpu') or {}, sample.get('ram') or {}
+    gpus = sample.get('gpus') or []
+    gpu = max(gpus, key=lambda item: item.get('load') if item.get('load') is not None else -1) if gpus else {}
+    return {'cpu': cpu.get('load'), 'gpu': gpu.get('load'), 'ram': ram.get('percent'),
+            'ram_used': ram.get('used_gb'), 'ram_total': ram.get('total_gb'),
+            'vram_used': gpu.get('vram_used_gb'), 'vram_total': gpu.get('vram_total_gb'),
+            'cpu_temp': cpu.get('temp_c'), 'gpu_temp': gpu.get('temp_c'),
+            'cpu_clock': cpu.get('mhz'), 'gpu_clock': gpu.get('core_mhz'),
+            'gpu_power': gpu.get('power_w'), 'gpu_name': gpu.get('name')}
+
+
+def _configured_lines(snap, cfg, hardware, game):
+    lines, hw = [], []
+    digits = cfg['overlay_decimals']
+    for key, label in (('fps', 'FPS'), ('low1', '1% low'), ('low01', '0.1% low'),
+                       ('avg', 'Avg FPS'), ('min', 'Min FPS'), ('max', 'Max FPS'),
+                       ('frame_ms', 'Frame'), ('frames', 'Frames')):
+        if cfg['overlay_show_' + key]:
+            lines.append(label + ' ' + _num(snap.get(key), 1 if key == 'frame_ms' else (0 if key == 'frames' else digits))
+                         + (' ms' if key == 'frame_ms' else ''))
+    if cfg['overlay_show_load']:
+        loads = [name + ' ' + (_num(hardware.get(key)) + '%' if hardware.get(key) is not None else '–')
+                 for key, name in (('cpu', 'CPU'), ('gpu', 'GPU')) if cfg['overlay_show_' + key]]
+        if loads:
+            hw.append(' · '.join(loads))
+        if cfg['overlay_show_ram']:
+            hw.append('RAM ' + _num(hardware.get('ram')) + '%')
+        for key, label, used, total in (('ram_gb', 'RAM', 'ram_used', 'ram_total'),
+                                        ('vram', 'VRAM', 'vram_used', 'vram_total')):
+            if cfg['overlay_show_' + key]:
+                hw.append(f'{label} {_num(hardware.get(used), 1)} / {_num(hardware.get(total), 1)} GB')
+        for key, label, unit in (('cpu_temp', 'CPU temp', '°C'), ('gpu_temp', 'GPU temp', '°C'),
+                                  ('cpu_clock', 'CPU clock', 'MHz'), ('gpu_clock', 'GPU clock', 'MHz'),
+                                  ('gpu_power', 'GPU power', 'W')):
+            if cfg['overlay_show_' + key]:
+                value = hardware.get(key)
+                if key.endswith('_temp') and hardware.get('temperature_unit') == 'F':
+                    value = value * 9 / 5 + 32 if value is not None else None
+                    unit = '°F'
+                hw.append(f'{label} {_num(value)} {unit}')
+        if cfg['overlay_show_gpu_name']:
+            hw.append(str(hardware.get('gpu_name') or 'GPU unavailable')[:100])
+    lines += hw
+    if cfg['overlay_show_game']:
+        lines.insert(0, str(game or 'No game selected')[:100])
+    if cfg['overlay_layout'] == 'compact':
+        lines = ['  |  '.join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
+    return lines or ['No metrics selected']
 
 
 def loads_from_sample(sample):
@@ -368,7 +459,7 @@ class OverlayStream:
             snap = self._metrics.snapshot()
             stale = (self._last_frame is None or time.monotonic() - self._last_frame > STALE_S)
         if stale:
-            snap = {"fps": None, "low1": None, "frame_ms": None}
+            snap = empty_metrics()
         return snap, self.state
 
     def has_frames(self):

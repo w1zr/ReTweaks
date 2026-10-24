@@ -1,4 +1,4 @@
-"""Asynchronous native browser lifecycle for the two website tabs."""
+"""Asynchronous native browser lifecycle for the website tabs."""
 import json
 from pathlib import Path
 import subprocess
@@ -8,11 +8,13 @@ from embedded_ai import EmbeddedAI
 URL = 'https://pc-builds.com/bottleneck-calculator/'
 
 class EmbeddedSite(EmbeddedAI):
-    def __init__(self, parent, colors, events, offline_test=False, builder=False, test_url=None):
+    def __init__(self, parent, colors, events, offline_test=False, builder=False, test_url=None, activation=False, windhawk=False):
         super().__init__(parent, colors, events, offline_test=offline_test)
         self.test_url=test_url
         self.builder = builder
-        self.event_name = 'builder_event' if builder else 'site_event'
+        self.activation = activation
+        self.windhawk = windhawk
+        self.event_name = 'windhawk_event' if windhawk else ('activation_event' if activation else ('builder_event' if builder else 'site_event'))
 
     def start(self):
         if self.closed or getattr(self, 'starting', False) or (self.process is not None and self.process.poll() is None):
@@ -21,7 +23,7 @@ class EmbeddedSite(EmbeddedAI):
         args = [str(folder / 'EmbeddedSite.exe'), str(self.parent.winfo_id())]
         if self.offline_test:
             args += ['--offline-test', str(Path(__file__).with_name('verification') / ('webview-builder-profile' if self.builder else 'webview-profile'))]
-        initial = {'op':'theme', 'builder':self.builder, **self.colors()}
+        initial = {'op':'theme', 'builder':self.builder, 'activation':self.activation, 'windhawk':self.windhawk, **self.colors()}
         if self.offline_test and self.test_url:initial['test_url']=self.test_url
         self.starting = True
         def post(data):

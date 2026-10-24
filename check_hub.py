@@ -25,25 +25,60 @@ for i in range(len(hub.tabs)):
 hub._show_info({'cpu':'Test CPU','gpu':'Test GPU','ram':'16'},app.PRESET_ORDER[0],'Test recommendation',[])
 hub.update()
 from rt_pages import REGISTRY
-assert len(hub.tabs)==28+len(REGISTRY)   # the base app tabs + RETWEAKS pages
+assert len(hub.tabs)==30+len(REGISTRY)   # the base app tabs + RETWEAKS pages
 # RETWEAKS sidebar (rt_sidebar) replaced the original nav list; every original page is still reachable from it
 side=hub.sidebar_nav
+assert len(side.buttons)==21  # 19 main entries plus About and Settings
+from rt_navigation import GROUPS, target_index
+for group,sections in GROUPS.items():
+    side.buttons[group].command();hub.update()
+    assert side.current==group
+    if len({target_index(hub,t) for _,_,t in sections})>1:assert hub.section_nav.group==group
+    assert hub.cur_tab in [target_index(hub,target) for _,_,target in sections]
+side.buttons['Benchmark & FPS'].command();hub.update()
+for index in [8,hub.rt_tabs['FPS overlay']]:
+    next(button for button,target,_ in hub.section_nav.buttons if target==index).command();hub.update()
+    assert hub.cur_tab==index and side.current=='Benchmark & FPS'
+side.buttons['Tweaks & presets'].command();hub.update()
+next(button for button,target,_ in hub.section_nav.buttons if target==2).command();hub.update()
+assert hub.cur_tab==2 and hub.settings['navigation_sections']['Tweaks & presets']=='CTT library'
+hub.show_tab(side.targets['Network']);side.buttons['Tweaks & presets'].command();hub.update()
+assert hub.cur_tab==2  # group returns to the last section
+assert side.targets['Transparent TB (taskbar)']==hub.rt_tabs['Transparent TB (taskbar)']
+assert hub.rt_pages['Transparent TB (taskbar)'] is not None
+assert side.targets['File Transfers']==hub.rt_tabs['File Transfers']
+assert hub.rt_pages['File Transfers'] is not None
+assert hub.rt_pages['Backgrounds'] is not None
+assert 'Windows backgrounds' in side.buttons and 'Backgrounds' not in side.buttons
+assert side.targets['Windows backgrounds']==side.targets['Backgrounds']
+def descendants(widget):
+    for child in widget.winfo_children():
+        yield child
+        yield from descendants(child)
+website=next(w for w in descendants(hub.tabs[hub.rt_tabs['About']]) if getattr(w,'label',None)=='Website')
+assert website.kind=='default'
+assert side.targets['Backgrounds']==hub.rt_tabs['Backgrounds']
 # every original page is in the sidebar except About (14, covered by RETWEAKS' About) and
 # Appearance (18, moved into Settings -> Appearance; show_tab(18) opens Settings) and
 # Notifications (13, removed by owner request 2026-10-23)
-for idx in set(range(28))-{13,14,18}:
+for idx in set(range(30))-{13,14,18}:
     assert idx in side.targets.values(), idx
 hub.show_tab(18); assert hub.cur_tab==hub.rt_tabs['Settings']
 assert 'Notifications' not in side.targets
 from rt_pages import EMBEDDED                    # pages shown inside another page (Exact-undo -> Individual tweaks)
 assert all(i in side.targets.values() for k, i in hub.rt_tabs.items() if k not in EMBEDDED)
-side.buttons['3D PC Builder'].command()
+side.open('3D PC Builder', side.targets['3D PC Builder'])
 assert hub.cur_tab==25
+side.open('Windows Activation', side.targets['Windows Activation'])
+assert hub.cur_tab==28
+assert hub.activation_frame.winfo_manager()=='pack'
+side.open('Windhawk', side.targets['Windhawk'])
+assert hub.cur_tab==29 and hub.windhawk_frame.winfo_manager()=='pack'
 assert hub.builder_frame.winfo_manager()=='pack'
 from rt_sidebar import BADGES
 assert BADGES['PC Value Checker']=='Beta' and side.targets['PC Value Checker']==24
 with patch.object(hub,'launch') as external:
-    side.buttons['Bottleneck'].command()
+    side.open('Bottleneck', side.targets['Bottleneck'])
     assert hub.cur_tab==19
     external.assert_not_called()
 assert len(hub.app_starter.choices)==100
@@ -199,7 +234,7 @@ for style in hubplus.ANIMATIONS:
         assert bool(banner.find_all())==(style!='Off')
         banner.winfo_viewable=original_viewable
     hub.update()
-assert saved[-1]=={'theme':'Graphite','animation':'Grid'}
+assert saved[-1]=={'theme':'Graphite','animation':hubplus.ANIMATIONS[-1]}
 reveals=[]
 original_reveal=hub.deiconify
 hub.deiconify=lambda:reveals.append(True)
@@ -218,7 +253,12 @@ hub.info={'cpu':'Test CPU','gpu':'Test GPU','ram':32,'raw':{'serial':'PRIVATE-SE
 hub.ai_context_enabled.set(True)
 context=hub.ai_context_message()
 assert 'Test CPU' in context['snapshot'] and 'PRIVATE' not in context['snapshot']
+with patch.object(hub,'insert_ai_draft') as insert:
+    hub.ask_feature_ai('hardware','Explain my parts')
+    assert hub.cur_tab==20 and insert.call_count==1
+    assert 'Explain my parts' in insert.call_args.args[0]
+assert 'feature_context' in hub.ai_context_message()['snapshot']
 hub.ai_context_enabled.set(False)
 assert hub.ai_context_message()['snapshot']==''
 hub.destroy()
-print('PASS: 28 pages, idle automation, drivers page, AI draft/theme wiring (mocked), render validation, theme cycling, batch customization, animations and intro. No tuning applied.')
+print('PASS: 30 base pages, idle automation, drivers page, AI draft/theme wiring (mocked), render validation, theme cycling, batch customization, animations and intro. No tuning applied.')

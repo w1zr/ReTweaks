@@ -54,6 +54,7 @@ class FpsPage:
         self.overlay_stream = None
         self.overlay_win = None
         self.overlay_game = None
+        self.overlay_telemetry = None
         self._tick_job = None
         self._overlay_job = None
         self._stop_later_job = None
@@ -69,7 +70,7 @@ class FpsPage:
         # ---- timed FPS test
         # ---- PresentMon location
         b = card(body, g, "PresentMon", "Needed for the FPS test, and for the overlay when Frame data is set to PresentMon.")
-        label(b, "RETWEAKS does not include PresentMon. Download the PresentMon console app from the "
+        label(b, "Missing PresentMon installs automatically when this page opens. You can also download the console from the "
                  "official releases page and select PresentMon.exe below. It needs administrator rights.",
               g, 9, g["MUTED"])
         link = label(b, "Open the official PresentMon releases page", g, 9, g["ACC"])
@@ -464,7 +465,7 @@ class FpsPage:
         self.ov_size.set(SIZE_LABELS[cfg["overlay_size"]])
         self.ov_size.pack(side="left", padx=(0, 14))
         self.ov_load_var = tk.BooleanVar(value=cfg["overlay_show_load"])
-        g["RCheck"](row, "Show CPU / GPU load", self.ov_load_var, command=self._overlay_setting_changed).pack(side="left")
+        g["RCheck"](row, "Show hardware metrics", self.ov_load_var, command=self._overlay_setting_changed).pack(side="left")
         srow = tk.Frame(o, bg=o.cget("bg"))
         srow.pack(fill="x", padx=16, pady=4)
         tk.Label(srow, text="Frame data", bg=srow.cget("bg"), fg=g["FG"], font=(g["UI"], 10)).pack(side="left", padx=(0, 6))
@@ -499,6 +500,33 @@ class FpsPage:
         self.ov_span.pack(side="left")
         self.timing_help = label(o, "\n".join((LOW_WINDOW_HELP, FPS_SPAN_HELP, STALE_HELP)), g, 9, g["MUTED"])
         of.set_timings(cfg["overlay_low_window_s"], cfg["overlay_fps_span_s"])
+        label(o, 'Overlay metrics', g, 12, bold=True)
+        label(o, 'Choose individual readings. Hardware metrics uses system-wide utilization; GPU readings follow '
+              'the busiest adapter. Unsupported sensors show –. The hardware switch above hides hardware rows. '
+              '0.1% lows need 1,000 frames in the rolling window. Min/max are individual-frame FPS equivalents.',
+              g, 9, g['MUTED'])
+        metrics = tk.Frame(o, bg=o.cget('bg'))
+        metrics.pack(fill='x', padx=16, pady=6)
+        self.ov_metric_vars = {}
+        for index, (key, title, _) in enumerate(of.METRIC_OPTIONS):
+            var = tk.BooleanVar(value=cfg['overlay_show_' + key])
+            self.ov_metric_vars[key] = var
+            g['RCheck'](metrics, title, var, command=self._overlay_setting_changed).grid(
+                row=index // 3, column=index % 3, sticky='w', padx=(0, 18), pady=2)
+        row = button_row(o, g)
+        self.ov_layout = g['RSelect'](row, ['Stacked', 'Compact'], width=130, command=self._overlay_setting_changed)
+        self.ov_layout.set(cfg['overlay_layout'].capitalize())
+        self.ov_layout.pack(side='left', padx=(0, 8))
+        self.ov_refresh = g['RSelect'](row, ['100 ms', '250 ms', '400 ms', '1000 ms'], width=120, command=self._overlay_setting_changed)
+        self.ov_refresh.set(str(cfg['overlay_refresh_ms']) + ' ms')
+        self.ov_refresh.pack(side='left', padx=(0, 8))
+        self.ov_margin = g['RSelect'](row, ['8 px', '16 px', '24 px', '32 px', '48 px'], width=110, command=self._overlay_setting_changed)
+        self.ov_margin.set(str(cfg['overlay_margin']) + ' px')
+        self.ov_margin.pack(side='left', padx=(0, 8))
+        self.ov_digits = g['RSelect'](row, ['Whole FPS', '1 decimal'], width=130, command=self._overlay_setting_changed)
+        self.ov_digits.set('1 decimal' if cfg['overlay_decimals'] else 'Whole FPS')
+        self.ov_digits.pack(side='left')
+        label(o, 'Layout · text refresh · screen-edge spacing · FPS precision. Changes apply live and are saved.', g, 9, g['MUTED'])
         brow = button_row(o, g)
         self.btn_overlay_start = g["RButton"](brow, "Start overlay", self.start_overlay, kind="primary")
         self.btn_overlay_start.pack(side="left", padx=(0, 8))
@@ -508,7 +536,12 @@ class FpsPage:
         self.overlay_status = label(o, "", g, 10, pady=(0, 12))
 
     def _overlay_values(self):
-        return {"overlay_position": _inv(CORNER_LABELS).get(self.ov_pos.get(), of.DEFAULTS["overlay_position"]),
+        return {**{'overlay_show_' + key: var.get() for key, var in self.ov_metric_vars.items()},
+                'overlay_layout': self.ov_layout.get().lower(),
+                'overlay_refresh_ms': int(self.ov_refresh.get().split()[0]),
+                'overlay_margin': int(self.ov_margin.get().split()[0]),
+                'overlay_decimals': int(self.ov_digits.get() == '1 decimal'),
+                "overlay_position": _inv(CORNER_LABELS).get(self.ov_pos.get(), of.DEFAULTS["overlay_position"]),
                 "overlay_size": _inv(SIZE_LABELS).get(self.ov_size.get(), of.DEFAULTS["overlay_size"]),
                 "overlay_show_load": bool(self.ov_load_var.get()),
                 "overlay_opacity": int(self.ov_opacity.get()),
@@ -527,8 +560,10 @@ class FpsPage:
         if changed:
             self.hub.save_settings()
         of.set_timings(vals["overlay_low_window_s"], vals["overlay_fps_span_s"])   # live, also for a running overlay
+        self._sync_overlay_telemetry(vals)
         if self.overlay_win:
             self.overlay_win.apply_settings(vals)
+            self._update_overlay_text()
 
     def _overlay_colors(self):
         g = self.g
@@ -580,7 +615,7 @@ class FpsPage:
             from rt_pages.overlay_tk import OverlayWindow
             self.overlay_stream, self.overlay_game = stream, name
             self.overlay_win = OverlayWindow(self.hub, self._overlay_colors(), vals, name)
-            self.overlay_win.set_lines(of.format_lines(None, show_load=vals["overlay_show_load"]))
+            self.overlay_win.set_lines(self._format_overlay(None, vals))
             self.overlay_win.show_overlay()
         except Exception as e:
             self.stop_overlay()
@@ -591,14 +626,18 @@ class FpsPage:
         self.btn_start.set_enabled(False)
         self.overlay_status.configure(text=f"Overlay running for {name}. Waiting for frames…")
         self.hub.log_action("FPS overlay", f"Start overlay on {name}", "Started")
+        self._sync_overlay_telemetry(vals)
         self._prime_cpu()
-        self._overlay_job = self._after(400, self._overlay_tick)
+        self._overlay_job = self._after(vals["overlay_refresh_ms"], self._overlay_tick)
 
     def stop_overlay(self, message=None):
         self._cancel(self._overlay_job)
         self._cancel(self._stop_later_job)
         self._overlay_job = self._stop_later_job = None
         stream, win = self.overlay_stream, self.overlay_win
+        if self.overlay_telemetry is not None:
+            self.overlay_telemetry.release(self)
+            self.overlay_telemetry = None
         self.overlay_stream = self.overlay_win = None
         if win:
             win.destroy()
@@ -641,6 +680,32 @@ class FpsPage:
         except Exception:
             return None, None
 
+    def _format_overlay(self, snap, vals):
+        sample = getattr(self.hub, 'rt_last_sample', None)
+        interval = getattr(getattr(self, 'overlay_telemetry', None), 'interval', lambda: 1.0)()
+        hardware = of.hardware_from_sample(sample, max_age=max(5, interval * 3))
+        from rt_pages.settings_store import temp_unit
+        hardware['temperature_unit'] = temp_unit(self.hub)
+        return of.format_lines(snap, settings=vals, hardware=hardware, game_name=self.overlay_game)
+
+    def _sync_overlay_telemetry(self, vals):
+        hardware_keys = [key for key, _, _ in of.METRIC_OPTIONS][8:-1]
+        needed = self.overlay_stream is not None and vals['overlay_show_load'] and any(
+            vals['overlay_show_' + key] for key in hardware_keys)
+        if needed and self.overlay_telemetry is None:
+            from rt_pages.monitor import telemetry_service
+            self.overlay_telemetry = telemetry_service(self.hub)
+            self.overlay_telemetry.acquire(self)
+        elif not needed and self.overlay_telemetry is not None:
+            self.overlay_telemetry.release(self)
+            self.overlay_telemetry = None
+
+    def _update_overlay_text(self):
+        if self.overlay_stream and self.overlay_win:
+            snap, state = self.overlay_stream.snapshot()
+            self.overlay_win.set_lines(of.format_lines(None, state=state) if state in ('closed', 'error')
+                                      else self._format_overlay(snap, self._overlay_values()))
+
     def _overlay_tick(self):
         self._overlay_job = None
         stream, win = self.overlay_stream, self.overlay_win
@@ -658,8 +723,7 @@ class FpsPage:
             self.hub.log_action("FPS overlay", f"Overlay on {self.overlay_game}", "Failed", msg)
             self.stop_overlay(msg)
             return
-        cpu, gpu = self._loads()
-        win.set_lines(of.format_lines(snap, cpu, gpu, bool(self.ov_load_var.get())))
+        win.set_lines(self._format_overlay(snap, self._overlay_values()))
         if not stream.has_frames():
             self.overlay_status.configure(text=f"Overlay running for {self.overlay_game}. Waiting for frames: the "
                                                "program must be presenting (not minimized).")
@@ -669,7 +733,7 @@ class FpsPage:
                    "kernel": " Frame data: Windows graphics kernel presents (built-in; used for OpenGL "
                              "and some Vulkan games)."}.get(src, "")
             self.overlay_status.configure(text=f"Overlay running for {self.overlay_game}.{how}")
-        self._overlay_job = self._after(400, self._overlay_tick)
+        self._overlay_job = self._after(self._overlay_values()["overlay_refresh_ms"], self._overlay_tick)
 
     def _stop_overlay_later(self, message):
         """Show 'Game closed' for 3 s, then stop and tidy up."""

@@ -14,7 +14,7 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   replaces "License: None" in section 1. **Owner rule (2026-10-22): never mention the base app's name or the app's
   previous name ("RY"+"TWEAKS") anywhere — UI, docs, comments, release notes.** Only hidden technical identifiers needed
   for data migration and Undo keep them, built from pieces in `core/rename_migration.py`, `retweaks_data.py`,
-  `core/app_rules.py`, `core/discord_rpc.py` (`IMAGE_KEY`) and `core/game_presets.py`.
+  `core/app_rules.py` and `core/game_presets.py`.
 - **UI toolkit:** Tkinter (the base app) + small C# helpers in `ai/` (GeminiChat, EmbeddedAI, DriverAI, ValueAI,
   EmbeddedSite). The PySide6 UI in `ui/` and `main.py` is legacy, kept for reference and for
   `tools/make_branding.py` (renders the chip/startup/sidebar-icon PNGs with the original drawing code); it is
@@ -55,7 +55,7 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   controller has the mode), brightness, per-device on/off, profiles (`rgb_profiles`), `rgb_apply_on_start` (default
   off). Nothing writes to fans or lighting at launch unless the user ticked those options. Not taken from v1.5:
   its own browser, startup manager, health check, tray, Discord, updater and settings (RETWEAKS keeps its versions),
-  its empty-AI-key change (owner keeps the shared key), and the "Windows Activation" (massgrave.dev) page.
+  its empty-AI-key change (owner keeps the shared key), and initially the "Windows Activation" page. Owner request 2026-10-23 adds it using the shared EmbeddedSite helper (massgrave.dev), beside Windows tweaks.
 - **v2.0 additions (owner requests 2026-10-22):** browser = the base app's v1.5 own-process `ai/EmbeddedBrowser.exe`
   (`embedded_browser.py`, `rt_pages/browser.py`; RETWEAKS branding, data still in `browser.json` and
   `%LOCALAPPDATA%\RETWEAKS\Browser`; the in-process pythonnet/WebView2 browser and `tools/browser_smoke.py` were
@@ -66,8 +66,8 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
   (`rt_pages/settings_store.set_temp_unit`). Crosshair overlay (`core/crosshair.py`, `rt_pages/crosshair.py`, share
   codes `RTX1-`, gallery `crosshairs/gallery.json`). Welcome tour (`rt_welcome.py`, once from v2.0, setting
   `welcome_done_version`) and automatic updates (`rt_autoupdate.py`, setting `auto_update`). Translations
-  (`rt_i18n.py`, `i18n/*.json`: es, fr, de, pt-BR; setting `language`; machine-made). Discord button "Get ReTweaks" ->
-  https://github.com/w1zr/ReTweaks. Super Black is the default theme. v2.0 was released by owner request on 2026-10-22.
+  (`rt_i18n.py`, `i18n/*.json`: es, fr, de, pt-BR; setting `language`; machine-made). Discord button "Get Now" ->
+  https://w1zr.github.io/ReTweaks/. Super Black is the default theme. v2.0 was released by owner request on 2026-10-22.
 - **Inventory (rewrite protocol, section 4):** `docs/COMBINED_INVENTORY.md`. Nothing is released until every item
   works or the owner approves each missing one.
 - **Testing on Linux:** `xvfb-run -a python3.12 tools/linux_shim.py <check script>` (inert fakes for Windows APIs);
@@ -182,7 +182,7 @@ Rewrites are allowed, but they are the most likely way to lose features. Follow 
 - Dashboard banner (v1.4.1): setting `banner_style` = `cores` (default, live per-thread load), `wave` (live CPU load), `circuit`, `galaxy` or `off`. It animates only while visible and not minimized.
 - Custom accent color through a validated HEX input.
 - Theme maker (v1.4.3): users build themes from 10 editable colors (`core/themes.py` EDITABLE); the rest are derived. Saved in settings `custom_themes` {name: colors}; built-in names can't be reused. Share codes `RET1-` + base64 JSON (codes from before the rename, `RYT1-`, still import), validated on import (hex colors only).
-- Discord status (v1.4.3): `core/discord_rpc.py`, local Discord IPC only, off by default (`discord_status`, `discord_show_game`). Public Application ID 1562695957651521627; large image asset key `IMAGE_KEY` in `core/discord_rpc.py` (the image name uploaded in the Discord Developer Portal before the rename; unchanged so the image keeps working).
+- Discord status (v1.4.3): `core/discord_rpc.py`, local Discord IPC only, enabled for new settings (`discord_status`, `discord_show_game`); existing opt-outs are preserved. Public Application ID 1562695957651521627; verified logo asset `retweaks-logo-1024`. Activity says Optimizing with RETWEAKS, with one Get Now button to https://w1zr.github.io/ReTweaks/.
 - Use centralized theme tokens. Never hardcode colors across the UI.
 - Apply the theme consistently to buttons, active navigation, switches, sliders, highlights and focus states.
 - Keep the dark foundation unless the user picks a supported light mode.
@@ -420,6 +420,28 @@ Gemini was removed in v1.2 and brought back in v1.4 as the **AI Assistant** tab,
 
 ## 19. Workflow for every task
 
+Owner request 2026-10-23: Windhawk page (base tab 29), next to Browser in Tools, full-page
+https://windhawk.net/mods via EmbeddedSite's windhawk option. Own WindhawkBrowser profile,
+same lifecycle/theme/recovery as the other site tabs. Browsing the page does not install Windhawk.
+
+Owner request 2026-10-23: FPS overlay has individual metric switches (FPS/1%/0.1% lows,
+rolling avg/min/max, frame time/count, CPU/GPU utilization, RAM/VRAM, temperatures, clocks,
+GPU power and names), compact layout, refresh interval, margins and precision. Hardware readings
+use the shared telemetry service while selected; it remains acquired when leaving the Dashboard.
+Missing/stale values show –; 0.1% lows require 1,000 frames; temperature units follow Settings.
+
+Owner request 2026-10-23: `feature_ai.py` adds contextual help across the app, using the existing
+Gemini assistant and its Use hub context control. No AI action applies changes automatically.
+`driver_download_ui.py` also offers Install driver (fresh offer, one consent, verified download,
+then vendor setup; existing separate controls stay). `rt_pages/taskbar.py` / `core/taskbar_download.py`
+adds Transparent TB (taskbar): Download immediately downloads the official TranslucentTB App Installer
+and installs it for the current account through Add-AppxPackage; nothing installs on page open.
+Fortnite-only resolution (owner request 2026-10-23): `core/fortnite_resolution.py` and
+`fortnite_resolution_ui.py`, on Presets and Display. Only existing keys inside Fortnite's video
+settings section are edited (Fullscreen and resolution), with backup and resolution-only restore.
+Desktop display APIs are not called. The original whole-display controls remain clearly labeled.
+Fullscreen/game/driver overrides mean the result must be checked in Fortnite after launching it.
+
 **Before you start:**
 1. Read this file.
 2. Inspect the current repo.
@@ -463,3 +485,29 @@ A change is not done until each applicable item is verified:
 - [ ] The AI Assistant follows section 13 (own key in Credential Manager, whitelisted specs, advice only).
 - [ ] No secrets or personal data are in the commit.
 - [ ] The build and tests actually ran, or the untested parts are clearly disclosed.
+
+Owner request 2026-10-23: File Transfers in Tools. `core/file_transfers.py` / `rt_pages/file_transfers.py`: encrypted temporary transfers through Litterbox, up to 1 GB including ZIP/encryption overhead, expiry 1/12/24/72 hours. Files/folders become a ZIP; receiver saves a ZIP without auto-extract/execute. Share code contains the encryption key and is not persisted/logged. Sender can close after upload; no server/account configuration needed. Runtime dependency cryptography.
+
+File Transfers mixed picker (2026-10-23): Add files & folders selects both types together with Ctrl/Shift. The picker can collect items from multiple directories before Add to transfer. Existing separate file/folder buttons stay. Limits explained on-page: 1 GB total per transfer, up to 10,000 items; no ReTweaks daily counter/reset, no published provider daily quota/reset; each upload expires separately. Directory reads run in a background thread.
+
+Background improvements (2026-10-23): Settings gains visual theme tiles/favorites, larger live animation preview, speed/brightness/detail/FPS/banner-size settings, custom picture banners, Aurora/Starfield/Rain/Pulse. Existing theme/animation names and settings preserved. Hidden accents stop scheduling redraws. New Backgrounds Tools page previews local pictures and six local gradient presets, saves picture/video favorites, applies Windows pictures through IDesktopWallpaper with per-monitor picture+fit backup/restore, and optionally installs/controls Lively via its documented CLI. Lively remains optional; no install/apply happens on opening the page. Current wallpaper API is queried read-only until Apply.
+
+Owner navigation consolidation (2026-10-23): 15 main sidebar pages plus About/Settings. Mapping: docs/NAVIGATION_GROUPS.md and rt_navigation.GROUPS. Existing controls/page objects/tab indices stay; section buttons switch original pages so lifecycle and native embeds remain unchanged. All tweak collections share Tweaks; graphics and FPS benchmarks share Benchmark. Original names remain in search/startup routes. New navigation_sections setting remembers the last section per group without changing old preferences.
+
+Browser fix (2.0.4, 2026-10-23): explicit sys._MEIPASS helper lookup in frozen builds, browser-component validation before packaging, missing-component recovery text distinct from WebView2 installation, and --verify-browser live helper/embedding/local-page check with an isolated profile. Patch version separates this build from old running 2.0.3 copies under the existing single-instance version protocol. Source and packaged live WebView2 initialization passed: helper found, window embedded, built-in New Tab document loaded; packaged startup exit 0. All consolidated navigation and saved browser data remain.
+
+Sidebar refinement (2.0.5): 19 main entries + About/Settings. Drivers, File Transfers, Backgrounds and App Starter restored as direct entries and removed from nested section duplicates. Tweaks and Benchmark remain combined. Short-menu scrollregions are at least viewport height, so scrolling cannot shift the menu into empty space. Legacy Storage & transfers startup alias preserved.
+
+Navigation titles refined by owner request: Hardware & cooling, Benchmark & FPS, Tweaks & presets, Gaming tools, Storage & cleanup, Windows appearance, Windows tools, PC planning, Help & activity. Old group names and remembered section preferences remain compatible through GROUP_ALIASES/preferred_section.
+
+2.0.6 owner refinements: Dashboard merges Quick Start actions, Game Mode/detection and recommendation with the live metric overview. Legacy tab 0 routes to Dashboard; single-destination groups have no section chips. Settings has one theme selector and one background animation selector/preview; additional animation controls are collapsed, existing setting keys preserved. Contextual AI matches the actual page title only, never RETWEAKS branding. Discord website button now reads exactly Get Retweaks.
+
+2.0.7: Drivers joins Get-PnpDevice -PresentOnly with installed signed-driver metadata across physical buses, excludes disconnected/software/virtual devices and per-thread processor duplicates, and retains all detected component categories. A category filter limits visible results. Vendor installer rows start hidden and only appear for detected matching devices; actual silicon vendor stays distinct from OEM support URL. Windows Update offers in-app applicable driver installation for other hardware; BIOS/firmware remain exact-model support links. Settings and prior driver installation confirmations/signature checks are unchanged.
+
+2.0.7 additional owner refinements: welcome tour explains category/section switches at the top of some pages; Windows backgrounds is the visible sidebar/page title (legacy Backgrounds routes retained); About Website button uses the same dark default style as its neighboring links.
+
+2.0.8 owner request: clean GitHub-ready snapshot with current source only, private keys in ignored ai/gemini_key.txt and GEMINI_API_KEY Actions secret, automatic missing feature dependency installation. core/dependencies.py pins verified PawnIO and PresentMon releases; WebView2 uses Microsoft Authenticode verification. rt_dependencies.py serializes per-component asynchronous setup, reports failures/restarts and avoids loops. Lively remains on-demand for animated actions. Settings automatic_dependencies defaults on; source app entry and frozen runtime enable setup, checks do not. Setup-ReTweaks.ps1 installs build prerequisites, build.py compiles helpers. Do not publish local keys or compiled GeminiChat.exe.
+
+2.0.9 user fixes: Windows backgrounds icon uses underscore slug and legacy icon fallback. Native browser menus recursively apply readable theme colors, rounded submenu regions and custom check/text rendering. Ctrl+K forwards from browser/site helpers. All tweaks gains a persistent-widget name/description/category filter; global tweak results open the filtered list without applying changes. Global search clears on navigation and uses a transient popup above native helper windows while preserving the existing in-window popup on Tk pages. Browser self-check verifies native menu theme/rounding and Ctrl+K events.
+
+Release publication: all current changes since 2.0.3 are released together as 2.0.4 at the user's request. core/version.py is the authoritative published version. Discord website button is Get Retweaks.

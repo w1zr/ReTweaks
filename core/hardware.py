@@ -206,7 +206,7 @@ def merge_gpus(dxgi_adapters, video_controllers):
     """Combine the DXGI GPU list (correct 64-bit VRAM, any vendor) with driver info from WMI."""
     gpus = []
     unused = list(video_controllers or [])
-    for a in dxgi_adapters or []:
+    for a in gpu_dxgi.unique_adapters(dxgi_adapters or []):
         match = None
         for v in unused:
             if v.get("name") and v["name"].lower() == a["name"].lower():
@@ -222,7 +222,7 @@ def merge_gpus(dxgi_adapters, video_controllers):
     if not gpus:
         # DXGI unavailable (very old Windows / remote session): fall back to WMI names only.
         # VRAM is left unknown on purpose: WMI's AdapterRAM is capped at 4 GB.
-        for v in video_controllers or []:
+        for v in gpu_dxgi.unique_adapters(video_controllers or []):
             if not v.get("name"):
                 continue
             gpus.append({

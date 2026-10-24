@@ -74,30 +74,31 @@ class SettingsPage:
         self.banner.pack(side="left", padx=8)
         label(b, "Banners only animate while the Dashboard is open and RETWEAKS isn't minimized. CPU cores and Load "
                  "wave show real live readings; Circuit and Galaxy are decoration.", g, 9, g["MUTED"])
-        # the base app's background accent (was on its Appearance page)
-        row = self._row(b)
-        self._lbl(row, "Background accent")
-        hub.animation_selector = g["RSelect"](row, list(ap.ANIMATIONS), width=200, command=hub.change_animation)
-        hub.animation_selector.set(hub.animation)
-        hub.animation_selector.pack(side="left", padx=8)
-        label(b, "Animations stay inside short banners on Home and this preview. Hidden pages pause drawing. "
-                 "Choose Off for no background animation.", g, 9, g["MUTED"])
-        hub.add_accent(b)
+        from rt_pages.background_controls import BackgroundControls
+        self.background_controls = BackgroundControls(self, b, g)
         # RETWEAKS theme maker + share codes (RET1- / RYT1-)
         from rt_pages.theme_maker_tk import ThemeMaker
         hub.theme_maker = ThemeMaker(hub, b, g)
 
+        dep = card(root, g, 'Feature dependencies',
+                   'Missing WebView2, PawnIO and PresentMon install when their feature is opened. Lively installs when you use animated wallpaper actions. Windows may ask for administrator permission or a restart.')
+        self.auto_dependencies = tk.BooleanVar(value=bool(s.get('automatic_dependencies', True)))
+        g['RCheck'](dep, 'Automatically install missing feature software', self.auto_dependencies,
+                    lambda:self.set_setting('automatic_dependencies', bool(self.auto_dependencies.get()))).pack(anchor='w',padx=16,pady=(4,12))
+
         # ---------------- Discord status (v1.4.3)
         d = card(root, g, "Discord status")
-        self.discord_on = tk.BooleanVar(value=bool(s.get("discord_status", False)))
+        self.discord_on = tk.BooleanVar(value=bool(s.get("discord_status", True)))
         self.discord_game = tk.BooleanVar(value=bool(s.get("discord_show_game", True)))
         g["RCheck"](d, "Show RETWEAKS on my Discord status", self.discord_on, self.discord_changed).pack(
             anchor="w", padx=16, pady=2)
         self.discord_game_cb = g["RCheck"](d, "Show which game I'm playing", self.discord_game,
                                            self.discord_changed)
         self.discord_game_cb.pack(anchor="w", padx=16, pady=2)
+        label(d, "Get Retweaks opens the ReTweaks website. Discord shows this button to other people, not on your own profile.", g, 9,
+              wrap=640, pady=2)
         self.discord_line = label(d, "", g, 10)
-        label(d, "Your Discord friends can see this. RETWEAKS only talks to the Discord app on this PC.", g, 9,
+        label(d, "Shows the ReTweaks logo, Optimizing with RETWEAKS and Windows PC tweaks. Requires Discord on this PC.", g, 9,
               g["MUTED"], pady=(0, 12))
 
         # ---------------- Behavior
@@ -404,6 +405,7 @@ class SettingsPage:
         self.start_page.set(cur if cur in names else "Dashboard")
         self.theme.values = ap.theme_names()
         self.theme.set(self.hub.theme_name)
+        self.background_controls.refresh()
         if autostart.available():
             run_bg(self.hub, autostart.is_enabled, lambda r: self.autostart.set(r is True))
         self.check_lhm()

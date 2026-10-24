@@ -4,6 +4,13 @@ import importlib.util
 import os
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
+# Fail before packaging if a browser component or its local pages are absent.
+for browser_file in ('ai/EmbeddedBrowser.exe', 'ai/Microsoft.Web.WebView2.Core.dll',
+                     'ai/Microsoft.Web.WebView2.WinForms.dll', 'ai/WebView2Loader.dll',
+                     'assets/browser-home.html', 'assets/browser-settings.html'):
+    if not os.path.isfile(browser_file) or os.path.getsize(browser_file) == 0:
+        raise RuntimeError('Required browser component is missing: ' + browser_file)
+
 
 datas = [
     ('assets', 'assets'),                     # chip logo, startup frames, sidebar icons, app artwork, .ico files
@@ -50,6 +57,25 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# OpenRGB keeps its own Qt runtime beside its executable. Analysis also hoists
+# its DLLs to the root, which Windows searches before PySide6's directory.
+# Root Qt DLLs must match PySide6; OpenRGB's private copies remain unchanged.
+import PySide6
+qt_runtime = os.path.dirname(PySide6.__file__)
+qt_binaries = []
+for destination, source, kind in a.binaries:
+    if (os.path.basename(destination) == destination
+            and destination.lower().startswith('qt6')
+            and 'openrgb' in source.lower()):
+        source = os.path.join(qt_runtime, destination)
+        if not os.path.isfile(source):
+            raise RuntimeError('Missing matching PySide6 runtime: ' + destination)
+    qt_binaries.append((destination, source, kind))
+# Qt 6 uses the Windows ICU API. A Poppler ICU from the build machine has
+# different exports despite the same filename and must not shadow System32.
+a.binaries = [entry for entry in qt_binaries
+              if not (entry[0].lower() == 'icuuc.dll'
+                      and 'poppler' in entry[1].lower())]
 pyz = PYZ(a.pure)
 
 exe = EXE(

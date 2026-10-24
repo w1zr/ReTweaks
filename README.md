@@ -15,6 +15,12 @@
 
 ---
 
+## Current version: 2.0.4
+
+This folder contains the current source, assets, bundled hardware tools, tests and Windows build workflow. See [GitHub setup](GITHUB_SETUP.md) before uploading. Generated EXEs are excluded from Git. The ignored local AI key file is private: push with Git and never upload that file through the browser.
+
+Recent changes include a merged Dashboard, grouped navigation, present-hardware driver matching, Windows backgrounds, contextual AI help, file transfers and embedded-browser fixes.
+
 ## What it does
 
 **Monitor**
@@ -75,6 +81,9 @@ and Settings have a button that opens it. GPU and drive temperatures usually wor
 > RETWEAKS isn't code-signed, so Windows SmartScreen or your antivirus may show a warning. All the source code is here on GitHub. Always download from the official releases page.
 
 ## Build from source
+
+For automatic Python/dependency setup on Windows, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup-ReTweaks.ps1 -Build`. Missing WebView2, PawnIO and PresentMon install automatically when their feature is opened; Lively installs when animated wallpaper actions need it. Disable this in Settings > Feature dependencies if desired.
+
 
 ```powershell
 git clone https://github.com/w1zr/retweaks.git

@@ -27,7 +27,7 @@ assert any(d.startswith("Tweak") for _, d, _ in gs.results)         # DNS tweaks
 gs.query.set("discord"); hub.update()
 assert titles()[0] == "Settings", titles()
 gs.open_selected(); hub.update()
-assert hub.cur_tab == hub.rt_tabs["Settings"] and gs.popup is None and gs.query.get() == ""
+assert hub.cur_tab == hub.rt_tabs["Settings"] and gs.popup is None and gs.text() == ""
 # --- tweak result opens its page and fills that page's own search
 ctt = next(x for x in app.TWEAKS if str(x["cat"]).startswith("CTT"))
 gs.focus(); gs.query.set(ctt["name"].lower()); hub.update()
@@ -66,10 +66,39 @@ gs.focus(); gs.query.set("zzzz-nothing"); hub.update()
 assert gs.results == [] and gs.popup is not None
 gs.clear(); hub.update()
 assert gs.popup is None and gs.query.get() == ""
+# A manual result opens a filtered list, and filtering never changes selection values.
+manual=next(t for t in app.TWEAKS if not str(t['cat']).startswith('CTT') and not any(c in str(t['cat']).lower() for c in ('custom','appearance','privacy','security')))
+gs.focus();gs.query.set(manual['name'].lower());hub.update()
+i=next(i for i,r in enumerate(gs.results) if r[0]==manual['name'] and r[1]=='Tweak · Individual tweaks')
+gs.open(i);hub.update()
+assert hub.tweaks_tab_current=='all' and hub.tweak_search.get()==manual['name']
+assert manual['id'] in hub.tweak_visible_ids and len(hub.tweak_visible_ids)<len(app.TWEAKS)
+hub.vars[manual['id']].set(True)
+hub.tweak_search.set('zzzz-no-matching-tweak');hub.update()
+assert hub.tweak_visible_ids==[] and hub.vars[manual['id']].get()
+assert abs(hub.tweak_scroll.canvasy(0))<=1
+hub.tweak_search.set('');hub.update()
+assert len(hub.tweak_visible_ids)==len(app.TWEAKS) and hub.vars[manual['id']].get()
+hub.vars[manual['id']].set(False)
+# Native pages need a separate transient popup above the embedded helper windows.
+for index in [19,20,25,28,29,hub.rt_tabs['Browser']]:
+    hub.show_tab(index);gs.focus();gs.query.set('network');hub.update()
+    assert gs.popup_host is not None and gs.popup_host.winfo_exists()
+    assert hub.focus_get() is gs.entry
+    title=gs.rows[0][1];assert title.cget('text')=='Network'
+    title.event_generate('<ButtonPress-1>',x=3,y=3);hub.update()
+    assert hub.cur_tab==side.targets['Network'] and gs.popup is None and gs.popup_host is None
+# Navigation closes results and clears stale query text.
+gs.focus();gs.query.set('dns');hub.update()
+hub.show_tab(hub.rt_tabs['Settings']);hub.update()
+assert gs.popup is None and gs.text()==''
+# Sidebar icon resolves even if the explicitly named asset is unavailable.
+assert side.icon('Windows backgrounds', app.FG) is not None
+
 # --- sidebar filter still works (internal)
 side.query.set("fortnite"); hub.update()
 shown = {n for n, b in side.buttons.items() if b.winfo_manager() and b.master is side.holder}
-assert {"Game profiles", "Game config files"} <= shown and "Dashboard" not in shown
+assert "Gaming tools" in shown and "Dashboard" not in shown
 side.query.set(""); hub.update()
 # --- theme change keeps the box and recolours the section
 hub.apply_theme("Ocean"); hub.update()

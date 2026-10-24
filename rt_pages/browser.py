@@ -169,6 +169,9 @@ class BrowserPage:
 
     def handle(self, d):
         kind = d.get("type")
+        if kind == "global-search":
+            self.hub.global_search.focus()
+            return
         if kind in ("ready", "loaded"):
             self.failed = False
             self._hide_overlay()
@@ -178,7 +181,8 @@ class BrowserPage:
         elif kind == "error":
             msg = d.get("message") or "The browser couldn't start."
             self.failed = True
-            self._show_overlay("The browser can't start", msg, buttons=True, runtime=True)
+            self._show_overlay("The browser can't start", msg, buttons=True,
+                               runtime=d.get('reason') != 'missing_component')
             self._log("Start the browser", "Failed", msg)
         elif kind == "stopped":
             if self.failed:

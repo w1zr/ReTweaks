@@ -12,6 +12,30 @@ Status legend: **keep** = the base app's version stays · **add** = RETWEAKS fea
 
 ## Pages and tools
 
+Owner request 2026-10-23: Windhawk, next to Browser in Tools, embeds https://windhawk.net/mods
+across the page using the shared EmbeddedSite WebView2 helper. Separate browser profile,
+visibility/resize/theme support, automatic recovery and clean shutdown match the existing site tabs.
+
+Overlay settings expansion (owner request 2026-10-23): individual FPS, 1%/0.1% lows, rolling
+average/min/max, frame time/count, CPU/GPU utilization, RAM percentage and GB, VRAM, temperatures,
+clocks, GPU power and names. Adds compact layout, refresh rate, edge margin and precision.
+Settings apply live and persist. Overlay holds the shared telemetry sampler while hardware readings
+are selected, even off the Dashboard; stale/missing readings remain unavailable. The 0.1% low needs
+at least 1,000 frames. No game injection; the existing borderless/windowed-fullscreen limitation stays.
+
+Owner request 2026-10-23: Fortnite-only stretched-resolution controls on Presets and Display.
+Edits only existing video keys in the Fortnite settings section, requests Fullscreen, backs up first,
+and restores only the previous video settings. It does not call desktop resolution APIs. The separate
+whole-display mode controls remain labeled as such. Fortnite/GPU-driver overrides require in-game verification.
+
+Owner additions 2026-10-23: contextual AI help across hardware, monitoring, Health Check, tweaks, games,
+drivers, network, storage, startup, cooling, display, benchmarks, apps and recovery (`feature_ai.py`).
+Questions are reviewable drafts in the existing assistant; feature observations follow Use hub context.
+Drivers adds a combined Install driver action: one consent, fresh official offer, download, publisher
+verification, then vendor setup. Existing separate download/run and Windows Update flows remain.
+Transparent TB (taskbar) is a new page with a description and Download button that immediately downloads
+and installs the official TranslucentTB App Installer package for the current Windows account.
+
 | Area | base app v1.4 | RETWEAKS v1.6 | Decision |
 |---|---|---|---|
 | Home / dashboard | Home with presets and cards | Live dashboard: per-thread CPU load, CPU clock (live, real), GPU load (all brands, Windows GPU counters), VRAM, disk/network speed, temps via LibreHardwareMonitor, animated banner | merge: Home stays, add **Live monitor** page |
@@ -42,7 +66,7 @@ Status legend: **keep** = the base app's version stays · **add** = RETWEAKS fea
 | Quick start chart (base app v1.5) | v1.5: GPU utilisation samples (Windows GPU engine counters) + CPU/GPU temperature gauge | — | **add** (`gpu_metrics.py`, hubplus) |
 | Other v1.5 fixes | rounded dropdown popup (RSelect), rounded pickers in Audio mixer / PC value, PC value custom country + two-column parts, colour picker field, sidebar slide resizes content, Blackout theme | — | **add** |
 | Not taken from v1.5 | startup manager, health check, system tray, Discord presence, updater, settings page, game config/files pages | RETWEAKS has its own | keep RETWEAKS' (owner decision) |
-| Not taken from v1.5 | Windows Activation page (embeds massgrave.dev, an unofficial Windows/Office activation tool) | — | **skipped**, owner to decide; also v1.5's empty bundled AI key (owner keeps the shared key) |
+| Windows Activation | Windows Activation page (embeds massgrave.dev, an unofficial Windows/Office activation tool) | — | **added by owner request 2026-10-23** using the shared EmbeddedSite helper (v1.5's empty bundled AI key remains excluded) |
 | Activity / logs | Activity log | Logs page | keep the base app's |
 | Appearance | themes + animations | 13 themes, custom accent, theme maker + share codes, sidebar header style, banner style | merge |
 | Settings / behaviour | first-run desktop shortcut | tray (on by default), start with Windows (+minimized), in-app updater (SHA-256), single instance + reopen animation, Discord status, sensor CSV logging | **add** |
@@ -98,3 +122,27 @@ Before (RETWEAKS Tk page around WebView2 in-process via pythonnet) -> after (ai/
 
 ### Owner-approved removals
 - 2026-10-23: **Notifications** page removed from the sidebar and search (owner request). Its data (`history.json`, recent tweak requests) is kept and still used for the AI context; a saved start page of Notifications moves to Dashboard.
+
+Discord presence (2026-10-23): application 1562695957651521627, verified retweaks-logo-1024 asset, Optimizing with RETWEAKS activity and a single Get Now button to https://w1zr.github.io/ReTweaks/. Enabled for new settings; existing explicit opt-outs stay off. Settings can toggle presence; shutdown clears it through local IPC.
+
+File Transfers (2026-10-23): new Tools page, file/folder selection, ZIP preserving folder names and empty folders, encrypted upload to Litterbox (1 GB, 1/12/24/72 hours), copy share code, receive by code to a ZIP, cancellation and honest byte progress. Sender can go offline after upload. AES-256-GCM keys stay in share codes, never settings/logs. Existing pages/settings retained; no existing defaults changed.
+
+File Transfers mixed picker (2026-10-23): Add files & folders selects both types together with Ctrl/Shift. The picker can collect items from multiple directories before Add to transfer. Existing separate file/folder buttons stay. Limits explained on-page: 1 GB total per transfer, up to 10,000 items; no ReTweaks daily counter/reset, no published provider daily quota/reset; each upload expires separately. Directory reads run in a background thread.
+
+Background improvements (2026-10-23): Settings gains visual theme tiles/favorites, larger live animation preview, speed/brightness/detail/FPS/banner-size settings, custom picture banners, Aurora/Starfield/Rain/Pulse. Existing theme/animation names and settings preserved. Hidden accents stop scheduling redraws. New Backgrounds Tools page previews local pictures and six local gradient presets, saves picture/video favorites, applies Windows pictures through IDesktopWallpaper with per-monitor picture+fit backup/restore, and optionally installs/controls Lively via its documented CLI. Lively remains optional; no install/apply happens on opening the page. Current wallpaper API is queried read-only until Apply.
+
+Owner navigation consolidation (2026-10-23): 15 main sidebar pages plus About/Settings. Mapping: docs/NAVIGATION_GROUPS.md and rt_navigation.GROUPS. Existing controls/page objects/tab indices stay; section buttons switch original pages so lifecycle and native embeds remain unchanged. All tweak collections share Tweaks; graphics and FPS benchmarks share Benchmark. Original names remain in search/startup routes. New navigation_sections setting remembers the last section per group without changing old preferences.
+
+Browser fix (2.0.4, 2026-10-23): explicit sys._MEIPASS helper lookup in frozen builds, browser-component validation before packaging, missing-component recovery text distinct from WebView2 installation, and --verify-browser live helper/embedding/local-page check with an isolated profile. Patch version separates this build from old running 2.0.3 copies under the existing single-instance version protocol. Source and packaged live WebView2 initialization passed: helper found, window embedded, built-in New Tab document loaded; packaged startup exit 0. All consolidated navigation and saved browser data remain.
+
+Sidebar refinement (2.0.5): 19 main entries + About/Settings. Drivers, File Transfers, Backgrounds and App Starter restored as direct entries and removed from nested section duplicates. Tweaks and Benchmark remain combined. Short-menu scrollregions are at least viewport height, so scrolling cannot shift the menu into empty space. Legacy Storage & transfers startup alias preserved.
+
+Navigation titles refined by owner request: Hardware & cooling, Benchmark & FPS, Tweaks & presets, Gaming tools, Storage & cleanup, Windows appearance, Windows tools, PC planning, Help & activity. Old group names and remembered section preferences remain compatible through GROUP_ALIASES/preferred_section.
+
+2.0.6: One Dashboard now shows the existing live metric cards and banner plus preset/driver/App Starter shortcuts, Game Mode, game detection and hardware-based preset review. Quick Start route remains compatible but opens Dashboard. Settings has one theme picker and one animation picker/preview; speed, brightness, detail, FPS and height remain behind More animation options with unchanged saved keys. Duplicate theme gallery removed by owner request for simplest controls; stored theme/favorite data is retained. Contextual AI uses page titles without branding, and Discord link text is Get Retweaks.
+
+2.0.7 present-hardware driver matching: scan currently connected PnP devices plus installed signed-driver metadata for all physical component categories; no graphics-only restriction or 32-row truncation. Virtual/disconnected devices and per-thread CPU duplicates excluded. Installer vendor rows hidden until detected, refinements preserve OEM vs silicon vendor distinction and remove stale matches on rescan. Categories come from detected rows only. Existing NVIDIA/AMD/Intel signed installer flow and Windows Update selected-driver installation remain; other components use applicable Windows Update or their official support page, not fabricated direct installers. Four matching tests and full mocked installer flow passed; actual read-only Windows scan yielded 118 present records / 75 distinct components. No driver installation performed during validation.
+
+2.0.7 final UI: setup How RETWEAKS works explains category/section switches; sidebar and wallpaper header say Windows backgrounds, with old Backgrounds route preserved; About Website uses dark default button. Welcome flow (native tray/hotkeys mocked), all-page navigation, visible label and About style checks passed. Final live scan prefers installed-driver model names and strips Bluetooth address-like IDs; 118 present records / 74 distinct rows.
+
+2.0.9: Windows backgrounds has an underscore-named sidebar icon plus compatibility fallback. Browser engine submenu recursively uses app colors, rounded region and readable item/check rendering. Global manual-tweak matches open All tweaks with name filtering; exact names are prioritized before the result cap. Local filters retain widget/selection state and fit short scrollregions. Search results use a transient host over native helpers, close and clear on tab switches, and receive Ctrl+K from browser/site helpers. Tests: 422 passed; expanded search/native focus, filtered selection and sidebar icon checks; native menu/theme/shortcut validation; all-page and browser lifecycle checks. No tweaks applied.

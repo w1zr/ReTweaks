@@ -25,7 +25,7 @@ import threading
 import time
 from ctypes import POINTER, Structure, c_int32, c_int64, c_uint8, c_uint16, c_uint32, c_uint64, c_void_p
 
-from core.overlay_fps import STALE_S, RollingMetrics, process_running
+from core.overlay_fps import STALE_S, RollingMetrics, process_running, empty_metrics
 
 SESSION_NAME = "RETWEAKS_frames"
 GAP_RESET_MS = 1000.0          # a pause longer than this (loading, alt-tab) is not a frame
@@ -392,7 +392,7 @@ class BuiltinOverlayStream:
     def snapshot(self):
         snap, src = self.agg.snapshot(self._pids)
         if snap is None:
-            snap = {"fps": None, "low1": None, "frame_ms": None}
+            snap = empty_metrics()
         else:
             self.source = src
         return snap, self.state

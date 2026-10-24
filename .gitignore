@@ -1,21 +1,26 @@
-*.log
-*.py[cod]
-*.spec
-.build-deps/
+# Local credentials and generated build sources
 .env
-.venv/
-.vscode/.pytest_cache/
-__pycache__/
-__pycache__/
-build*/
-build/
-dist*/
-dist/
-verification/
-!RETWEAKS.spec
-!RETWEAKS-*.spec
-
-# AI key (build.py): never commit it
-ai/gemini_key.txt
+.env.*
+!.env.example
+secrets/
+.secrets/
+**/gemini_key.txt
 ai/GeminiChat.build.cs
-ai/GeminiChat.exe
+*.pem
+*.pfx
+
+# Generated application/helpers, builds, caches and local verification
+/ai/*.exe
+/build*/
+/dist*/
+/verification/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.build-deps/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

@@ -46,6 +46,13 @@ def install(g):
     Card, Button, Nav = g['Card'], g['RButton'], g['NavItem']
     BG, SIDE, PANEL, FG, MUTED, ACC, GREEN = (g[k] for k in ('BG','SIDE','PANEL','FG','MUTED','ACC','GREEN'))
     UI = g['UI']
+    from feature_ai import attach_actions, topic_for
+    original_header = g['page_header']
+    def feature_header(parent, kicker, title, sub=None):
+        header = original_header(parent, kicker, title, sub)
+        attach_actions(parent, g, topic_for(title, kicker))
+        return header
+    g['page_header'] = feature_header
     Button.KINDS['primary'].update(fill=ACC,hfill='#ffffff',edge=ACC,hedge='#ffffff',fg='#141416',hfg='#141416')
     Button.KINDS['default'].update(hfill='#303035')
     Button.KINDS['ghost'].update(hfill='#242428')
@@ -53,10 +60,15 @@ def install(g):
     class Hub(Base):
         def __init__(self,show_intro=True,enable_ai=True,enable_web=None):
             self.enable_ai=enable_ai;self.ai_bridge=None;self.ai_ready=False;self.ai_pending=[]
+            self.ai_feature_topic=None
             self.enable_web=enable_ai if enable_web is None else enable_web
             self.site_bridge=None
             self.builder_bridge=None
             self.builder_failed=False
+            self.activation_bridge=None
+            self.activation_failed=False
+            self.windhawk_bridge=None
+            self.windhawk_failed=False
             self.site_failed=False
             self.sidebar_collapsed=False;self._navigation_ready=False;self._maximize_pending=True
             self.sidebar_fade=None
@@ -164,7 +176,7 @@ def install(g):
                       ('Presets',self.presets_page),('Tools',self.tools_overview),
                       ('Windows tweaks',self.windows_page),('Appearance',self.appearance_page),
                       ('Bottleneck calculator',self.bottleneck_page),('AI',self.ai_page),
-                      ('Auto clicker',self.automation_page),('Drivers',self.drivers_page),('App Starter',self.app_starter_page),('PC Value Checker',self.pc_value_page),('3D PC Builder',self.builder_page),('Daily Tools',self.daily_tools_page),('Audio Mixer',self.audio_page)]
+                      ('Auto clicker',self.automation_page),('Drivers',self.drivers_page),('App Starter',self.app_starter_page),('PC Value Checker',self.pc_value_page),('3D PC Builder',self.builder_page),('Daily Tools',self.daily_tools_page),('Audio Mixer',self.audio_page),('Windows Activation',self.activation_page),('Windhawk',self.windhawk_page)]
             for name, build in extras:
                 if getattr(self,'intro',None) is not None and not self.intro.closed:
                     self.intro.pump(f'Loading {name}\u2026')
@@ -186,6 +198,8 @@ def install(g):
             for i in range(len(self.nav)):self.nav[i]=_NoNav()
             from rt_sidebar import Sidebar
             self.sidebar_nav=Sidebar(self,side,g)
+            from rt_navigation import SectionNavigation
+            self.section_nav=SectionNavigation(self,g)
             # °C/°F changed anywhere -> Quick start's temperature gauge redraws at once
             from rt_pages.settings_store import on_temp_unit
             on_temp_unit(self,lambda unit:self.draw_chart() if hasattr(self,'chart') else None)
@@ -245,11 +259,14 @@ def install(g):
             if opened is not None:
                 try:opened._close_popup()
                 except Exception:pass
+            if i==0 and 'Dashboard' in getattr(self,'rt_tabs',{}):i=self.rt_tabs['Dashboard']
             if i==18 and 'Settings' in getattr(self,'rt_tabs',{}):i=self.rt_tabs['Settings']   # Appearance -> Settings
             if i==getattr(self,'rt_tabs',{}).get('Exact-undo tweaks'):        # now a tab inside Individual tweaks
                 i=1
                 if callable(getattr(self,'show_tweaks_tab',None)):self.show_tweaks_tab('exact')
             if i==self.cur_tab:return
+            search=getattr(self,'global_search',None)
+            if search is not None:search.on_tab_changed()
             previous=self.cur_tab
             pages={idx:self.rt_pages.get(k) for k,idx in getattr(self,'rt_tabs',{}).items()}
             if pages.get(previous) is not None and hasattr(pages[previous],'on_hidden'):
@@ -274,8 +291,16 @@ def install(g):
             # when leaving it instead of leaving focus in its hidden textbox.
             if self.builder_bridge is not None:
                 self.builder_bridge.send({'op':'visibility','visible':i==25})
+            if self.activation_bridge is not None:
+                self.activation_bridge.send({'op':'visibility','visible':i==28})
+            if self.windhawk_bridge is not None:
+                self.windhawk_bridge.send({'op':'visibility','visible':i==29})
+            if getattr(self,'section_nav',None) is not None:self.section_nav.show(i)
+            if getattr(self,'_navigation_ready',False):
+                from rt_dependencies import on_page
+                on_page(self,i)
             intro=getattr(self,'intro',None)
-            if previous in (19,20,25) and i not in (19,20,25) and (not self.show_intro or (intro is not None and intro.closed)):
+            if previous in (19,20,25,28,29) and i not in (19,20,25,28,29) and (not self.show_intro or (intro is not None and intro.closed)):
                 self.focus_force()
 
         def _methods_page(self, tab):
@@ -473,6 +498,8 @@ def install(g):
 
         def presets_page(self,tab):
             inner=self.page(tab,'Presets','Choose a goal, then review the included changes before applying.')
+            from fortnite_resolution_ui import FortniteResolutionPanel
+            self.fortnite_resolution=FortniteResolutionPanel(self,inner,g)
             query=tk.StringVar()
             self.label(inner,'Search presets',10,MUTED)
             g['REntry'](inner,query).pack(fill='x',padx=(0,12),pady=8)
@@ -541,7 +568,8 @@ def install(g):
             self.action(self.box(b,'Manual Windows tweaks','Review individual appearance, privacy and security commands, with Apply and Undo.'),'Review manual tweaks',lambda:self.show_tab(10))
 
         def add_accent(self,parent):
-            banner=Accent(parent,lambda:{k:g[k] for k in ('PANEL','LINE','ACC')},lambda:self.animation)
+            banner=Accent(parent,lambda:{k:g[k] for k in ('PANEL','LINE','ACC')},lambda:self.animation,
+                          lambda:self.settings)
             if self.animation!='Off':banner.pack(fill='x',padx=(0,12),pady=(8,4))
             self.accents.append(banner)
 
@@ -564,12 +592,17 @@ def install(g):
             if self.ai_bridge is not None:self.ai_bridge.update_theme()
             if self.site_bridge is not None:self.site_bridge.update_theme()
             if self.builder_bridge is not None:self.builder_bridge.update_theme()
+            if self.activation_bridge is not None:self.activation_bridge.update_theme()
+            if self.windhawk_bridge is not None:self.windhawk_bridge.update_theme()
             if hasattr(self,'drivers'):self.drivers.theme()
             if hasattr(self,'chrome'):self.chrome.apply_native()
             if hasattr(self,'chart'):self.draw_chart()
             for sel in getattr(self,'_theme_selectors',[]):
                 try:sel.values=theme_names();sel.set(name)
                 except tk.TclError:pass
+            settings_page=getattr(self,'rt_pages',{}).get('Settings')
+            controls=getattr(settings_page,'background_controls',None)
+            if controls:controls.refresh()
             if save:self.save_appearance()
 
         def save_appearance(self):
@@ -579,6 +612,9 @@ def install(g):
         def change_animation(self,style):
             if style not in ANIMATIONS:return
             self.animation=style
+            settings_page=getattr(self,'rt_pages',{}).get('Settings')
+            controls=getattr(settings_page,'background_controls',None)
+            if controls:controls.style.set(style)
             for banner in self.accents:
                 if style=='Off':banner.pack_forget()
                 elif not banner.winfo_manager():
@@ -679,6 +715,10 @@ def install(g):
                         self.handle_ai_event(event[1])
                     elif event[0]=='builder_event':
                         self.handle_site_event('builder',event[1])
+                    elif event[0]=='activation_event':
+                        self.handle_site_event('activation',event[1])
+                    elif event[0]=='windhawk_event':
+                        self.handle_site_event('windhawk',event[1])
                     elif event[0]=='site_event':
                         self.handle_site_event('site',event[1])
                     elif event[0]=='benchmark_cancelled':
@@ -708,6 +748,8 @@ def install(g):
             status=getattr(self,prefix+'_status');frame=getattr(self,prefix+'_frame')
             if 'message' in data:status.config(text=data['message'])
             kind=data.get('type')
+            if kind=='global-search':
+                self.global_search.focus();return
             if kind=='loaded':
                 status.pack_forget();setattr(self,prefix+'_failed',False);bridge.recoveries=0
             elif kind in ('loading','retrying','notice','error','stopped'):
@@ -746,6 +788,46 @@ def install(g):
                 self.builder_status.config(text='Loading the BuildCores website inside RETWEAKS…')
                 self.builder_bridge.start()
             self.builder_bridge.send({'op':'visibility','visible':True})
+
+        def activation_page(self,tab):
+            self.activation_status=tk.Label(tab,text='',bg=BG,fg=MUTED,font=(UI,10),wraplength=800)
+            self.activation_frame=tk.Frame(tab,bg=PANEL,highlightthickness=0)
+            self.activation_frame.pack(fill='both',expand=True)
+            self.activation_frame.bind('<Map>',lambda e:self.ensure_activation())
+            self.activation_frame.bind('<Unmap>',lambda e:self.activation_bridge.send({'op':'visibility','visible':False}) if self.activation_bridge is not None else None)
+
+        def ensure_activation(self):
+            if not self.enable_web or self.cur_tab!=28:return
+            if self.activation_failed:
+                if self.activation_bridge is not None:self.activation_bridge.close()
+                self.activation_bridge=None;self.activation_failed=False
+            if self.activation_bridge is None:
+                self.activation_bridge=EmbeddedSite(self.activation_frame,lambda:{k:g[k] for k in ('BG','PANEL','FG','MUTED','ACC','LINE')},self.q,activation=True)
+            if self.activation_bridge.process is None or self.activation_bridge.process.poll() is not None:
+                self.activation_status.pack_forget()
+                self.activation_status.config(text='Loading the Windows Activation website inside RETWEAKS…')
+                self.activation_bridge.start()
+            self.activation_bridge.send({'op':'visibility','visible':True})
+
+        def windhawk_page(self,tab):
+            self.windhawk_status=tk.Label(tab,text='',bg=BG,fg=MUTED,font=(UI,10),wraplength=800)
+            self.windhawk_frame=tk.Frame(tab,bg=PANEL,highlightthickness=0)
+            self.windhawk_frame.pack(fill='both',expand=True)
+            self.windhawk_frame.bind('<Map>',lambda e:self.ensure_windhawk())
+            self.windhawk_frame.bind('<Unmap>',lambda e:self.windhawk_bridge.send({'op':'visibility','visible':False}) if self.windhawk_bridge is not None else None)
+
+        def ensure_windhawk(self):
+            if not self.enable_web or self.cur_tab!=29:return
+            if self.windhawk_failed:
+                if self.windhawk_bridge is not None:self.windhawk_bridge.close()
+                self.windhawk_bridge=None;self.windhawk_failed=False
+            if self.windhawk_bridge is None:
+                self.windhawk_bridge=EmbeddedSite(self.windhawk_frame,lambda:{k:g[k] for k in ('BG','PANEL','FG','MUTED','ACC','LINE')},self.q,windhawk=True)
+            if self.windhawk_bridge.process is None or self.windhawk_bridge.process.poll() is not None:
+                self.windhawk_status.pack_forget()
+                self.windhawk_status.config(text='Loading the Windhawk website inside RETWEAKS…')
+                self.windhawk_bridge.start()
+            self.windhawk_bridge.send({'op':'visibility','visible':True})
 
         def bottleneck_page(self,tab):
             self.site_status=tk.Label(tab,text='',bg=BG,fg=MUTED,font=(UI,10),wraplength=800)
@@ -842,6 +924,14 @@ def install(g):
                 'do not assume I have already tried or completed these steps. '
                 'Ask only for essential missing information. Do not make changes yourself.')
 
+        def ask_feature_ai(self,topic,task):
+            from feature_ai import TOPICS, draft
+            if topic not in TOPICS:return
+            self.ai_feature_topic=topic
+            self.show_tab(20)
+            self.insert_ai_draft(draft(topic,task))
+            self.ai_status.config(text='From '+TOPICS[topic][0]+'. Review your question, then press Send. Use hub context controls which observations are shared.')
+
         def insert_ai_draft(self,text):
             self.ensure_ai()
             if self.ai_bridge is not None and self.ai_ready and self.ai_bridge.send({'op':'insert','text':text}):
@@ -859,6 +949,8 @@ def install(g):
                 if hasattr(self,'automation'):self.automation.stop()
                 if self.site_bridge is not None:self.site_bridge.close(wait=True)
                 if self.builder_bridge is not None:self.builder_bridge.close(wait=True)
+                if self.activation_bridge is not None:self.activation_bridge.close(wait=True)
+                if self.windhawk_bridge is not None:self.windhawk_bridge.close(wait=True)
                 if self.ai_bridge is not None:self.ai_bridge.close(wait=True)
                 for name in ('rgb_lighting','fan_control','temperatures','gpu_sampler'):
                     obj=getattr(self,name,None)
@@ -882,7 +974,7 @@ def install(g):
                 'F6 starts or stops clicking by default; it can be changed using Apply hotkey. Esc stops clicking. '
                 'App Starter contains 100 curated apps with search, category filters, paginated browsing and editable setup packages. Failed downloads/installations expose error codes and redacted log excerpts, optional AI explanations, local fallback guidance and deliberate retry controls. AI suggestions do not execute fixes. AI reviews live source metadata, then Install selected installs or updates those apps inside the hub; download-only mode is also available. '
                 'Drivers shows only CPU/chipset, GPU, motherboard and BIOS support, reads live official vendor sources, uses AI to match '
-                'download links, and caches results for 24 hours. It does not install drivers; unconfirmed releases are labeled. '
+                'download links, and caches results for 24 hours. Unconfirmed releases are labeled. '
                 'The themed top bar supports minimize, maximize and fullscreen. F11 toggles fullscreen; Esc exits it. '
                 'Recommend the relevant app page when helpful.')
             snapshot={}
@@ -899,6 +991,22 @@ def install(g):
                     'recent_action_requests_not_verified_results':[{'time':e.get('time'),'action':e.get('action'),'tweaks':[g['BYID'][i]['name'] for i in e.get('ids',[]) if i in g['BYID']][:30]} for e in self.events[-5:]],
                     'latest_benchmark':{k:v for k,v in (self.bench_history[-1] if self.bench_history else {}).items() if k in ('score','fps','low_fps','time','date','test')},
                     'unknowns':'Uncollected Windows settings and in-game graphics settings are unknown.'}
+            instructions += (' Contextual AI help is available across hardware, diagnostics, tweaks, games, network, '
+                'storage, startup, cooling, display, benchmarks, apps and recovery. Explain parts and tasks using '
+                'the supplied feature observations. Do not invent current product prices, specifications or online research. '
+                'Drivers has Install driver: checks the official release, asks once, downloads, verifies the publisher '
+                'signature and launches the vendor setup. Download and Run installer are also available separately. '
+                'AMD uses its auto-detect setup; Intel uses Driver & Support Assistant, whose later driver scan may '
+                'use a browser. Windows Update can install selected driver updates directly inside RETWEAKS. '
+                'Presets and Display offer Fortnite-only stretched resolution: edits only Fortnite GameUserSettings.ini '
+                'video settings, with backup and resolution-only undo. It requests Fullscreen and custom dimensions; '
+                'the game or graphics driver may override them. It never changes Windows desktop resolution. '
+                'Transparent TB (taskbar) downloads and installs the official TranslucentTB package when Download is clicked. '
+                'Never claim a download, launched setup or AI recommendation proves installation succeeded. '
+                'Recommend the named RETWEAKS controls, then wait for the user to apply changes.')
+            if snapshot and self.ai_feature_topic:
+                from feature_ai import observations
+                snapshot['feature_context']=observations(self,self.ai_feature_topic)
             return {'op':'context','instructions':instructions,'snapshot':json.dumps(snapshot,ensure_ascii=False) if snapshot else ''}
 
         def view_ai_context(self):

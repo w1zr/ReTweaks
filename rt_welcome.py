@@ -334,7 +334,7 @@ class Welcome:
                       "how it's laid out and asks five quick questions. You can change every answer later in "
                       "Settings."),
             dict(key="how", anim=self.anim_how, title="How RETWEAKS works",
-                 body="Everything lives in the sidebar on the left, in three groups. Every tweak shows what it "
+                 body="Choose a page in the sidebar. Some pages have categories or sections at the top: switch between them to find related tools. Every tweak shows what it "
                       "changes before you apply it, and can be undone."),
             dict(key="unit", anim=self.anim_unit, title="Celsius or Fahrenheit?",
                  body="Used for every temperature in RETWEAKS: Dashboard, Hardware, Temperatures and fan curves.",

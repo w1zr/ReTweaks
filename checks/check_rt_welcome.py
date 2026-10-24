@@ -11,6 +11,20 @@ APPDATA = tempfile.mkdtemp(); os.environ["APPDATA"] = APPDATA; os.environ["LOCAL
 os.environ["USERPROFILE"] = tempfile.mkdtemp()
 import retweaks as app, hubplus, rt_shell, rt_welcome, rt_autoupdate
 from rt_pages import settings_store
+# Isolate native tray/hotkeys so this tour test can run in a restricted desktop session.
+from unittest.mock import Mock
+import automation
+class FakeHotkeys:
+    def __init__(self,*a):self.thread=Mock()
+    def update(self,*a):pass
+    def close(self):pass
+class FakeTray:
+    def __init__(self,hub):self.icon=None;self.error=None
+    def start(self):self.icon=object();return True
+    def stop(self):self.icon=None
+    def notify(self,*a):pass
+automation.Hotkeys=FakeHotkeys
+rt_shell.Tray=FakeTray
 app.Hub._load_info = lambda self: None
 hubplus.install(vars(app))
 cfg = lambda: json.load(open(os.path.join(APPDATA, "RETWEAKS", "config.json")))
@@ -45,6 +59,7 @@ rt_autoupdate.start = lambda hub, delay=0: started.append(1)
 
 w.next(); pump()                                     # welcome -> how
 assert w.steps[w.i]["key"] == "how" and len(w.cards) == 4
+assert "categories or sections at the top" in w.steps[w.i]["body"]
 w.next(); pump()                                     # how -> unit
 assert w.steps[w.i]["key"] == "unit"
 w.pick("unit", "F"); pump()

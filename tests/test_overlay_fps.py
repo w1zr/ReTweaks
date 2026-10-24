@@ -71,7 +71,7 @@ def test_window_drops_old_frames():
 
 def test_unavailable_thresholds():
     m = of.RollingMetrics()
-    assert m.snapshot() == {"fps": None, "low1": None, "frame_ms": None}
+    assert m.snapshot() == of.empty_metrics()
     for _ in range(99):
         m.add(10.0)
     s = m.snapshot()
@@ -102,9 +102,7 @@ def test_corner_position_and_settings():
     assert of.corner_position(area, size, "bottom-left") == (1936, 1080 - 100 - 16)
     assert of.corner_position(area, size, "bottom-right") == (3624, 964)
     c = of.clean_settings({"overlay_position": "bad", "overlay_opacity": "200", "overlay_size": "huge"})
-    assert c == {"overlay_position": "top-left", "overlay_size": "medium",
-                 "overlay_show_load": True, "overlay_opacity": 100, "overlay_source": "builtin",
-                 "overlay_low_window_s": 10, "overlay_fps_span_s": 1.0}
+    assert c == {**of.DEFAULTS, "overlay_opacity": 100}
     assert of.clean_settings({"overlay_source": "presentmon"})["overlay_source"] == "presentmon"
     assert of.clean_settings({"overlay_source": "evil"})["overlay_source"] == "builtin"
     assert of.clean_settings({"overlay_opacity": 10})["overlay_opacity"] == 50

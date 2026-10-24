@@ -27,6 +27,9 @@ REGISTRY = [
     ("Crosshair", "rt_pages.crosshair", "CrosshairPage"),
     ("About", "rt_pages.about", "AboutPage"),
     ("Settings", "rt_pages.settings_page", "SettingsPage"),
+    ("Transparent TB (taskbar)", "rt_pages.taskbar", "TaskbarPage"),
+    ("File Transfers", "rt_pages.file_transfers", "FileTransfersPage"),
+    ("Backgrounds", "rt_pages.wallpaper", "WallpaperPage"),
 ]
 
 

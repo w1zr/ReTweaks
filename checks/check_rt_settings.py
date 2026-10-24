@@ -122,6 +122,17 @@ tm.name.set("My purple"); tm.delete(); hub.update()
 assert "My purple" not in disk()["custom_themes"] and hub.theme_name == "Graphite"
 # --- old keys survived every write
 assert disk()["some_old_key"] == 42
+# --- visual background controls preserve the existing settings model
+background = page.background_controls
+assert not background.advanced.winfo_manager()
+background.toggle_advanced(); assert background.advanced.winfo_manager() == 'pack'
+background.toggle_advanced(); assert not background.advanced.winfo_manager()
+background.set_option('animation_speed', 1.5)
+background.set_option('animation_fps', 10)
+assert disk()['animation_speed'] == 1.5 and disk()['animation_fps'] == 10
+assert disk()['some_old_key'] == 42
+background.change('Aurora'); assert hub.animation == 'Aurora' and hub.animation_selector.get() == 'Aurora'
+background.change('Fireflies')
 hub.destroy()
 print("PASS: settings persist to config.json, controls drive the shell/sidebar/dashboard, themes map from "
       "RETWEAKS, theme maker save/preview/share/delete.")

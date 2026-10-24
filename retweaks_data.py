@@ -1156,7 +1156,7 @@ $r.gpus = @($gp | ForEach-Object {
   if ($_.DriverDate) { $dd = $_.DriverDate.ToString('yyyy-MM-dd') }
   $vg = 0
   if ($v) { $vg = [math]::Round([double]$v / 1GB, 1) }
-  [ordered]@{ name = S $_.Name; pnp = $(if ($_.PNPDeviceID -like 'PCI\*') {'PCI\'} else {'OTHER'}); vram = $vg; driver = S $_.DriverVersion; date = $dd; res = $res; hz = S $_.CurrentRefreshRate }
+  [ordered]@{ name = S $_.Name; pnp = S $_.PNPDeviceID; vram = $vg; driver = S $_.DriverVersion; date = $dd; res = $res; hz = S $_.CurrentRefreshRate }
 })
 $r.monitors = @(Get-CimInstance -Namespace root/wmi -ClassName WmiMonitorID | ForEach-Object {
   $n = -join ($_.UserFriendlyName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ })
@@ -1220,6 +1220,15 @@ def sysinfo():
     except Exception:
         raw = None
     if isinstance(raw, dict):
+        from core.gpu_dxgi import unique_adapters
+        raw['gpus'] = unique_adapters([
+            {**gpu, 'pnp_id': gpu.get('pnp')} for gpu in _lst(raw.get('gpus'))
+            if isinstance(gpu, dict)
+        ])
+        if raw['gpus']:
+            raw['gpu'] = ', '.join(gpu['name'] for gpu in raw['gpus'])
+        else:
+            raw['gpu'] = 'Unavailable'
         for k, v in raw.items():
             if isinstance(v, (str, int, float)) and not isinstance(v, bool):
                 info[k] = str(v)

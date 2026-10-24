@@ -3,9 +3,9 @@ import json
 from drivers import components,payload,apply_results,allowed_url,fingerprint,vendor_results
 info={'os':'Windows 11','gpu':'NVIDIA GeForce RTX 4060','cpu':'AMD Ryzen 9','raw':{'host':'SECRET-PC','user':'SECRET-USER','serial':'SECRET-SERIAL','model':'Test PC','maker':'Test Maker','board':'ASUSTeK TUF GAMING B650-PLUS','os_arch':'64-bit','gpus':[{'name':'NVIDIA GeForce RTX 4060','driver':'32.0.test'}]}}
 rows=components(info,[{'name':'Intel Wi-Fi 6 AX200','class':'NET','provider':'Intel','version':'1.2','hardware':'VEN_8086&DEV_1234'}])
-assert len(rows)==4
-assert {r['kind'] for r in rows}=={'Graphics','CPU / chipset','Motherboard','BIOS'}
-assert not any('Wi-Fi' in r['name'] for r in rows)
+assert len(rows)==5
+assert {r['kind'] for r in rows}=={'Graphics','CPU / chipset','Motherboard','BIOS','Network'}
+assert any('Wi-Fi' in r['name'] for r in rows)
 assert rows[0]['vendor']=='NVIDIA' and rows[1]['vendor']=='ASUS' and rows[2]['vendor']=='ASUS'
 data=payload(info,rows)
 assert 'SECRET' not in json.dumps(data)

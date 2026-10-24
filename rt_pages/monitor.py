@@ -217,7 +217,7 @@ class TelemetryService:
 
     def acquire(self, who):
         self.holders.add(who)
-        if self.thread is None or not self.thread.is_alive():
+        if self.thread is None or not self.thread.is_alive() or self.stop_flag.is_set():
             self.stop_flag = threading.Event()
             self.thread = threading.Thread(target=self._run, args=(self.stop_flag,), daemon=True,
                                            name="RetweaksTelemetry")
@@ -631,6 +631,22 @@ class MonitorPage:
                                 anchor="w", justify="left", wraplength=900)
         self.summary.pack(fill="x", pady=(0, 8))
 
+        # Quick Start actions share the live overview instead of a second dashboard.
+        actions = tk.Frame(body, bg=g['BG'])
+        actions.pack(fill='x', pady=(4, 10), padx=(0, 12))
+        for column, (title, description, caption, target) in enumerate((
+            ('Tune your PC', 'Review a preset or choose individual settings.', 'Browse presets', 15),
+            ('Drivers', 'Find official drivers for your hardware.', 'Find drivers', 22),
+            ('Set up apps', 'Install the apps you choose in one place.', 'Open App Starter', 23),
+        )):
+            actions.columnconfigure(column, weight=1, uniform='quick')
+            tile=g['Card'](actions)
+            tile.grid(row=0,column=column,sticky='nsew',padx=(0,8))
+            from rt_pages.common import label
+            label(tile.body,title,g,14,bold=True,pady=(12,3))
+            label(tile.body,description,g,9,g['MUTED'],wrap=260)
+            g['RButton'](tile.body,caption,lambda i=target:hub.show_tab(i)).pack(anchor='w',padx=16,pady=(6,12))
+
         self.notice = g["Card"](body)
         tk.Label(self.notice.body, text=(
             "CPU temperature and fan speeds aren't available yet. Windows needs a hardware driver for those. "
@@ -659,6 +675,24 @@ class MonitorPage:
         self.status = tk.Label(body, text="", bg=g["BG"], fg=g["MUTED"], font=(g["UI"], 9), anchor="w")
         self.status.pack(fill="x", pady=(6, 0))
         self._layout_cards()
+
+        from rt_pages.common import card, label, button_row
+        activity=card(body,g,'Game Mode & recommendations',
+                      'Review changes before applying. Live readings above show current performance.')
+        hub.game_status=label(activity,hub.game_mode_status(),g,10)
+        hub.detected=label(activity,'Detected game ... Scanning...',g,9,g['MUTED'])
+        row=button_row(activity,g)
+        for caption,command in (
+            ('Toggle Windows Game Mode',hub.toggle_game_mode),
+            ('Game profiles',lambda:hub.show_tab(3)),
+            ('Individual tweaks',lambda:hub.show_tab(1)),
+            ('Backups & fixes',lambda:hub.show_tab(11)),
+        ):
+            g['RButton'](row,caption,command).pack(side='left',padx=(0,8))
+        hub.rec_lbl=label(activity,'Scanning hardware for a suitable preset...',g,10,g['MUTED'])
+        hub.rec_btn=g['RButton'](activity,'Review recommendation',lambda:hub.open_preset(hub.rec_key))
+        hub.rec_btn.pack(anchor='w',padx=16,pady=(4,12))
+        hub.rec_btn.set_enabled(False)
 
         self.svc.listeners.append(self.on_telemetry)
         on_static(hub, self.on_static)

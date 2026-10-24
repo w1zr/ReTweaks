@@ -36,7 +36,7 @@ JUNK=('system manufacturer','system product name','to be filled','default string
 
 def vendor(text):
     text=str(text).lower()
-    for token,name in [('advanced micro devices','amd'),('ati technologies','amd'),('radeon','amd'),('geforce','nvidia'),('quadro','nvidia'),('micro-star','msi'),('micro star','msi'),('hewlett','hp'),('asustek','asus'),('aorus','gigabyte'),('killer','intel')]:
+    for token,name in [('advanced micro devices','amd'),('ati technologies','amd'),('radeon','amd'),('ryzen','amd'),('geforce','nvidia'),('quadro','nvidia'),('micro-star','msi'),('micro star','msi'),('hewlett','hp'),('asustek','asus'),('aorus','gigabyte'),('killer','intel')]:
         if token in text:return name
     for key in VENDORS:
         if re.search(r'\b'+re.escape(key)+r'\b',text):return key
@@ -53,40 +53,72 @@ def physical_gpu(name,device_id=''):
     return vendor(text) in ('nvidia','amd','intel')
 
 
-def components(info,devices):
+def components(info,devices,present_only=False):
     raw=info.get('raw') if isinstance(info.get('raw'),dict) else {}
     maker=vendor(raw.get('maker',''));model=clean(raw.get('model'))
     board=clean(raw.get('board'));oem=maker if maker in ('dell','hp','lenovo','asus','acer','msi','microsoft') and known(model) else None
     result=[];seen=set()
     def add(kind,name,provider='',version='',date='',hardware='',preferred=None):
-        if not known(name) or (kind,name.lower()) in seen:return
+        if (not known(name) and not hardware) or (kind,name.lower()) in seen:return
         if kind=='Graphics' and not physical_gpu(name):return
         seen.add((kind,name.lower()));v=preferred or vendor(name+' '+provider) or oem or 'microsoft'
         title,url,domains=VENDORS[v]
-        result.append({'id':f'component-{len(result)}','kind':kind,'name':clean(name),'vendor':title,'vendor_key':v,'installed':clean(version,80),'installed_date':clean(date,40),'hardware':clean(hardware,160),'url':url,'domains':domains,'oem':clean((raw.get('maker','')+' '+model).strip()) if oem else ''})
-    for gpu in many(raw.get('gpus')):
-        if physical_gpu(gpu.get('name'),gpu.get('pnp','')):add('Graphics',clean(gpu.get('name')),version=gpu.get('driver',''),date=gpu.get('date',''))
-    if not many(raw.get('gpus')) and known(info.get('gpu')):
-        for name in str(info['gpu']).split(', '):add('Graphics',name)
+        result.append({'id':f'component-{len(result)}','kind':kind,'name':clean(name),'vendor':title,'vendor_key':v,'device_vendor':vendor(name+' '+provider) or '','installed':clean(version,80),'installed_date':clean(date,40),'hardware':clean(hardware,160),'url':url,'domains':domains,'oem':clean((raw.get('maker','')+' '+model).strip()) if oem else ''})
+    if not present_only:
+        for gpu in many(raw.get('gpus')):
+            if physical_gpu(gpu.get('name'),gpu.get('pnp','')):add('Graphics',clean(gpu.get('name')),version=gpu.get('driver',''),date=gpu.get('date',''))
+        if not many(raw.get('gpus')) and known(info.get('gpu')):
+            for name in str(info['gpu']).split(', '):add('Graphics',name)
     cpu=clean(raw.get('cpu') or info.get('cpu'))
     if known(cpu):add('CPU / chipset',cpu,preferred=oem or vendor(board) or vendor(cpu))
     board_name=board if known(board) else clean(raw.get('maker','')+' '+model)
     if known(board_name):
         add('Motherboard',board_name,preferred=oem or vendor(board))
         add('BIOS',board_name,version=raw.get('bios',''),date=raw.get('bios_date',''),preferred=oem or vendor(board))
+    categories={'DISPLAY':'Graphics','NET':'Network','MEDIA':'Audio','AUDIOENDPOINT':'Audio',
+                'BLUETOOTH':'Bluetooth','SCSIADAPTER':'Storage controller','HDC':'Storage controller',
+                'DISKDRIVE':'Storage','USB':'USB controller','HIDCLASS':'Input device',
+                'KEYBOARD':'Keyboard','MOUSE':'Mouse','MONITOR':'Monitor','SYSTEM':'Chipset / system',
+                'PROCESSOR':'CPU / chipset','FIRMWARE':'Firmware','CAMERA':'Camera','IMAGE':'Camera / scanner',
+                'PRINTER':'Printer','PRINTQUEUE':'Printer','BATTERY':'Battery','SECURITYDEVICES':'Security device',
+                'SDHOST':'Card reader','WPD':'Portable device','SENSOR':'Sensor'}
     for d in devices:
-        if str(d.get('class','')).upper()!='DISPLAY' or not physical_gpu(d.get('name'),d.get('pnp','')):continue
+        if d.get('present') is False:continue
+        cls=str(d.get('class','')).upper()
         name=clean(d.get('name'))
-        row=next((r for r in result if r['kind']=='Graphics' and r['name'].lower()==name.lower()),None)
+        if re.search(r'virtual|remote|software|loopback|wan miniport|wi-fi direct|microsoft wi-fi direct|vpn|tunnel|hyper-v|vmware|parsec|spacedesk|generic volume|volume shadow',name,re.I):continue
+        kind=categories.get(cls,'Other hardware')
+        if cls=='DISPLAY' and not physical_gpu(name,d.get('pnp','')):continue
+        if cls=='PROCESSOR':continue  # CPU model is already represented once, not once per thread.
+        row=next((r for r in result if r['kind']==kind and r['name'].lower()==name.lower()),None)
         if row:
             if d.get('version'):row['installed']=clean(d['version'],80)
             if d.get('hardware'):row['hardware']=clean(d['hardware'],160)
-        else:add('Graphics',name,clean(d.get('provider')),d.get('version',''),d.get('date',''),d.get('hardware',''))
-    return result[:32]
+        else:
+            # Laptop/prebuilt support pages carry the OEM-specific audio/network/chipset packages.
+            add(kind,name,clean(d.get('provider')),d.get('version',''),d.get('date',''),
+                d.get('hardware',''),preferred=oem if kind!='Graphics' else None)
+            row=next((r for r in result if r['kind']==kind and r['name'].lower()==name.lower()),None)
+        if row:row['device_vendor']=vendor(name+' '+clean(d.get('provider'))) or ''
+    return result
 
-SCAN=r'''$ErrorActionPreference='SilentlyContinue'; @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -in @('DISPLAY') -and $_.DeviceID -match '^PCI\\' } | Select-Object -First 45 | ForEach-Object { $id=($_.DeviceID -split '\\')[1]; [ordered]@{name=$_.DeviceName; class=$_.DeviceClass; provider=$_.DriverProviderName; version=$_.DriverVersion; date=$(if($_.DriverDate){$_.DriverDate.ToString('yyyy-MM-dd')}else{''}); hardware=$id; pnp=$(if($_.DeviceID -match '^PCI\\'){'PCI\\'}else{'OTHER'})} }) | ConvertTo-Json -Depth 3 -Compress'''
+# Join present PnP devices to installed drivers. Never include disconnected historical devices.
+# Only the bus/model portion is returned; instance suffixes can contain serial numbers.
+SCAN=r'''$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8;
+$present=@(Get-PnpDevice -PresentOnly -ErrorAction Stop);
+$signed=@{}; Get-CimInstance Win32_PnPSignedDriver -ErrorAction Stop | ForEach-Object { if($_.DeviceID){$signed[$_.DeviceID]=$_} };
+$out=@(foreach($p in $present){
+ if($p.InstanceId -notmatch '^(PCI|USB|HID|HDAUDIO|INTELAUDIO|ACPI|SCSI|IDE|BTH|BTHENUM|BTHLEDEVICE|DISPLAY|SD|UEFI|USBPRINT|DOT4PRT|WSDPRINT)\\'){continue}
+ $d=$signed[$p.InstanceId]; $parts=$p.InstanceId -split '\\';
+ $modelid=$parts[1]; if($parts[0] -match '^BTH'){$modelid=([regex]::Matches($modelid,'(?i)(?:VID|PID)[_&][0-9A-F]+') | ForEach-Object {$_.Value}) -join '&'}
+ [ordered]@{name=$(if($d.DeviceName){$d.DeviceName}elseif($parts[0] -match '^BTH'){$p.Class+' device'}elseif($p.FriendlyName){$p.FriendlyName}else{$p.Class+' device'});
+ class=$(if($p.Class){$p.Class}else{$d.DeviceClass});provider=$d.DriverProviderName;
+ version=$d.DriverVersion;date=$(if($d.DriverDate){$d.DriverDate.ToString('yyyy-MM-dd')}else{''});
+ hardware=$modelid;pnp=$parts[0]+'\';present=$true;status=[string]$p.Status}
+}); ConvertTo-Json -InputObject $out -Depth 3 -Compress'''
+
 def inventory():
-    completed=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',SCAN],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=30,creationflags=0x08000000)
+    completed=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',SCAN],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=60,creationflags=0x08000000)
     text=completed.stdout.lstrip('\ufeff').strip()
     if completed.returncode:raise OSError('Windows driver scan did not finish.')
     data=json.loads(text or '[]');return many(data)
@@ -170,10 +202,12 @@ def apply_results(rows,answer,checker=reachable):
 class DriversPage:
     def __init__(self,hub,tab,g,cache_path,enabled=True):
         self.hub=hub;self.g=g;self.tab=tab;self.path=cache_path;self.enabled=enabled;self.started=False;self.busy=False;self.rows=[];self.closed=False;self.lookup_process=None
-        body=hub.page(tab,'Drivers','CPU/chipset, GPU, motherboard and BIOS. Automatically matched to this PC; click an official link to continue.')
+        body=hub.page(tab,'Drivers','Drivers for detected hardware: graphics, network, audio, Bluetooth, storage, chipset, peripherals and system firmware.')
         toolbar=tk.Frame(body,bg=g['BG']);toolbar.pack(fill='x',pady=4)
         g['RButton'](toolbar,'Refresh driver links',lambda:self.start(True)).pack(side='left',padx=16)
         g['RButton'](toolbar,'Windows Update',lambda:hub.launch('ms-settings:windowsupdate-optionalupdates')).pack(side='left',padx=6)
+        self.category=g['RSelect'](toolbar,['All hardware'],width=220,command=lambda value:self.render())
+        self.category.set('All hardware');self.category.pack(side='left',padx=8)
         self.status=hub.label(body,'Open this page to detect components and find driver links.',10,g['MUTED'])
         hub.label(body,'AI search uses component models, hardware IDs (without serial numbers), installed versions and Windows version. Results are cached for 24 hours.',9,g['MUTED'])
         # in-app downloads from NVIDIA / AMD / Intel and Windows Update (driver_download_ui.py)
@@ -203,7 +237,7 @@ class DriversPage:
                 try:devices=inventory()
                 except (OSError,ValueError,subprocess.TimeoutExpired) as exc:devices=[];scan_error='Some installed-driver details were unavailable. '
                 if self.closed:return
-                rows=components(info,devices);data=payload(info,rows);stamp=fingerprint(data)
+                rows=components(info,devices,present_only=not scan_error);data=payload(info,rows);stamp=fingerprint(data)
                 self.hub.q.put(('drivers',{'phase':'detected','rows':rows,'status':scan_error+'Checking current official vendor sources...'}))
                 cached={}
                 try:cached=json.loads(self.path.read_text(encoding='utf-8'))
@@ -238,11 +272,17 @@ class DriversPage:
     def event(self,data):
         if self.closed:return
         self.status.config(text=data['status'])
-        if 'rows' in data:self.rows=data['rows'];self.render()
+        if 'rows' in data:
+            self.rows=data['rows']
+            self.category.values=['All hardware']+sorted({r['kind'] for r in self.rows})
+            if self.category.get() not in self.category.values:self.category.set('All hardware')
+            if self.downloads is not None and data['phase']=='detected':self.downloads.set_components(self.rows)
+            self.render()
         if data['phase'] in ('done','error'):self.busy=False
     def render(self):
         for child in self.results.winfo_children():child.destroy()
         for row in self.rows:
+            if self.category.get() not in ('All hardware',row['kind']):continue
             text=f"{row['kind']} - {row['name']}"
             details=f"Installed: {row['installed'] or 'Version not available'}"
             if row['kind']=='CPU / chipset':details+='\nCPU updates are supplied through chipset drivers and Windows Update.'
@@ -255,6 +295,15 @@ class DriversPage:
                 if not row.get('reachable'):details+='\nLink availability could not be checked.'
             else:details+='\nOfficial support page - latest release not verified.'
             box=self.hub.box(self.results,text,details)
+            if row['kind']=='Graphics' and self.downloads is not None:
+                maker={'nvidia':'NVIDIA','amd':'AMD','intel':'Intel'}.get(row['vendor_key'])
+                if maker:
+                    self.hub.action(box,'Install driver inside RETWEAKS',lambda v=maker:self.downloads.install(v))
+            if row['kind'] not in ('Graphics','BIOS','Firmware') and self.downloads is not None:
+                self.hub.action(box,'Check Windows Update drivers',self.downloads.wu_search)
+            if hasattr(self.hub,'ask_feature_ai'):
+                self.hub.action(box,'Explain this component with AI',lambda r=row:self.hub.ask_feature_ai(
+                    'drivers',f"Explain {r['kind']}: {r['name']}, what its driver does, and how to choose the right official update"))
             self.hub.action(box,'Open '+row['vendor']+(' BIOS support' if row['kind']=='BIOS' else ' driver page'),lambda r=row:self.open_link(r))
             if row.get('download'):self.hub.action(box,'Download official driver',lambda r=row:self.open_link({**r,'url':r['download']}))
             self.hub.label(box,urlsplit(row['url']).hostname,9,self.g['MUTED'])

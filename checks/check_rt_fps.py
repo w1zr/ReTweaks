@@ -199,6 +199,25 @@ assert abs((win.win.winfo_x() + w) - (sw - 16)) <= 2 and abs((win.win.winfo_y() 
     (win.win.winfo_x(), win.win.winfo_y(), w, h)  # bottom-right corner, 16 px margin
 page.ov_load_var.set(True); page._overlay_setting_changed(); pump(0.6)
 assert len(win.lines) == 4 and win.lines[3].startswith("CPU"), win.lines
+service = page.overlay_telemetry
+assert service is not None and page in service.holders
+saved_metrics = {key: var.get() for key, var in page.ov_metric_vars.items()}
+for key, var in page.ov_metric_vars.items():
+    var.set(key == 'ram')
+hub.rt_last_sample = {'time': time.time(), 'ram': {'percent': 50}}
+page._overlay_setting_changed()
+assert win.lines == ['RAM 50%'], win.lines
+assert hub.settings['overlay_show_ram'] is True and hub.settings['overlay_show_low1'] is False
+page.ov_layout.set('Compact')
+page.ov_refresh.set('250 ms')
+page.ov_margin.set('32 px')
+page._overlay_setting_changed()
+assert win.cfg['overlay_refresh_ms'] == 250 and win.cfg['overlay_margin'] == 32
+for key, value in saved_metrics.items():
+    page.ov_metric_vars[key].set(value)
+page.ov_layout.set('Stacked')
+page.ov_margin.set('16 px')
+page._overlay_setting_changed()
 shot = sys.argv[1] if len(sys.argv) > 1 else None
 if shot:
     from PIL import ImageGrab
@@ -218,6 +237,7 @@ assert page.overlay_win is None or page.overlay_win.lines == ["Game closed"]
 page._stop_overlay_later_job = None
 page.stop_overlay("stopped by check"); pump(0.1)
 assert stream.stopped and page.overlay_stream is None and page.btn_start.enabled
+assert page not in service.holders
 
 # delete one run
 page.table.selection_set(page.table.get_children()[0]); pump(0.1)

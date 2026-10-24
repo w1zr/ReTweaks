@@ -43,7 +43,7 @@ errors = []
 hub.report_callback_exception = lambda *a: errors.append(a)
 try:
     hub.update(); hub.geometry('1250x950')
-    hub.sidebar_nav.buttons["Fan control"].command(); hub.update()
+    hub.sidebar_nav.open("Fan control", hub.sidebar_nav.targets["Fan control"]); hub.update()
     page = hub.rt_pages["Fan control"]
     card, fan, engine = page.curves, page.inner, hub.fan_curves
     sampler = hub.temperatures; sampler.stop.set()
@@ -105,7 +105,7 @@ try:
 
     # ---------------------------------------------------------------- RGB
     rgb = hub.rgb_lighting; rgb.tried = True; rgb.retry_at = time.monotonic() + 3600
-    hub.sidebar_nav.buttons["RGB lighting"].command(); hub.update()
+    hub.sidebar_nav.open("RGB lighting", hub.sidebar_nav.targets["RGB lighting"]); hub.update()
     assert rgb.start_profile_pending is None and config().get('rgb_apply_on_start', False) is False
     devices = []
     for index, (kind, name) in enumerate(((DeviceType.COOLER, 'Fan Hub'), (DeviceType.DRAM, 'RGB RAM'))):

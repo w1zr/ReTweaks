@@ -14,3 +14,5 @@ PySide6>=6.5                               # only the v1.6 startup screen (rt_sp
 PyInstaller>=6.0.0
 pytest>=8.0                                # python -m pytest tests (core logic)
 pypdf>=4.0                                 # check_daily_tools.py only
+
+cryptography>=43.0.0                      # authenticated encryption for File Transfers

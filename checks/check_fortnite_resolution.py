@@ -1,0 +1,41 @@
+"""Fortnite-only UI check with a synthetic file and mocked writer; no game settings changed."""
+import os
+from pathlib import Path
+import sys
+import tempfile
+from unittest.mock import patch
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _tk_harness import FakeHub, g, pump
+from fortnite_resolution_ui import FortniteResolutionPanel
+
+hub = FakeHub()
+panel = FortniteResolutionPanel(hub, hub, g())
+try:
+    with tempfile.TemporaryDirectory() as folder:
+        target = Path(folder) / 'GameUserSettings.ini'
+        target.write_text('[/Script/FortniteGame.FortGameUserSettings]\nResolutionSizeX=1920\n'
+                          'ResolutionSizeY=1080\nFullscreenMode=1\n', encoding='utf-8')
+        panel.path = str(target)
+        panel.choose('1280 × 960 (4:3)')
+        assert panel.width.get() == '1280' and panel.height.get() == '960'
+        with patch('fortnite_resolution_ui.messagebox.askyesno', return_value=False), \
+             patch('fortnite_resolution_ui.fr.apply') as apply:
+            panel.apply()
+            apply.assert_not_called()
+        with patch('fortnite_resolution_ui.messagebox.askyesno', return_value=True), \
+             patch('fortnite_resolution_ui.fr.apply', return_value='Saved game settings') as apply:
+            panel.apply()
+            assert pump(hub, lambda: not panel.busy)
+            apply.assert_called_once_with(str(target), '1280', '960')
+        assert panel.status.cget('text') == 'Saved game settings'
+        with patch('fortnite_resolution_ui.messagebox.askyesno', return_value=True), \
+             patch('fortnite_resolution_ui.fr.restore', return_value='Restored game settings') as restore:
+            panel.restore()
+            assert pump(hub, lambda: not panel.busy)
+            restore.assert_called_once_with(str(target))
+        panel.width.set('invalid')
+        panel.apply()
+        assert 'whole numbers' in panel.status.cget('text')
+    print('PASS: Fortnite-only picker, consent, apply, restore and invalid input; writer mocked.')
+finally:
+    hub.destroy()

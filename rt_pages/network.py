@@ -266,6 +266,10 @@ class NetworkPage:
         if not isinstance(results, list):
             self.dns_progress.configure(text=f"Test failed: {results}")
             return
+        self.ai_dns_results = [
+            {'popular_sites': {key: row.get('popular', {}).get(key) for key in ('avg', 'best', 'worst', 'failed')},
+             'uncached': {key: row.get('uncached', {}).get(key) for key in ('avg', 'best', 'worst', 'failed')}}
+            for row in results[:12]]
         self.dns_progress.configure(text="Done.")
 
         def ms(v):
@@ -309,6 +313,7 @@ class NetworkPage:
             self.ping_progress.configure(
                 text=r.get("error", "Ping test failed.") if isinstance(r, dict) else f"Ping test failed: {r}")
             return
+        self.ai_ping_result = r
         self.ping_progress.configure(text="Done.")
         self.ping_result.configure(text="No replies" if r["avg"] is None else f"{r['avg']:.0f} ms")
 

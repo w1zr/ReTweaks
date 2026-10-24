@@ -152,7 +152,7 @@ class OverlayWindow:
     def reposition(self, w=None, h=None):
         if w is None:
             w, h = self.size()[:2]
-        x, y = of.corner_position(self._target_area(), (w, h), self.cfg["overlay_position"])
+        x, y = of.corner_position(self._target_area(), (w, h), self.cfg["overlay_position"], self.cfg["overlay_margin"])
         self.win.geometry(f"{w}x{h}+{x}+{y}")
 
     # ---------------------------------------------------------------- Windows behaviour

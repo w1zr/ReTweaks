@@ -31,7 +31,7 @@ try:
     hub.geometry('1250x900')
     page = hub.rt_pages["Temperatures"]
     hub.settings["temp_unit"] = "C"
-    hub.sidebar_nav.buttons["Temperatures"].command(); hub.update()
+    hub.sidebar_nav.open("Temperatures", hub.sidebar_nav.targets["Temperatures"]); hub.update()
     assert hub.cur_tab == hub.rt_tabs["Temperatures"] and page.job is not None     # refreshes only while shown
     sampler = hub.temperatures; sampler.stop.set()
     sampler.rows = [dict(part='GPU', hardware='Example NVIDIA GPU', name='Example NVIDIA GPU / GPU Core', c=34),

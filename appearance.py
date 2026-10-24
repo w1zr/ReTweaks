@@ -2,9 +2,11 @@ from branding import logo as feather
 from core.version import BRAND
 """Local palettes and small canvas accents, without image or network dependencies."""
 import math
+import time
 import tkinter as tk
 
-ANIMATIONS=('Off','Particles','Constellation','Fireflies','Double Helix','Orbit','Waves','Grid')
+ANIMATIONS=('Off','Particles','Constellation','Fireflies','Double Helix','Orbit','Waves','Grid',
+            'Aurora','Starfield','Rain','Pulse','Picture')
 
 def blend(a,b,t):
     x=tuple(int(a[i:i+2],16) for i in (1,3,5));y=tuple(int(b[i:i+2],16) for i in (1,3,5))
@@ -127,23 +129,29 @@ def recolor(root,g,old,new):
     root._button_theme_roles=style_roles
     def visit(widget):
         bindings=getattr(widget,'_theme_roles',{})
+        supported=set(widget.keys())
+        changes={}
         for option in ('bg','fg','insertbackground','selectbackground','highlightbackground'):
+            if option not in supported:continue
             try:
                 value=widget.cget(option)
                 role=bindings.setdefault(('option',option),resolve(value))
-                if role:widget.configure(**{option:new[role]})
+                if role and value!=new[role]:changes[option]=new[role]
             except tk.TclError:pass
+        if changes:widget.configure(**changes)
         for key,value in list(vars(widget).items()):
             role=bindings.setdefault(('attribute',key),resolve(value))
             if role:setattr(widget,key,new[role])
         if isinstance(widget,tk.Canvas):
             for item in widget.find_all():
+                changes={}
                 for option in ('fill','outline'):
                     try:
                         value=widget.itemcget(item,option)
                         role=bindings.setdefault(('item',item,option),resolve(value))
-                        if role:widget.itemconfigure(item,**{option:new[role]})
+                        if role and value!=new[role]:changes[option]=new[role]
                     except tk.TclError:pass
+                if changes:widget.itemconfigure(item,**changes)
             live=set(widget.find_all())
             bindings={key:role for key,role in bindings.items() if key[0]!='item' or key[1] in live}
         widget._theme_roles=bindings
@@ -166,22 +174,40 @@ def recolor(root,g,old,new):
 
 class Accent(tk.Canvas):
     """Animation is limited to a short banner; hidden windows stop drawing."""
-    def __init__(self,parent,colors,style):
+    def __init__(self,parent,colors,style,options=None):
         self.colors=colors;self.style=style;self.phase=0;self.job=None
+        self.options=options or (lambda:{})
+        self.last_time=time.monotonic()
+        self.picture=None;self.picture_key=None
         super().__init__(parent,height=64,bg=colors()['PANEL'],highlightthickness=0)
         self.bind('<Destroy>',self.dispose,add='+')
+        self.bind('<Map>',lambda event:self.refresh(),add='+')
+        self.bind('<Unmap>',lambda event:self.pause(),add='+')
+        self.bind('<Configure>',lambda event:self.refresh(),add='+')
         self.tick()
 
     def dispose(self,event):
         if event.widget is self and self.job:
             self.after_cancel(self.job);self.job=None
 
+    def pause(self):
+        if self.job:self.after_cancel(self.job);self.job=None
+
+    def number(self,key,default,low,high):
+        try:return max(low,min(high,float(self.options().get(key,default))))
+        except (TypeError,ValueError):return default
+
     def tick(self):
         self.job=None
         mode=self.style()
+        height=int(self.number('animation_height',64,64,180))
+        if int(self.cget('height'))!=height:self.configure(height=height)
         if self.winfo_viewable():
             self.delete('all')
             p=self.colors();self.configure(bg=p['PANEL'])
+            intensity=self.number('animation_intensity',100,15,100)/100
+            p=dict(p,ACC=blend(p['PANEL'],p['ACC'],intensity),LINE=blend(p['PANEL'],p['LINE'],intensity))
+            density=self.number('animation_density',100,35,160)/100
             w=max(200,self.winfo_width());t=self.phase
             if mode=='Waves':
                 for row in range(3):
@@ -189,7 +215,7 @@ class Accent(tk.Canvas):
                     for x in range(0,w+12,12):points.extend((x,31+row*9+math.sin(x/85+t+row)*10))
                     self.create_line(*points,fill=p['ACC'] if row==0 else p['LINE'],width=2,smooth=True)
             elif mode=='Particles':
-                count=max(24,min(96,math.ceil(w/72)))
+                count=max(12,min(120,math.ceil(w/30*density)))
                 for i in range(count):
                     x=((i+.5)*w/count+t*14)%w;y=12+(i*29)%42+math.sin(t+i)*5
                     self.create_oval(x,y,x+3,y+3,fill=p['ACC'] if i%4==0 else p['LINE'],outline='')
@@ -208,14 +234,14 @@ class Accent(tk.Canvas):
                 for i,points in enumerate(strands):
                     if len(points)>=4:self.create_line(*points,fill=p['ACC'] if i==0 else blend(p['PANEL'],p['ACC'],0.4),width=2,smooth=True)
             elif mode=='Constellation':
-                count=max(18,min(64,math.ceil(w/85)))
+                count=max(10,min(64,math.ceil(w/40*density)))
                 stars=[(((i+.5)*w/count+t*(3+i%3))%w,12+(i*19)%40+math.sin(t/2+i)*4) for i in range(count)]
                 for i,(x,y) in enumerate(stars):
                     for xx,yy in stars[i+1:]:
                         if (x-xx)**2+(y-yy)**2<75**2:self.create_line(x,y,xx,yy,fill=p['LINE'])
                     self.create_oval(x-1,y-1,x+2,y+2,fill=blend(p['PANEL'],p['ACC'],0.65),outline='')
             elif mode=='Fireflies':
-                count=max(18,min(96,math.ceil(w/83)))
+                count=max(10,min(96,math.ceil(w/34*density)))
                 for i in range(count):
                     x=((i+.5)*w/count+t*7)%w;y=30+math.sin(t/2+i*2)*20
                     glow=0.2+0.55*(math.sin(t+i)+1)/2
@@ -227,11 +253,53 @@ class Accent(tk.Canvas):
                     self.create_oval(cx-35,18,cx+35,46,outline=p['LINE'])
                     x=cx+35*math.cos(t+i);y=32+14*math.sin(t+i)
                     self.create_oval(x-2,y-2,x+2,y+2,fill=p['ACC'],outline='')
-            self.phase+=0.05
-        if mode!='Off':self.job=self.after(50,self.tick)
+            elif mode=='Aurora':
+                for band in range(7):
+                    points=[]
+                    for x in range(-16,w+32,16):
+                        y=30+math.sin(x/180+t*.3+band*.25)*14+math.cos(x/90-t*.2)*5
+                        points.extend((x,y+band*3))
+                    self.create_line(*points,fill=blend(p['PANEL'],p['ACC'],.12+band*.055),width=5,smooth=True)
+            elif mode=='Starfield':
+                for i in range(max(20,int(w/15*density))):
+                    distance=((i*.619+t*.16)%1)
+                    angle=i*2.39996
+                    x=w/2+math.cos(angle)*distance*w*.6
+                    y=32+math.sin(angle)*distance*42
+                    r=.6+distance*1.5
+                    self.create_oval(x-r,y-r,x+r,y+r,fill=blend(p['PANEL'],p['ACC'],.2+distance*.8),outline='')
+            elif mode=='Rain':
+                for i in range(max(15,int(w/18*density))):
+                    x=(i*61.8+t*5)%w;y=(i*37+t*(18+i%11))%82-16
+                    self.create_line(x,y,x-3,y+8+i%6,fill=blend(p['PANEL'],p['ACC'],.2+(i%5)*.12))
+            elif mode=='Pulse':
+                for ring in range(6):
+                    radius=((t*12+ring*32)%192)
+                    self.create_oval(w/2-radius*3,32-radius,w/2+radius*3,32+radius,
+                                     outline=blend(p['PANEL'],p['ACC'],max(.05,1-radius/192)*.65),width=2)
+            elif mode=='Picture':
+                from PIL import Image,ImageOps,ImageTk
+                path=self.options().get('app_background_image','')
+                key=(path,w,height)
+                if key!=self.picture_key:
+                    self.picture=None;self.picture_key=key
+                    try:
+                        with Image.open(path) as original:
+                            self.picture=ImageTk.PhotoImage(ImageOps.fit(original.convert('RGB'),(w,height)),master=self)
+                    except (OSError,ValueError):pass
+                if self.picture:self.create_image(0,0,image=self.picture,anchor='nw')
+                else:self.create_text(w/2,height/2,text='Choose a picture in Settings → Backgrounds',fill=p['ACC'])
+            if mode!='Picture' and height!=64:self.scale('all',0,0,1,height/64)
+            now=time.monotonic()
+            self.phase+=min(.15,max(0,now-self.last_time))*self.number('animation_speed',1,.25,2.5)
+            self.last_time=now
+            if mode not in ('Off','Picture'):
+                fps=int(self.number('animation_fps',20,10,30))
+                self.job=self.after(round(1000/fps),self.tick)
 
     def refresh(self):
         if self.job:self.after_cancel(self.job);self.job=None
+        self.last_time=time.monotonic()
         self.delete('all');self.tick()
 
 class Intro:

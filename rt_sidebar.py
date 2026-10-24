@@ -24,17 +24,19 @@ NAV = [
                  ("Display", "Display")]),
     # Exact-undo tweaks are a tab inside Individual tweaks (owner request 2026-10-22), not a sidebar entry.
     ("OPTIMIZE", [("Quick start", 0), ("Presets", 15), ("Individual tweaks", 1), ("CTT library", 2),
-                  ("Windows tweaks", 17), ("Customize", 10),
+                  ("Windows tweaks", 17), ("Windows Activation", 28), ("Transparent TB (taskbar)", "Transparent TB (taskbar)"), ("Customize", 10),
                   ("Game profiles", 3), ("Game config files", "Game config files"),
                   ("Program rules", "Program rules"), ("Startup apps", "Startup apps"), ("Network", "Network"),
                   ("Drivers", 22)]),
-    ("TOOLS", [("Browser", "Browser"), ("Storage", 9), ("Cleanup", "Cleanup"), ("Audio Mixer", 27),
+    ("TOOLS", [("Browser", "Browser"), ("Windhawk", 29), ("File Transfers", "File Transfers"), ("Backgrounds", "Backgrounds"), ("Storage", 9), ("Cleanup", "Cleanup"), ("Audio Mixer", 27),
                ("Fan control", "Fan control"), ("RGB lighting", "RGB lighting"), ("Run", "Run"),
                ("Auto clicker", 21), ("AI assistant", 20), ("Daily Tools", 26), ("App Starter", 23),
                ("PC Value Checker", 24), ("3D PC Builder", 25), ("Bottleneck", 19), ("Snapshots", "Snapshots"),
                ("Fun tools", "Fun tools"), ("Crosshair", "Crosshair"), ("Tools", 16), ("Advanced tools", 12), ("Backups & fixes", 11),
                ("Tips", 5), ("Help", 6), ("Activity", 7)]),   # Notifications removed (owner request 2026-10-23)
 ]
+LEGACY_NAV = NAV
+from rt_navigation import GROUPS, NAV, GROUP_ALIASES, preferred_section, group_for_index, group_for_name, target_index
 BOTTOM = [("About", "About"), ("Settings", "Settings")]
 
 # Sidebar search (owner request 2026-10-22: "search for any setting"). Words that find a page besides its name.
@@ -51,6 +53,8 @@ KEYWORDS = {
     "Individual tweaks": "tweak registry undo exact-undo exact original restore point",
     "CTT library": "ctt chris titus winutil",
     "Windows tweaks": "windows tweak",
+    "Windows Activation": "windows activation massgrave license office",
+    "Transparent TB (taskbar)": "translucenttb transparent translucent taskbar blur acrylic download install",
     "Customize": "appearance privacy security windows look",
     "Game profiles": "game fortnite valorant cs2 apex warzone minecraft gta roblox league rocket overwatch",
     "Game config files": "game config ini settings file backup lock fortnite minecraft",
@@ -59,6 +63,9 @@ KEYWORDS = {
     "Network": "dns ping latency internet wifi ethernet adapter speed test",
     "Drivers": "driver nvidia amd intel update",
     "Browser": "browser web internet tabs bookmarks history downloads search engine",
+    "Windhawk": "windhawk mods windows customization extensions",
+    "File Transfers": "send receive share code upload download files folders internet transfer litterbox",
+    "Backgrounds": "wallpaper background picture image video gif lively animated animation desktop preview favorites",
     "Storage": "storage explorer files folders disk",
     "Cleanup": "cleanup clean temp junk space analyzer delete",
     "Audio Mixer": "audio sound volume mixer microphone mic speakers lock",
@@ -91,6 +98,7 @@ KEYWORDS = {
                 "refresh interval temperature celsius fahrenheit open on lhm librehardwaremonitor report problem "
                 "language idioma langue sprache lingua língua english español français deutsch português",
 }
+KEYWORDS['Windows backgrounds']=KEYWORDS['Backgrounds']
 
 
 def _tr(text):
@@ -198,6 +206,12 @@ class Sidebar:
             w.destroy()
         side.configure(bg=self.c("SIDE"))
         self._build()
+        self.primary_names=list(self.buttons)
+        for _section,items in LEGACY_NAV:
+            for name,target in items:
+                index=target_index(hub,target)
+                if index is not None:self.targets.setdefault(name,index)
+        for old,new in GROUP_ALIASES.items():self.targets.setdefault(old,self.targets[new])
 
     # colours always read live from retweaks.py globals (they change with the theme)
     def c(self, key):
@@ -207,6 +221,8 @@ class Sidebar:
         key = (name, color)
         if key not in self._icons:
             p = ASSETS / "nav" / f"{slug(name)}.png"
+            if not p.is_file() and name == 'Windows backgrounds':
+                p = ASSETS / 'nav' / 'backgrounds.png'
             if not p.is_file():
                 self._icons[key] = None
             else:
@@ -216,6 +232,7 @@ class Sidebar:
     def _target(self, t):
         if isinstance(t, int):
             return t
+        if t in GROUPS:return target_index(self.hub,GROUPS[t][0][2])
         return self.hub.rt_tabs.get(t)
 
     def _build(self):
@@ -264,9 +281,8 @@ class Sidebar:
         cv.pack(side="left", fill="both", expand=True)
         holder = tk.Frame(cv, bg=self.c("SIDE"))
         win = cv.create_window((0, 0), window=holder, anchor="nw")
-        holder.bind("<Configure>", lambda e: (cv.configure(scrollregion=(0, 0, e.width, e.height)),
-                                              self._place_indicator(animate=False)))
-        cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=e.width))
+        holder.bind("<Configure>", lambda e:self._fit_scroll_region())
+        cv.bind("<Configure>", lambda e:(cv.itemconfigure(win,width=e.width),self._fit_scroll_region()))
         cv.wheel_target = cv
         import rt_perf
         rt_perf.smooth_scroll(cv)
@@ -284,6 +300,15 @@ class Sidebar:
         # sliding accent bar
         self.indicator = tk.Frame(side, bg=self.c("ACC"), width=3, height=20)
         # apply_theme() in hubplus calls hub.sidebar_nav.refresh() after a theme change
+
+    def _fit_scroll_region(self):
+        """A short menu fills its viewport, preventing Tk from centering/overscrolling it."""
+        if not hasattr(self,'canvas'):return
+        cv=self.canvas
+        height=max(self.holder.winfo_height(),cv.winfo_height())
+        cv.configure(scrollregion=(0,0,max(1,cv.winfo_width()),height),confine=True)
+        if self.holder.winfo_height()<=cv.winfo_height():cv.yview_moveto(0)
+        if hasattr(self,'indicator'):self._place_indicator(animate=False)
 
     def _add(self, parent, name, target):
         idx = self._target(target)
@@ -321,6 +346,7 @@ class Sidebar:
         page = getattr(self.hub, "rt_pages", {}).get("Exact-undo tweaks")
         if page is not None and any(all(w in r.search_text for w in words) for r in getattr(page, "rows", [])):
             hits.add("Individual tweaks")          # exact-undo tweaks are a tab of Individual tweaks
+        hits.update(group_for_name(h) for h in list(hits))
         return {h for h in hits if h in self.targets}
 
     def exact_match(self, q):
@@ -357,7 +383,9 @@ class Sidebar:
 
     def open_first(self):
         q = self.search_text()
-        first = next((n for _, names in self.sections for n in names if n in self.matches(q)), None)
+        hits=self.matches(q)
+        first=next((n for n in self.targets if n not in self.primary_names and n in hits),None) if q else None
+        if first is None:first = next((n for _, names in self.sections for n in names if n in hits), None)
         if first is None and q:
             first = next((n for n, _ in BOTTOM if n in self.targets and
                           all(w in (n + " " + KEYWORDS.get(n, "")).lower() for w in q.split())), None)
@@ -366,8 +394,20 @@ class Sidebar:
 
     def open(self, name, index, search=None):
         """Open a page; search (or the sidebar query) is put into that page's own search box if it has one."""
-        self.hub.show_tab(index)
         q = self.search_text() if search is None else search
+        if name in GROUPS:
+            saved=preferred_section(self.hub.settings,name)
+            saved_target=next((target for _,alias,target in GROUPS[name] if alias==saved),None)
+            if saved_target is not None:index=target_index(self.hub,saved_target)
+            if q:
+                words=q.lower().split()
+                match=next(((alias,target) for _,alias,target in GROUPS[name]
+                            if all(w in (alias+' '+KEYWORDS.get(alias,'')).lower() for w in words)),None)
+                if match is None:
+                    hits=self.matches(q)
+                    match=next(((alias,target) for _,alias,target in GROUPS[name] if alias in hits),None)
+                if match:name,index=match[0],target_index(self.hub,match[1])
+        self.hub.show_tab(index)
         if not q:
             return
         var = None
@@ -395,7 +435,7 @@ class Sidebar:
 
     def select(self, index):
         """Called by hub.show_tab: highlight the matching row and slide the accent bar to it."""
-        name = next((n for n, i in self.targets.items() if i == index), None)
+        name = group_for_index(self.hub,index) or next((n for n, i in self.targets.items() if i == index), None)
         for n, b in self.buttons.items():
             if b.active != (n == name):
                 b._set(active=(n == name))

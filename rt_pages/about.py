@@ -56,7 +56,7 @@ class AboutPage:
         links = tk.Frame(col, bg=col.cget("bg"))
         links.pack(fill="x")
         from core.version import WEBSITE
-        g["RButton"](links, "Website", lambda: webbrowser.open(WEBSITE), kind="primary").pack(
+        g["RButton"](links, "Website", lambda: webbrowser.open(WEBSITE), kind="default").pack(
             side="left", padx=(0, 6))
         from core.version import DISCORD_INVITE
         g["RButton"](links, "Discord", lambda: webbrowser.open(DISCORD_INVITE), kind="default").pack(

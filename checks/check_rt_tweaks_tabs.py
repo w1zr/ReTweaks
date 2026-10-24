@@ -69,7 +69,7 @@ nm = exact.rows[0].tweak.name
 hub.show_tweaks_tab("all"); hub.show_tab(hub.rt_tabs["Dashboard"]); pump(hub)
 side.query.set(nm.lower()); pump(hub)
 shown = {n for n, bt in side.buttons.items() if bt.winfo_manager() and bt.master is side.holder}
-assert "Individual tweaks" in shown, shown
+assert "Tweaks & presets" in shown, shown
 side.open_first(); pump(hub)
 assert hub.cur_tab == 1 and hub.tweaks_tab_current == "exact" and exact.query.get() == nm.lower()
 side.query.set(""); exact.query.set(""); pump(hub)

@@ -28,10 +28,13 @@ class GlobalSearch:
         self.rows = []
         self.sel = 0
         self.popup = None
+        self.popup_host = None
         self.box = None
         self.entry = None
         self._chrome = None
         self._hint_on = False
+        self._trace = self.query.trace_add("write", lambda *a: self.update_results())
+        hub.bind("<Unmap>", lambda e: self.close_popup() if e.widget is hub else None, add="+")
         hub.bind_all("<Control-k>", self.focus, add="+")
         hub.bind_all("<Control-K>", self.focus, add="+")
         hub.bind("<<LanguageChanged>>", lambda e: self._relabel_hint(), add="+")
@@ -54,7 +57,6 @@ class GlobalSearch:
             self.entry.bind("<Up>", lambda e: self.move(-1))
             self.entry.bind("<Return>", lambda e: self.open_selected())
             self.entry.bind("<Escape>", lambda e: self.clear())
-            self.query.trace_add("write", lambda *a: self.update_results())
             self._show_hint()
         self.entry.configure(bg=g["PANEL"], insertbackground=g["FG"],
                              fg=g["MUTED"] if self._hint_on else g["FG"])
@@ -125,7 +127,7 @@ class GlobalSearch:
 
     def focus(self, e=None):
         if self.entry is not None:
-            self.entry.focus_set()
+            self.entry.focus_force()
             self._focus_in()
             self.entry.select_range(0, "end")
         return "break"
@@ -149,12 +151,14 @@ class GlobalSearch:
             return all(w in (name + " " + rs.KEYWORDS.get(name, "") + " " + _tr(name)).lower() for w in words)
 
         order = [n for _, items in rs.NAV for n, _ in items] + [n for n, _ in rs.BOTTOM]
+        order+= [n for n in side.targets if n not in order]
         for name in order:
             if name in side.targets and page_hit(name):
-                out.append((name, "Page", lambda n=name: side.open(n, side.targets[n], search="")))
+                out.append((name, ("Section · " + rs.group_for_name(name)) if name not in side.primary_names else "Page", lambda n=name: side.open(n, side.targets[n], search="")))
         # tweaks (the base app's list)
         found = 0
-        for t in self.g.get("TWEAKS") or []:
+        candidates = sorted(self.g.get("TWEAKS") or [], key=lambda t: (t.get("name", "").lower() != q, not all(w in t.get("name", "").lower() for w in words)))
+        for t in candidates:
             text = t.get("name", "") + " " + t.get("desc", "")
             text = (text + " " + _tr(t.get("name", "")) + " " + _tr(t.get("desc", ""))).lower()
             if not all(w in text for w in words):
@@ -169,10 +173,8 @@ class GlobalSearch:
                 page = "Individual tweaks"
             if page not in side.targets:
                 continue
-            if page == "Individual tweaks":          # the "All tweaks" tab (it has no search box of its own)
-                act = lambda p=page: (side.open(p, side.targets[p], search=""),
-                                      callable(getattr(self.hub, "show_tweaks_tab", None))
-                                      and self.hub.show_tweaks_tab("all"))
+            if page == "Individual tweaks":
+                act = lambda nm=t.get("name", ""): self.open_individual_tweak(nm)
             else:
                 act = lambda p=page, nm=t.get("name", ""): side.open(p, side.targets[p], search=nm.lower())
             out.append((t.get("name", ""), f"Tweak · {page}", act))
@@ -191,9 +193,24 @@ class GlobalSearch:
                     n += 1
                     if n >= MAX_TWEAKS // 2:
                         break
+        # An exact tweak name should be immediately reachable, even when page aliases also match.
+        out.sort(key=lambda result: (result[0].lower() != q, not result[1].startswith('Tweak')))
         return out
 
+    def open_individual_tweak(self, name):
+        self.hub.show_tab(1)
+        self.hub.show_tweaks_tab('all')
+        self.hub.tweak_search.set(name)
+
+    def on_tab_changed(self):
+        self.close_popup()
+        self.query.set('')
+        try:focused=self.hub.focus_get()
+        except (KeyError,tk.TclError):focused=None
+        if self.entry is not None and focused is not self.entry:self._show_hint()
+
     def update_results(self):
+        if self.entry is None:return
         q = self.text()
         self.results = self.search(q)
         self.sel = 0
@@ -219,7 +236,8 @@ class GlobalSearch:
     # ------------------------------------------------------------ dropdown
     # Owner report 2026-10-22: "clicking a result fails". The old dropdown was its own window; on Windows the
     # first click on it activated that window, the search box lost focus and the list closed before the click
-    # arrived, and hovering rebuilt the rows under the mouse. Now the list is a frame inside the main window,
+    # arrived, and hovering rebuilt the rows under the mouse. Tk pages use an in-window frame; native helper
+    # pages use a transient host so results stay above the native child window. In either case,
     # rows are built once per search, hovering only recolours them, and a row opens on mouse press.
     def close_popup(self):
         if self.popup is not None:
@@ -229,11 +247,23 @@ class GlobalSearch:
                 pass
             self.popup = None
             self.rows = []
+        if self.popup_host is not None:
+            try:self.popup_host.destroy()
+            except tk.TclError:pass
+            self.popup_host = None
 
     def show_popup(self):
         g = self.g
         self.close_popup()
-        p = self.popup = tk.Frame(self.hub, bg=g["PANEL"], highlightthickness=1, highlightbackground=g["LINE"],
+        native = self.hub.cur_tab in (19,20,25,28,29,getattr(self.hub,'rt_tabs',{}).get('Browser'))
+        parent = self.hub
+        if native:
+            parent = self.popup_host = tk.Toplevel(self.hub)
+            parent.withdraw()
+            parent.overrideredirect(True)
+            parent.transient(self.hub)
+            parent.attributes('-topmost', True)
+        p = self.popup = tk.Frame(parent, bg=g["PANEL"], highlightthickness=1, highlightbackground=g["LINE"],
                                   cursor="hand2")
         self.rows = []
         if not self.results:
@@ -259,8 +289,17 @@ class GlobalSearch:
         x = self.entry.winfo_rootx() - self.hub.winfo_rootx() - 28
         y = self._chrome.winfo_rooty() - self.hub.winfo_rooty() + 42
         width = max(320, self.entry.winfo_width() + 40)
-        p.place(x=x, y=y, width=width)
-        p.lift()
+        if self.popup_host is not None:
+            p.pack(fill='both',expand=True)
+            p.update_idletasks()
+            height = p.winfo_reqheight()
+            self.popup_host.geometry(f'{width}x{height}+{int(self.hub.winfo_rootx()+x)}+{int(self.hub.winfo_rooty()+y)}')
+            self.popup_host.deiconify()
+            self.popup_host.lift()
+            self.entry.focus_force()
+        else:
+            p.place(x=x, y=y, width=width)
+            p.lift()
 
     def _paint_selection(self):
         g = self.g

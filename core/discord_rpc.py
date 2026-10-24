@@ -26,10 +26,10 @@ OP_HANDSHAKE, OP_FRAME, OP_CLOSE, OP_PING, OP_PONG = 0, 1, 2, 3, 4
 RETRY_SECONDS = 15.0          # reconnect interval when Discord isn't running
 UPDATE_SECONDS = 15.0         # minimum gap between SET_ACTIVITY calls (Discord rate limit)
 MAX_FRAME = 1 << 20           # refuse absurd frames from a broken peer
-IMAGE_KEY = "ry" + "tweaks"     # name of the logo image uploaded in the Discord Developer Portal (unchanged)
-REPO_URL = "https://github.com/w1zr/ReTweaks"          # owner request 2026-10-22: button links to the repo
+IMAGE_KEY = "retweaks-logo-1024"  # verified asset on the owner's Discord application
+REPO_URL = "https://github.com/w1zr/ReTweaks"
 RELEASES_URL = REPO_URL + "/releases/latest"
-from core.version import WEBSITE   # second status button (owner 2026-10-22)
+from core.version import WEBSITE
 
 STATUS_TEXT = {
     "off": "Off",
@@ -114,19 +114,20 @@ def parse_game_event(event):
 
 def build_activity(state, show_game, start_ts):
     game = (state or {}).get("game")
+    details = "Optimizing with RETWEAKS"
     if game and show_game:
-        details = "Gaming: " + game
+        sub = "Playing " + game
     elif game:
-        details = "Gaming"
+        sub = "Gaming"
     else:
-        details = "Optimizing with RETWEAKS"
-    sub = "Boosted by RETWEAKS" if game else "Windows PC tweaks"
+        sub = "Windows PC tweaks"
     return {
+        "type": 0,  # Playing activity, matching the Discord card
         "details": _clip(details),
         "state": _clip(sub),
         "timestamps": {"start": int(start_ts)},
         "assets": {"large_image": IMAGE_KEY, "large_text": "RETWEAKS"},
-        "buttons": [{"label": "Get ReTweaks", "url": REPO_URL}, {"label": "Website", "url": WEBSITE}],
+        "buttons": [{"label": "Get Retweaks", "url": WEBSITE}],
     }
 
 
