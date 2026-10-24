@@ -37,8 +37,8 @@ def test_only_fortnite_display_keys_change_and_no_windows_mode_call(config, monk
 
 
 def test_restore_survives_repeated_applies_and_preserves_later_graphics_changes(config):
-    fr.apply(config, 1440, 1080)
-    fr.apply(config, 1280, 960)
+    fr.apply(config, 1440, 1080, lock=False)
+    fr.apply(config, 1280, 960, lock=False)
     config.write_bytes(config.read_bytes().replace(b'FrameRateLimit=165.000000', b'FrameRateLimit=240.000000'))
     fr.restore(config)
     text = config.read_bytes().decode()
