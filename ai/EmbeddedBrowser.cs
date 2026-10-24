@@ -29,6 +29,8 @@ class EmbeddedBrowser {
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] static extern bool IsChild(IntPtr parent,IntPtr child);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window,out Rect rect);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out Rect rect);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window,uint flags);
     [DllImport("user32.dll")] static extern IntPtr GetWindowDpiAwarenessContext(IntPtr window);
     [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     struct Rect {public int left,top,right,bottom;}
@@ -144,6 +146,19 @@ class EmbeddedBrowser {
         if(menu.Width<2||menu.Height<2)return;
         using(var shape=Shape(menu.ClientRectangle,12)){var old=menu.Region;menu.Region=new Region(shape);if(old!=null)old.Dispose();}
     }
+    // Owner report 2026-10-24: the Search engine list opened on the second monitor. A submenu opens to the right by
+    // default; the menu sits at the browser's right edge, so "right" can be past the RETWEAKS window (often onto the
+    // next screen). Open it to the left when there isn't room inside the RETWEAKS window (and screen) on the right.
+    static void KeepInsideApp(ToolStripDropDown menu,ToolStripDropDownItem item){
+        try{
+            int width=item.DropDown.GetPreferredSize(Size.Empty).Width;
+            Rectangle bounds=menu.Bounds;
+            int limit=Screen.FromRectangle(bounds).WorkingArea.Right;
+            Rect app;IntPtr root=GetAncestor(parent,2);
+            if(root!=IntPtr.Zero&&GetWindowRect(root,out app))limit=Math.Min(limit,app.right);
+            item.DropDownDirection=bounds.Right+width>limit?ToolStripDropDownDirection.Left:ToolStripDropDownDirection.Right;
+        }catch{item.DropDownDirection=ToolStripDropDownDirection.Left;}
+    }
     static ContextMenuStrip browserMenu;static ToolStripMenuItem settingsMenuItem;
     static ToolStripMenuItem MenuItem(string label,string shortcut,Action action){var item=new ToolStripMenuItem(label){ShortcutKeyDisplayString=shortcut,Padding=new Padding(12,7,12,7),ForeColor=fg,BackColor=panel};item.Click+=(s,e)=>{if(!closing)host.BeginInvoke((Action)(()=>{if(!closing)action();}));};return item;}
     static void Menu(Control anchor){
@@ -157,7 +172,7 @@ class EmbeddedBrowser {
             browserMenu.Items.Add(MenuItem("Reload without cache","Ctrl+Shift+R",()=>Reload(true)));
             browserMenu.Items.Add(new ToolStripSeparator());
             var search=MenuItem("Search engine","",()=>{});search.DropDownItems.Add(new ToolStripMenuItem("x"));
-            search.DropDownOpening+=(s,e)=>{search.DropDownItems.Clear();foreach(string choice in engineNames){string value=choice;var item=MenuItem(value,"",()=>{SetEngine(value);SaveSettings();});item.Checked=value==engine;search.DropDownItems.Add(item);}StyleMenu(search.DropDown);};browserMenu.Items.Add(search);
+            search.DropDownOpening+=(s,e)=>{search.DropDownItems.Clear();foreach(string choice in engineNames){string value=choice;var item=MenuItem(value,"",()=>{SetEngine(value);SaveSettings();});item.Checked=value==engine;search.DropDownItems.Add(item);}StyleMenu(search.DropDown);KeepInsideApp(browserMenu,search);};browserMenu.Items.Add(search);
             browserMenu.Items.Add(MenuItem("Zoom in","Ctrl +",()=>Zoom(zoom+.1)));browserMenu.Items.Add(MenuItem("Zoom out","Ctrl -",()=>Zoom(zoom-.1)));browserMenu.Items.Add(MenuItem("Reset zoom","Ctrl+0",()=>Zoom(1)));
             browserMenu.Items.Add(new ToolStripSeparator());
             settingsMenuItem=MenuItem("Settings","",()=>Add(SettingsPage));browserMenu.Items.Add(settingsMenuItem);

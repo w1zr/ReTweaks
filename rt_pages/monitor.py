@@ -395,6 +395,7 @@ class Banner:
         self.visible = False
         self.job = None
         self._chip = None
+        self._watch_job = None
 
     # API
     def set_style(self, style):
@@ -429,16 +430,42 @@ class Banner:
         if self.active():
             if self.job is None:
                 self.job = self.hub.after(33, self._tick)
-        elif self.job is not None:
+            return
+        if self.job is not None:
             try:
                 self.hub.after_cancel(self.job)
             except tk.TclError:
                 pass
             self.job = None
+        self._watch_window()
+
+    def _watch_window(self):
+        """Owner report 2026-10-24: on first launch the Dashboard is shown while the main window is still hidden
+        behind the startup screen, so the banner drew one still frame and never started; it only moved after
+        switching tabs. While the banner should animate but the window is hidden or minimized, check again
+        twice a second (cheap: no drawing) and start as soon as the window is on screen."""
+        if getattr(self, "_watch_job", None) is not None:
+            return
+        if self.style == "off" or not self.visible:
+            return
+
+        def check():
+            self._watch_job = None
+            if self.style == "off" or not self.visible:
+                return
+            if self.active():
+                self.sync()
+            else:
+                self._watch_window()
+        try:
+            self._watch_job = self.hub.after(500, check)
+        except tk.TclError:
+            self._watch_job = None
 
     def _tick(self):
         self.job = None
         if not self.active():
+            self._watch_window()       # minimized / hidden: resume by itself when the window is back
             return
         self.phase = time.monotonic() - self.t0
         if self.style == "cores":
