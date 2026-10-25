@@ -20,3 +20,13 @@ def test_accent_and_custom():
     assert banner_palette("custom", "#22c55e", "#ff0000")["accent"] == "#ff0000"
     assert banner_palette("custom", "#22c55e", "bad")["mode"] == "accent"    # invalid HEX falls back
     assert normalize_color("nonsense") == "original"
+
+
+def test_pc_label_does_not_repeat_cpu():
+    from rt_pages.monitor import pc_label
+    cpu = "Intel(R) Core(TM) i7-14700F"
+    assert pc_label({"manufacturer": "iBUYPOWER", "model": "Intel(R) Core(TM) i7-14700F"}, cpu) == "iBUYPOWER"
+    assert pc_label({"manufacturer": "iBUYPOWER", "model": "iBUYPOWER Intel(R) Core(TM) i7-14700F"}, cpu) == "iBUYPOWER"
+    assert pc_label({"manufacturer": "Dell Inc.", "model": "XPS 8960"}, cpu) == "Dell Inc. XPS 8960"
+    assert pc_label({"manufacturer": "ASUS", "model": "System Product Name"}, cpu) == "ASUS"
+    assert pc_label({"manufacturer": "To Be Filled By O.E.M.", "model": "To Be Filled By O.E.M."}, cpu) is None

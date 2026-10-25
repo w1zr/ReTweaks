@@ -52,6 +52,30 @@ def fmt_rate(bps):
     return NA
 
 
+# Model names some PC makers leave unset (Windows reports the placeholder text as the model)
+PLACEHOLDER_MODELS = {"to be filled by o.e.m.", "system product name", "default string", "not applicable",
+                      "none", "o.e.m.", "oem", "to be filled by oem", "undefined"}
+
+
+def _norm(text):
+    return " ".join(str(text or "").casefold().split())
+
+
+def pc_label(computer, cpu_name=None):
+    """Maker + model for the Dashboard summary. Drops placeholder models and a model that just repeats the CPU
+    name (some prebuilt PCs, e.g. iBUYPOWER, report the CPU as the model), so the CPU isn't shown twice."""
+    maker = str((computer or {}).get("manufacturer") or "").strip()
+    model = str((computer or {}).get("model") or "").strip()
+    m, cpu = _norm(model), _norm(cpu_name)
+    if m in PLACEHOLDER_MODELS or (cpu and (m == cpu or cpu in m)):
+        model = ""
+    elif maker and _norm(model).startswith(_norm(maker)):
+        maker = ""                                   # model already starts with the maker's name
+    if _norm(maker) in PLACEHOLDER_MODELS:
+        maker = ""
+    return join(maker, model) or None
+
+
 def join(*parts, sep=" "):
     return sep.join(str(p) for p in parts if p not in (None, ""))
 
@@ -838,10 +862,16 @@ class MonitorPage:
             self.summary.config(text="The hardware scan failed. Open Hardware and click Rescan to try again.")
             return
         cpu, gpus, ram, comp = data.get("cpu", {}), data.get("gpus", []), data.get("ram", {}), data.get("computer", {})
-        pc = join(comp.get("manufacturer"), comp.get("model"))
-        parts = [cpu.get("name"), *(gp.get("name") for gp in gpus),
+        pc = pc_label(comp, cpu.get("name"))
+        parts = [pc, cpu.get("name"), *(gp.get("name") for gp in gpus),
                  join(fmt(ram.get("installed_gb") or ram.get("total_gb"), "GB"), ram.get("type"))]
-        self.summary.config(text=(pc + " · " if pc else "") + " · ".join(p for p in parts if p))
+        seen, shown = set(), []
+        for p in parts:
+            key = _norm(p)
+            if key and key not in seen:
+                seen.add(key)
+                shown.append(p)
+        self.summary.config(text=" · ".join(shown))
 
     def on_telemetry(self, s, feed_banner=True):
         if feed_banner:
