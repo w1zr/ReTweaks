@@ -15,7 +15,7 @@
 
 ---
 
-## Current version: 2.0.4
+## Current version: 2.0.7
 
 This folder contains the current source, assets, bundled hardware tools, tests and Windows build workflow. See [GitHub setup](GITHUB_SETUP.md) before uploading. Generated EXEs are excluded from Git. The ignored local AI key file is private: push with Git and never upload that file through the browser.
 
