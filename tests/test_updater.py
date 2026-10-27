@@ -69,3 +69,23 @@ def test_remove_old_exe(monkeypatch, tmp_path):
     assert u.remove_old_exe() == [str(tmp_path / "RETWEAKS.old.exe")]
     assert (tmp_path / "RETWEAKS.exe").exists() and (tmp_path / "other.exe").exists()
     assert not (tmp_path / "RETWEAKS.old.exe").exists()
+
+
+def test_still_starting_detects_a_fresh_copy():
+    """v2.0.8: a second double-click during a slow first launch isn't reported as a stuck copy."""
+    import rt_shell
+
+    class P:
+        def __init__(self, t):
+            self.t = t
+
+        def create_time(self):
+            return self.t
+    assert rt_shell.still_starting([P(1000.0)], now=1030.0)
+    assert not rt_shell.still_starting([P(1000.0)], now=1000.0 + rt_shell.STARTING_SECONDS + 1)
+    assert not rt_shell.still_starting([], now=0)
+
+
+def test_restart_only_for_packaged_exe():
+    import rt_shell
+    assert rt_shell.restart_after_exit() is False      # running from source / not Windows: never relaunches

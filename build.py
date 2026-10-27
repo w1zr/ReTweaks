@@ -8,6 +8,7 @@
 3. runs PyInstaller with RETWEAKS.spec (single file, administrator, chip icon embedded)
 """
 import os
+import re
 import subprocess
 import sys
 
@@ -115,6 +116,39 @@ def build_gemini_chat():
             pass
 
 
+def write_version_info(path=None):
+    """Windows file details (Properties -> Details) for RETWEAKS.exe: company, product, description and version.
+    v2.0.8 (owner request: stop showing up as a virus): an .exe with no publisher details looks more suspicious to
+    antivirus heuristics. Returns the file path; RETWEAKS.spec embeds it."""
+    sys.path.insert(0, ROOT)
+    from core.version import __version__, BRAND
+    parts = [int(x) for x in re.findall(r"\d+", __version__)[:4]]
+    parts += [0] * (4 - len(parts))
+    nums = ", ".join(str(n) for n in parts)
+    dotted = ".".join(str(n) for n in parts)
+    text = f"""VSVersionInfo(
+  ffi=FixedFileInfo(filevers=({nums}), prodvers=({nums}), mask=0x3f, flags=0x0, OS=0x40004,
+                    fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+      StringStruct('CompanyName', '{BRAND}'),
+      StringStruct('FileDescription', '{BRAND} - Windows PC diagnostics and optimization'),
+      StringStruct('FileVersion', '{dotted}'),
+      StringStruct('InternalName', 'RETWEAKS'),
+      StringStruct('LegalCopyright', 'GPL-3.0-only. Source: github.com/w1zr/ReTweaks'),
+      StringStruct('OriginalFilename', 'RETWEAKS.exe'),
+      StringStruct('ProductName', '{BRAND}'),
+      StringStruct('ProductVersion', '{__version__}')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+"""
+    path = path or os.path.join(ROOT, "build_version_info.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
+
+
 def build_app():
     if sys.platform != "win32":
         sys.exit("RETWEAKS.exe must be built on Windows.")
@@ -129,6 +163,7 @@ def build_app():
              *[f"/reference:{r}" for r in refs], f"ai\\{src}"])
     build_browser()
     build_sensor_host()
+    write_version_info()
     run([sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", "RETWEAKS.spec"])
     print("Build complete! Check " + os.path.join(ROOT, "dist", "RETWEAKS.exe"))
 

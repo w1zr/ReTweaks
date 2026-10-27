@@ -1882,21 +1882,48 @@ if __name__ == "__main__":
         rt_perf.install(VERSION)                              # %APPDATA%\RETWEAKS\perf.log: slow UI callbacks                          # %APPDATA%\RETWEAKS\crash.log
         import rt_shell
         _instance_lock = rt_shell.acquire_single_instance()   # one RETWEAKS at a time (kept for the process)
-        rt_shell.close_legacy_copy()                          # older version (previous name) still running?
-        _migration = rt_shell.migrate()                       # data from earlier versions -> RETWEAKS, before settings load
-        import rt_i18n
-        rt_i18n.install(globals())                            # setting `language` (default English); hooks Tk text
-        if "--minimized" not in sys.argv:
-            import rt_splash_client
-            rt_splash_client.start_early()                    # v1.6 startup screen, up while the app loads
-        import rt_welcome
-        rt_welcome.prepare()                                  # the welcome tour asks the desktop-shortcut question
-        hub = Hub(show_intro="--minimized" not in sys.argv)
-        rt_crashlog.watch_tk(hub)
-        rt_shell.Shell(hub, globals(), _migration)
-        rt_welcome.maybe_show(hub)                            # first run of v2.0+: the welcome tour, once
+
+        def _optional(step, fn, *args):
+            """v2.0.8: a failing optional startup step is logged and skipped instead of stopping the app."""
+            try:
+                return fn(*args)
+            except SystemExit:
+                raise
+            except Exception:
+                import traceback
+                rt_crashlog.write(f"STARTUP STEP FAILED: {step}", traceback.format_exc())
+                return None
+        try:
+            _optional("close older version", rt_shell.close_legacy_copy)   # older version (previous name) running?
+            _migration = _optional("carry over old data", rt_shell.migrate) or []   # before settings load
+            import rt_i18n
+            _optional("translations", rt_i18n.install, globals())   # setting `language`; hooks Tk text
+            if "--minimized" not in sys.argv:
+                import rt_splash_client
+                rt_splash_client.start_early()                # v1.6 startup screen, up while the app loads
+            import rt_welcome
+            _optional("welcome tour", rt_welcome.prepare)     # the welcome tour asks the desktop-shortcut question
+            hub = Hub(show_intro="--minimized" not in sys.argv)
+            rt_crashlog.watch_tk(hub)
+            rt_shell.Shell(hub, globals(), _migration)
+        except SystemExit:
+            raise
+        except BaseException:
+            # v2.0.8 (owner report: an error on the first launch, reopening worked): log it, then start again by
+            # itself once, so the user doesn't have to reopen. A second failure shows where the log is.
+            import traceback
+            rt_crashlog.write("STARTUP FAILED", traceback.format_exc())
+            if "--restarted" not in sys.argv and rt_shell.restart_after_exit():
+                os._exit(1)
+            try:
+                messagebox.showerror(BRAND, f"{BRAND} couldn't start. Details were saved to "
+                                     f"{rt_crashlog.log_path()}. Please send that file with your report.")
+            except Exception:
+                pass
+            os._exit(1)
+        _optional("welcome tour", rt_welcome.maybe_show, hub)   # first run of v2.0+: the welcome tour, once
         import rt_autoupdate
-        rt_autoupdate.start(hub)                              # setting auto_update: download + verify + ask
+        _optional("automatic updates", rt_autoupdate.start, hub)   # setting auto_update: download + verify + ask
         if "--minimized" in sys.argv:                         # started with Windows + "Start minimized"
             if rt_shell.tray_active(hub):
                 hub.withdraw()

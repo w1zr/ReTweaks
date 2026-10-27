@@ -24,3 +24,4 @@ venv/
 *.log
 .DS_Store
 Thumbs.db
+build_version_info.txt

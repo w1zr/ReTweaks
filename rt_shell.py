@@ -165,6 +165,47 @@ def _wait_for_lock(seconds):
         time.sleep(0.15)
 
 
+STARTING_SECONDS = 90
+
+
+def still_starting(procs, now=None):
+    """True when another RETWEAKS.exe started less than STARTING_SECONDS ago. The first launch on a PC can take a
+    while (the single-file .exe unpacks and antivirus scans it), so a second double-click used to report a copy that
+    "isn't responding" (owner report 2026-10-26: an error on the first launch)."""
+    now = time.time() if now is None else now
+    for p in procs or []:
+        try:
+            if now - p.create_time() < STARTING_SECONDS:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def restart_after_exit(extra_args=("--restarted",)):
+    """Start this RETWEAKS.exe again once this process (and its one-file launcher) has exited, so the new copy gets
+    the single-instance lock. Packaged exe only. Returns True if the restart was scheduled."""
+    if not IS_WINDOWS or not getattr(sys, "frozen", False):
+        return False
+    try:
+        import base64
+        import subprocess
+
+        def q(text):
+            return "'" + str(text).replace("'", "''") + "'"
+        args = ",".join(q(a) for a in extra_args)
+        ps = (f"Wait-Process -Id {os.getpid()},{os.getppid()} -Timeout 60 -ErrorAction SilentlyContinue; "
+              f"Start-Process -FilePath {q(sys.executable)}" + (f" -ArgumentList {args}" if extra_args else ""))
+        encoded = base64.b64encode(ps.encode("utf-16-le")).decode("ascii")
+        env = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+        from core.winutil import CREATE_NO_WINDOW
+        subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                          "-EncodedCommand", encoded], creationflags=CREATE_NO_WINDOW, close_fds=True, env=env)
+        return True
+    except Exception:
+        return False
+
+
 def acquire_single_instance():
     """Returns the instance lock, or exits after bringing the running copy to the front."""
     from core.winutil import single_instance, other_instances, close_other_instances
@@ -195,6 +236,8 @@ def acquire_single_instance():
                   f"{APP_NAME} again.", error=True)
             sys.exit(0)
         return lock
+    if still_starting(other_instances()):
+        sys.exit(0)            # v2.0.8: a copy opened moments ago is still starting (first launch is slow); it shows itself
     if not other_instances():
         _tell(f"{APP_NAME} is already running. Check the taskbar or the system tray (it may have started "
               "minimized with Windows).")

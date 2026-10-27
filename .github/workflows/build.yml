@@ -37,6 +37,19 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
 
+      # v2.0.8 (owner request: stop antivirus false positives): PyInstaller's ready-made launcher is shared by many
+      # programs, including malware, so antivirus often flags it. Compile it from source here (same PyInstaller
+      # version) so RETWEAKS.exe has its own launcher. If compiling fails, the build continues with the ready-made one.
+      - name: Compile PyInstaller's launcher from source
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $v = python -c "import PyInstaller; print(PyInstaller.__version__)"
+          $env:PYINSTALLER_COMPILE_BOOTLOADER = "1"
+          python -m pip install --force-reinstall --no-deps --no-binary pyinstaller "pyinstaller==$v"
+          if ($LASTEXITCODE -ne 0) { Write-Output "::warning::Launcher compile failed; using PyInstaller's ready-made launcher."; exit 1 }
+          Write-Output "::notice::PyInstaller $v launcher compiled from source."
+
       - name: Run tests
         run: python -m pytest tests -q
 

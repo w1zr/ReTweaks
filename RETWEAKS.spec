@@ -89,7 +89,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,   # v2.0.8: UPX-packed executables are a common antivirus false-positive trigger
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
@@ -99,4 +99,6 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     uac_admin=True,
+    version=os.path.join(os.path.abspath(SPECPATH), 'build_version_info.txt')
+    if os.path.isfile(os.path.join(os.path.abspath(SPECPATH), 'build_version_info.txt')) else None,
 )
