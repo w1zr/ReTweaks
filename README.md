@@ -15,9 +15,11 @@
 
 ---
 
-## Current version: 2.0.7
+## Current version
 
-Recent changes include a merged Dashboard, grouped navigation, present-hardware driver matching, Windows backgrounds, contextual AI help, file transfers and embedded-browser fixes.
+[![Latest release](https://img.shields.io/github/v/release/w1zr/ReTweaks?label=latest%20version&style=flat-square)](https://github.com/w1zr/ReTweaks/releases/latest)
+
+This badge always shows the newest published release. See what changed in the [latest release notes](https://github.com/w1zr/ReTweaks/releases/latest) or the [full release history](https://github.com/w1zr/ReTweaks/releases).
 
 ## What it does
 
