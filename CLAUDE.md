@@ -83,8 +83,8 @@ startup (no orbit animation). The RETWEAKS Dashboard is the home screen; the bas
 - **What it is:** A Windows PC diagnostics and optimization app, shipped as a single-file Windows `.exe`. It shows real hardware information and live readings, applies practical PC and game tweaks, and includes game profiles, storage tools, an audio mixer, an auto clicker and related utilities.
 - **Core goal:** Real functionality only. Every control must perform a real Windows action and report the true result. No mockups, stubs, placeholder data, fake math (for example, never `cpu_pct * 0.4` for GPU load) or hardcoded device hacks.
 - **Owner:** Ryder. GitHub user `w1zr`.
-- **Repo:** `w1zr/retweaks`, public. All source files stay viewable on GitHub.
-- **License:** None. Do not add a license file unless the owner asks for one.
+- **Repo:** `w1zr/ReTweaks`, public (the old `w1zr/retweaks` and `w1zr/rytweaks` URLs redirect; `core/updater.py` `REPO` uses `w1zr/ReTweaks`). All source files stay viewable on GitHub.
+- **License:** GPL-3.0-only since v2.0 (section 0). `LICENSE` stays at the repo root.
 - **Local folder:** `C:\pc_optimizer` on Ryder's Windows PC, a Git clone of the repo. Ryder updates it from PowerShell with `git fetch origin`, `git reset --hard origin/main` (or a branch), `python build.py`.
 - **This file's location:** `C:\pc_optimizer\CLAUDE.md` and the root of the GitHub repo. Both copies must stay identical. When one changes, update the other in the same session.
 - **Language policy:** RETWEAKS stays mainly Python for now. Changing languages, mixing in other languages, or rewriting modules is allowed in the future, but only under the rewrite protocol in section 4.
@@ -117,7 +117,7 @@ The real layout is the one in the GitHub repo. Inspect the repo before assuming 
 - `core/tweaks.py` — Individual tweaks (Standard/Advanced): real state, original values saved before the first change, Undo and Undo everything, restore point. v1.4.3: `core/tweaks_catalog.py` adds 44 more (53 total; search keywords in `KEYWORDS`) in categories Gaming, Privacy, Interface, Services, Maintenance (`CATEGORY_ORDER`); `core/quick_actions.py` holds the Essentials actions (flush DNS, Windows Update cache with preview, SFC).
 - `core/game_presets.py` — Game settings presets: parsers for ini / key:value / Valve KeyValues files, backups, only changes keys that already exist, refuses while the game runs.
 - `core/app_rules.py` — Per-program rules (GPU preference, fullscreen optimizations, CPU priority) and auto game mode.
-- `core/updater.py` — Update check and in-app updates (SHA-256 verified, keeps RETWEAKS.old.exe); since v1.4 an update bar at the top of every page offers **Update now** (owner request 2026-10-21).
+- `core/updater.py` — Update check and in-app updates (SHA-256 verified; since 2.0.7 no RETWEAKS.old.exe is kept, see the 2.0.7 note at the end); since v1.4 an update bar at the top of every page offers **Update now** (owner request 2026-10-21).
 - `core/nettest.py` — DNS speed test and ping test (1.1.1.1 / 1.0.0.1).
 - `core/autostart.py` — Start with Windows via a Task Scheduler task (no UAC prompt at sign-in).
 - `core/profiles.py` — System profiles. v1.4.3 `PRESETS` = data {tweak id: On/Off} + power plan: Esports, Max FPS, Balanced, Low-end PC, High quality, Ultra quality, Streamer, Privacy; plus the original Max Performance and Windows Default. `preview()` reads current state so only real changes are shown before applying (`ui/widgets/preset_apply.py`, used by the Profiles page). On the Tweaks page a preset only ticks its tweaks (`preset_selection`, `SELECTABLE_PRESETS`); the user unticks/adds, Clear selection, then Apply selected (`selection_preview`, `apply_selection`). Setting `last_preset` remembers the last one applied.
@@ -327,7 +327,7 @@ Measure real FPS and 1% lows where supported. State the method, duration and lim
 
 Gemini was removed in v1.2 and brought back in v1.4 as the **AI Assistant** tab, approved on 2026-10-21 by Chris, the adult account owner, who confirmed that only he uses the API key.
 - Google's Gemini API terms require users to be 18+ and forbid apps "likely to be accessed by individuals under the age of 18" (ai.google.dev/terms). The setup card makes the key owner confirm 18+ and accept Google's terms.
-- Bring your own key. No key in the code or the repo. The key is stored only in Windows Credential Manager (`RETWEAKS/GeminiAPIKey`), never in config.json or logs.
+- Superseded by section 0 (v2.0.1 and later): built-in keys are filled in at build time from the `GEMINI_API_KEY` Actions secret or the untracked `ai/gemini_key.txt`; there is no own-key option. Still: no key in the code or the repo, and never in config.json or logs. (Original v1.4 rule: bring your own key, stored in Windows Credential Manager `RETWEAKS/GeminiAPIKey`.)
 - Only whitelisted PC specs are sent (never serials, names, addresses or paths), and only when "Include my PC specs" is on. "See what's shared" shows the exact text.
 - The assistant gives advice only. It never runs commands or changes settings.
 - Default model: `gemini-3.8-flash` (stable and free tier per Google's docs, checked 2026-10-21). It's a setting, so it can change without a code change.
@@ -522,3 +522,33 @@ Release publication: all current changes since 2.0.3 are released together as 2.
 2.0.8 (owner request 2026-10-26: error on first launch, antivirus): retweaks.py wraps optional startup steps (`_optional`, logged as STARTUP STEP FAILED) and, if the window/shell fails, logs STARTUP FAILED and restarts once via `rt_shell.restart_after_exit` (`--restarted`), then shows the crash.log path. `rt_shell.still_starting`: a second launch within 90 s of another copy exits quietly. Antivirus: spec `upx=False`, Windows version resource from `build.write_version_info` (`build_version_info.txt`, ignored), CI compiles the PyInstaller bootloader from source (continue-on-error). Not code-signed (owner: free fixes only).
 README/website version (owner request 2026-10-26): README shows a shields.io latest-release badge instead of a typed version; docs/index.html already loads the newest release from the GitHub API, its fallback text is "latest version". Never type a version number into README or the website.
 2.0.9 (owner report 2026-10-27: language switch on Windows left the sidebar without icons and text unchanged): `rt_i18n.set_language` relabels viewable widgets first, then hidden ones in batches of 250 via after() (`busy()`, generation counter cancels an older switch; `sync=True` does all at once); the sidebar gets `Sidebar.relabel` (redraw only, icons kept) instead of `refresh`; `retweaks.text_w` caches widths per (font, text). Check `checks/check_rt_language_switch.py`.
+
+## 21. Handoff from earlier sessions (2026-10-27)
+
+Development moved mostly to Claude Code on 2026-10-27. The full handoff, `docs/COWORK_NOTES.md`, stays on the owner's PC only (excluded from git); never commit it.
+
+### Owner rules
+- **Isolation:** keep this project's work inside this project. GitHub is the only approved connector; don't use other connectors, memory or files on the machine. RETWEAKS must never run on a work laptop.
+- **CLAUDE.md source:** only this file (`C:\pc_optimizer` or the repo root). Ignore older copies in backup folders.
+- **Windows Activation page** (added by the friend in 2.0.4): Claude doesn't work on it, translate it, or mention it in release notes.
+- **Release notes:** `release-notes/v2.0.5.md` is the full app description. Later notes list only what's new and link to the 2.0.5 release.
+- **Re-releasing a version is allowed** (2.0.7 was re-published 2026-10-24). The updater compares version numbers, so people already on it don't get the rebuild.
+- **"Unlimited AI" / Freebuff tab: on hold** (2026-10-24). Freebuff has no public chat API; the unofficial `freebuff2api` proxy was refused (imitates the official client, rotates accounts). If built later: an official API only, and not called "Unlimited".
+- **Code signing:** free fixes only (2026-10-26). No certificate.
+
+### Open work and known bugs
+- **First-launch error on a friend's PC (2026-10-26):** cause unknown; 2.0.8 only added a restart-once guard. Needs that PC's `%APPDATA%\RETWEAKS\crash.log` (`STARTUP FAILED` / `STARTUP STEP FAILED`).
+- **2.0.9 language switch:** cause was inferred, not confirmed on Windows. Check that text switches and sidebar icons stay.
+- **Welcome tour:** "Step {n} of {total}" (`rt_welcome.py`) has no translation in `i18n/`, so it stays English.
+- **`checks/check_rt_language_switch.py`:** the hidden-page loop passes without testing anything if no widget's English text is exactly "Graphics benchmark".
+- **v2.0.5 release page:** the full description (commit `05d2a9c`) was pushed after publishing; unconfirmed whether the release page shows it.
+- **README badge:** confirm on GitHub that the shields.io badge shows the right version.
+- **Antivirus/SmartScreen:** not re-checked since 2.0.8.
+- **Never tested on real Windows:** updating from source (`%LOCALAPPDATA%\RETWEAKS\app`), `updater.remove_old_exe`, the Fortnite read-only lock and multi-profile file search, `rt_shell.restart_after_exit` / `still_starting`.
+
+### Lessons learned
+- `python build.py` recompiles the tracked `ai/*.exe` helpers, so they show as modified after every local build; don't commit them unless their C# source changed.
+- Tests run as root on Linux ignore read-only files: use `lock=False` in Fortnite tests (a root-only pass failed on Windows CI in 2.0.7).
+- Keep each file's encoding and line endings (BOM/CRLF), or diffs cover the whole file.
+- In `ai/GeminiChat.cs`, a method named `Keys()` shadowed the WinForms `Keys` enum; it is `AllKeys()`.
+- `RETWEAKS.exe` can't be tested under Wine ("Failed to start embedded python interpreter!").
