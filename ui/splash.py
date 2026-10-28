@@ -63,6 +63,7 @@ class RetweaksSplash(QWidget):
         self._finishing = None       # window to show once the reveal completes
         self._ready_at = None
         self._fade_start = None
+        self._shown_at = None         # when the window was shown (invisible); the fade waits for its first paint
         self._done = False
         self._timer = QTimer(self)
         self._timer.setInterval(16)
@@ -124,13 +125,19 @@ class RetweaksSplash(QWidget):
             window, show = self._finishing
             if self._ready_at is None:
                 self._ready_at = real
-            elif self._fade_start is None and real - self._ready_at >= HOLD:
+            elif self._shown_at is None and real - self._ready_at >= HOLD:
                 # Show the window invisibly first, so its first (slow) paint happens before the fade
                 self._center_window(window)
                 window.setWindowOpacity(0.0)
                 show()
                 self.raise_()
-                self._fade_start = real + 0.05
+                self._shown_at = real
+            if self._fade_start is None and self._shown_at is not None:
+                # start only once the window has really painted (a remote window reports it, 2.1; owner: the
+                # fade into the app "isn't really a fade"); never wait more than 1.5 s
+                painted = getattr(window, "painted", None)
+                if (painted is None and real - self._shown_at >= 0.05) or painted or real - self._shown_at >= 1.5:
+                    self._fade_start = real
             if self._fade_start is not None and real >= self._fade_start:
                 x = min(1.0, (real - self._fade_start) / FADE)
                 f = x * x * (3 - 2 * x)          # ease in and out

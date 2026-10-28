@@ -7,7 +7,7 @@ Run-and-done from a shortcut / command line:
     RETWEAKS.exe --preset maxfps --undo     (undo it)
     RETWEAKS.exe --list                     (show preset names)
 """
-import os, sys, threading, queue, datetime, re, math
+import os, sys, threading, queue, datetime, re, math, time
 if '--verify-startup' in sys.argv:
     def _verify_error(kind, value, tb):
         import traceback
@@ -237,6 +237,12 @@ class RButton(tk.Canvas):
         fg = mix(k["fg"], k["hfg"], t)
         if not self.enabled:
             fill, edge, fg = mix(PANEL2, self.outer, 0.35), LINE, DIM
+        kt = getattr(self, "kt", 1.0)
+        if kt < 1.0:                                   # set_kind: blend from the old look (ease-out)
+            e = 1 - (1 - kt) ** 3
+            f0, e0, g0 = self._from
+            fill, edge, fg = mix(f0, fill, e), mix(e0, edge, e), mix(g0, fg, e)
+        self._last = (fill, edge, fg)
         self.delete("all")
         self.create_polygon(rr(1, 1, self.bw - 1, self.bh - 1, self.radius), smooth=True, fill=fill, outline=edge)
         self.create_text(self.bw / 2, self.bh / 2 + (1 if self.pressed else 0), text=self.label, fill=fg, font=self.font)
@@ -248,8 +254,32 @@ class RButton(tk.Canvas):
         self._draw()
 
     def set_kind(self, kind):
+        """Selected/unselected chips (Segmented, section chips) glide between looks in ~150 ms."""
+        if kind == self.kind:
+            return
+        last = getattr(self, "_last", None)
         self.kind = kind
-        self._draw()
+        try:
+            visible = self.winfo_viewable()
+        except tk.TclError:
+            visible = False
+        if not visible or last is None:
+            self.kt = 1.0
+            self._draw()
+            return
+        self._from, self.kt, self._kbegan = last, 0.0, time.monotonic()
+        if getattr(self, "_kjob", None) is None:
+            self._kstep()
+
+    def _kstep(self):
+        self._kjob = None
+        try:
+            self.kt = min(1.0, (time.monotonic() - self._kbegan) / 0.15)
+            self._draw()
+            if self.kt < 1.0:
+                self._kjob = self.after(15, self._kstep)
+        except tk.TclError:
+            pass
 
     def set_enabled(self, flag):
         self.enabled = bool(flag)
@@ -358,7 +388,8 @@ class RCheck(tk.Canvas):
         super().__init__(parent, width=text_w(font, text) + 34, height=26, bg=outer, highlightthickness=0, bd=0,
                          cursor="arrow" if disabled else "hand2")
         self.cb_text, self.var, self.cmd, self.disabled, self.hov = text, variable, command, disabled, False
-        self._tid = variable.trace_add("write", lambda *a: self._draw())
+        self.cp, self._cjob = (1.0 if variable.get() else 0.0), None    # 0 = unticked look, 1 = ticked look
+        self._tid = variable.trace_add("write", lambda *a: self._changed())
         self.bind("<Enter>", lambda e: self._hover(True))
         self.bind("<Leave>", lambda e: self._hover(False))
         self.bind("<ButtonRelease-1>", self._click)
@@ -383,19 +414,55 @@ class RCheck(tk.Canvas):
         if self.cmd:
             self.cmd()
 
+    def _changed(self):
+        """Ticking fills the box and draws the check mark in (~140 ms); hidden boxes switch at once."""
+        target = 1.0 if self.var.get() else 0.0
+        try:
+            visible = self.winfo_viewable()
+        except tk.TclError:
+            return
+        if not visible:
+            self.cp = target
+            self._draw()
+            return
+        self._cfrom, self._cbegan = self.cp, time.monotonic()
+        if self._cjob is None:
+            self._cstep()
+
+    def _cstep(self):
+        self._cjob = None
+        target = 1.0 if self.var.get() else 0.0
+        try:
+            k = min(1.0, (time.monotonic() - self._cbegan) / 0.14)
+            self.cp = self._cfrom + (target - self._cfrom) * (1 - (1 - k) ** 3)
+            if k >= 1.0:
+                self.cp = target
+            self._draw()
+            if self.cp != target:
+                self._cjob = self.after(15, self._cstep)
+        except tk.TclError:
+            pass
+
     def _draw(self):
         on = bool(self.var.get())
+        p = self.cp if not self.disabled else (1.0 if on else 0.0)
         self.delete("all")
         y0 = 4
         if self.disabled:
             fill, edge, fg = PANEL2, LINE, DIM
         else:
-            fill = ACC if on else PANEL2
-            edge = ACC if (on or self.hov) else EDGE_HOVER
+            fill = mix(PANEL2, ACC, p)
+            edge = ACC if (p > 0.5 or self.hov) else EDGE_HOVER
             fg = FG
         self.create_polygon(rr(2, y0, 20, y0 + 18, 6), smooth=True, fill=fill, outline=edge)
-        if on:
-            self.create_line(6.5, y0 + 9.5, 10, y0 + 13, 16, y0 + 5.5, fill=ACC_D if not self.disabled else DIM,
+        if p > 0.02:
+            # the check mark draws from its left tip: the short stroke first, then the long one
+            pts = [(6.5, y0 + 9.5), (10, y0 + 13), (16, y0 + 5.5)]
+            a, b = min(1.0, p / 0.4), max(0.0, (p - 0.4) / 0.6)
+            mid = (pts[0][0] + (pts[1][0] - pts[0][0]) * a, pts[0][1] + (pts[1][1] - pts[0][1]) * a)
+            line = [pts[0], mid] if b <= 0 else [pts[0], pts[1],
+                                                 (pts[1][0] + (pts[2][0] - pts[1][0]) * b, pts[1][1] + (pts[2][1] - pts[1][1]) * b)]
+            self.create_line(*[c for xy in line for c in xy], fill=ACC_D if not self.disabled else DIM,
                              width=2.2, capstyle="round", joinstyle="round")
         self.create_text(29, 13, text=self.cb_text, anchor="w", fill=fg, font=self.cb_font)
 

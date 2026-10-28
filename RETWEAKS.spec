@@ -31,7 +31,7 @@ datas = [
     ('i18n/es.json', 'i18n'), ('i18n/fr.json', 'i18n'), ('i18n/de.json', 'i18n'), ('i18n/pt-BR.json', 'i18n'),
 ]
 
-hiddenimports = (['retweaks_data', 'hubplus', 'rt_shell', 'rt_sidebar', 'rt_crashlog', 'rt_search', 'rt_splash_client', 'rt_traymenu', 'rt_perf', 'embedded_browser', 'rt_splash_qt', 'ui.splash', 'ui.widgets.brand', 'PIL._imaging', 'PIL._imagingtk',
+hiddenimports = (['retweaks_data', 'hubplus', 'rt_shell', 'rt_sidebar', 'rt_crashlog', 'rt_search', 'rt_splash_client', 'rt_traymenu', 'rt_perf', 'rt_anim','embedded_browser', 'rt_splash_qt', 'ui.splash', 'ui.widgets.brand', 'PIL._imaging', 'PIL._imagingtk',
                   'pycaw.utils', 'comtypes.stream', 'comtypes.persist', 'pystray._win32',
                   'win32pipe', 'win32file', 'win32pdh', 'win32com.client', 'pynvml']
                  + collect_submodules('rt_pages')   # loaded by name from rt_pages.REGISTRY

@@ -411,12 +411,18 @@ class Intro:
         now = self._time()
         if self.ready_at is not None and t >= self.REVEAL:
             if self.fade_start is None and now - max(self.ready_at, self.t0 + self.REVEAL) >= self.HOLD:
-                self.fade_start = now
                 try:
                     self.root.attributes('-alpha', 0.0)
                 except tk.TclError:
                     pass
                 self.root.deiconify(); self.window.lift()
+                # 2.1: let the window map and paint while invisible, then start the fade clock, so its first
+                # paint doesn't eat the fade (owner: the fade into the app "isn't really a fade")
+                try:
+                    self.root.update(); self.root.update_idletasks()
+                except tk.TclError:
+                    pass
+                self.fade_start = now = self._time()
             if self.fade_start is not None:
                 x = min(1.0, (now - self.fade_start) / self.FADE)
                 f = x * x * (3 - 2 * x)

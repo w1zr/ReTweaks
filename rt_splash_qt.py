@@ -8,10 +8,12 @@ stays smooth however busy the app is.
 Started by the app as `RETWEAKS.exe --rt-splash` (rt_splash_client). Talks over stdin/stdout, one line each:
   in:  "status <text>"   update the status line
        "ready"           the app finished loading: finish the reveal, hold, then cross-fade
+       "painted"         (2.1) the main window is shown at opacity 0 and fully painted: the cross-fade may start
        "quit"            close now (startup failed)
        (end of input)    the app went away: close now
-  out: "show"            show the main window now, fully transparent (the cross-fade starts)
-       "alpha <0..1>"    main window opacity during the cross-fade
+  out: "show"            show the main window now, fully transparent; answer "painted" when it has drawn
+       "alpha <0..1>"    main window opacity during the cross-fade (the app runs the same curve on its own
+                         clock from the first one, so a busy moment can't make it jump)
        "done"            the splash is gone; the main window should be fully visible
 Same timing rules as v1.6 (no version number, no fake waiting), only slower: SLOWER stretches the reveal
 and the scan loop; the hold and the cross-fade stay as in v1.6.
@@ -78,6 +80,7 @@ def main():
         """Stands in for the main window: RetweaksSplash fades `window` in; here that means telling the app."""
         def __init__(self):
             self.shown = False
+            self.painted = False                 # the app answers "painted" after its first full paint
             self.last = -1.0
 
         def frameGeometry(self):
@@ -126,6 +129,8 @@ def main():
             splash.status = line[7:]
         elif line == "ready":
             splash.finish(remote, show=remote.show)
+        elif line == "painted":
+            remote.painted = True
         elif line in ("quit", "EOF"):
             splash.abort()
 

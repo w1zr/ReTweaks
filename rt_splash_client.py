@@ -64,6 +64,8 @@ class QtIntro:
         self._time = time.monotonic
         self.REVEAL, self.HOLD, self.FADE = 2.38, 0.3, 0.55
         self.shown = False
+        self.fade_t0 = None
+        self.fade_job = None
         self.lines = queue.Queue()
         self.job = None
         threading.Thread(target=self._read, daemon=True, name="splash-stdout").start()
@@ -108,12 +110,17 @@ class QtIntro:
             while True:
                 line = self.lines.get_nowait()
                 if line == "show":
-                    self._show(0.0)
+                    self._show_hidden()
                 elif line.startswith("alpha "):
                     try:
-                        self._show(float(line[6:]))
+                        value = float(line[6:])
                     except ValueError:
-                        pass
+                        value = 0.0
+                    # the first visible step after "show" starts the same curve here ("alpha 0.0" also
+                    # comes before "show", while the window is still being prepared)
+                    if self.fade_t0 is None and self.shown and value > 0.0:
+                        self.fade_t0 = self._time()
+                        self._fade_step()
                 elif line in ("done", "EOF"):
                     self.finish()
                     return
@@ -133,16 +140,42 @@ class QtIntro:
         except tk.TclError:
             pass
 
+    def _show_hidden(self):
+        """Show the window at opacity 0 and let it maximize and paint completely, then tell the splash
+        (2.1, owner: the fade into the app "isn't really a fade"; it used to start before the first paint)."""
+        self._show(0.0)
+        try:
+            self.root.update()                    # Map -> maximize, layout
+            self.root.update_idletasks()          # paint
+        except tk.TclError:
+            pass
+        self._send("painted")
+
+    def _fade_step(self):
+        """Main window side of the cross-fade, on its own clock with the splash's curve and length."""
+        self.fade_job = None
+        if self.closed:
+            return
+        x = min(1.0, (self._time() - self.fade_t0) / self.FADE)
+        self._show(x * x * (3 - 2 * x))
+        if x < 1.0:
+            try:
+                self.fade_job = self.root.after(10, self._fade_step)
+            except tk.TclError:
+                pass
+
     def finish(self):
         if self.closed:
             return
         self.closed = True
-        if self.job:
-            try:
-                self.root.after_cancel(self.job)
-            except tk.TclError:
-                pass
-            self.job = None
+        for name in ("job", "fade_job"):
+            job = getattr(self, name, None)
+            if job:
+                try:
+                    self.root.after_cancel(job)
+                except tk.TclError:
+                    pass
+                setattr(self, name, None)
         if self.proc.poll() is None:
             self._send("quit")
             try:

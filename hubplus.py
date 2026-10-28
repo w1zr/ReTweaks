@@ -257,8 +257,18 @@ def install(g):
         def show_tab(self,i):
             # one paint of the finished page instead of black boxes while it lays out (owner report 2026-10-27)
             import rt_perf
+            before=self.cur_tab
             with rt_perf.paint_once(getattr(self,'content',None)):
                 self._show_tab_now(i)
+            if self.cur_tab!=before and before!=-1 and getattr(self,'content',None) is not None:
+                try:                                       # page fades in (rt_anim; owner request 2026-10-27)
+                    if getattr(self,'page_fade',None) is None:
+                        import rt_anim
+                        self.page_fade=rt_anim.PageFade(self,self.content,self.content.cget('bg'))
+                    self.page_fade.set_color(self.content.cget('bg'))
+                    self.page_fade.play()
+                except Exception:
+                    pass
 
         def _show_tab_now(self,i):
             opened=getattr(g.get('RSelect'),'_open_one',None)
