@@ -485,6 +485,16 @@ class Sidebar:
                 self._anim = None
         step()
 
+    def relabel(self):
+        """Language changed (rt_i18n.set_language): redraw the rows' text only. The icons stay as they are; clearing
+        and re-tinting them (refresh) left the sidebar without icons while a slow switch was still running on
+        Windows (owner report v2.0.8)."""
+        for b in self.buttons.values():
+            try:
+                b.draw()
+            except tk.TclError:
+                pass
+
     def refresh(self):
         """Theme changed: redraw rows (icons are re-tinted) and recolour the accent bar."""
         self._icons.clear()

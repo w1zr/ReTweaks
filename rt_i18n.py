@@ -457,9 +457,13 @@ _REDRAW = {"RButton": "_draw", "RCheck": "_draw", "RSelect": "_draw", "NavItem":
 
 def relabel(root):
     """Re-apply the current language to every widget under root (all toplevels of the app)."""
+    _relabel_widgets(list(_walk(root)))
+
+
+def _relabel_widgets(widgets):
     tw = (_g or {}).get("text_w")
     measure = getattr(tw, "_orig", None)
-    for w in list(_walk(root)):
+    for w in widgets:
         try:
             store = w.__dict__.get("_i18n_en")
             if store and "text" in store and not isinstance(w, tk.Canvas):
@@ -502,8 +506,29 @@ def relabel(root):
             continue
 
 
-def set_language(hub, code):
-    """Switch the whole app now and save the choice (config key `language`)."""
+_switch = {"gen": 0, "busy": False}
+BATCH = 250            # widgets re-labelled per step of a background switch
+
+
+def busy():
+    """True while a language switch is still re-labelling hidden pages."""
+    return _switch["busy"]
+
+
+def _viewable(w):
+    try:
+        return bool(w.winfo_viewable())
+    except tk.TclError:
+        return False
+
+
+def set_language(hub, code, sync=False):
+    """Switch the whole app and save the choice (config key `language`).
+
+    v2.0.9 (owner report: on Windows the sidebar icons vanished and the text stayed in the old language): the switch
+    re-labels ~6,000 widgets, which froze the window for many seconds on Windows. Now what's on screen (sidebar, top bar,
+    the open page) switches first, and the hidden pages follow in small steps, so the window stays responsive. Pass
+    sync=True to do everything at once."""
     code = code if code in LANGUAGES else DEFAULT
     load(code)
     try:
@@ -520,18 +545,48 @@ def set_language(hub, code):
             except Exception:
                 pass
     roots = [hub] + [w for w in hub.winfo_children() if isinstance(w, tk.Toplevel)]
-    for r in roots:
-        relabel(r)
-    for extra in ("chrome", "sidebar_nav"):
+    widgets = [w for r in roots for w in _walk(r)]
+    shown = [w for w in widgets if _viewable(w)]
+    hidden = [w for w in widgets if not _viewable(w)] if not sync else []
+    _relabel_widgets(widgets if sync else shown)
+    for extra, method in (("chrome", "refresh"), ("sidebar_nav", "relabel")):
         obj = getattr(hub, extra, None)
-        fn = getattr(obj, "refresh", None)
+        fn = getattr(obj, method, None) or getattr(obj, "refresh", None)
         if callable(fn):
             try:
                 fn()
             except Exception:
                 pass
+    _switch["gen"] += 1
+    gen = _switch["gen"]
+
+    def finished():
+        _switch["busy"] = False
+        try:
+            hub.event_generate("<<LanguageChanged>>")
+        except tk.TclError:
+            pass
+
+    if not hidden:
+        finished()
+        return code
+    _switch["busy"] = True
+
+    def step(i=0):
+        if gen != _switch["gen"]:
+            return                                   # a newer switch took over
+        _relabel_widgets(hidden[i:i + BATCH])
+        if i + BATCH < len(hidden):
+            try:
+                hub.after(1, lambda: step(i + BATCH))
+            except tk.TclError:
+                _switch["busy"] = False
+            return
+        finished()
     try:
-        hub.event_generate("<<LanguageChanged>>")
+        hub.update_idletasks()                       # draw the switched screen before the rest continues
+        hub.after(1, step)
     except tk.TclError:
-        pass
+        _relabel_widgets(hidden)
+        finished()
     return code

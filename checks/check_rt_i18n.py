@@ -107,6 +107,9 @@ def click(button):
     ev.x, ev.y = 5, 5
     button._release(ev)
     pump(4)
+    end = time.time() + 30
+    while rt_i18n.busy() and time.time() < end:     # v2.0.9: hidden pages switch in steps
+        pump(2)
 
 
 # ---- every language: switch live via the card, check pages, heading keeps "Language", names untranslated

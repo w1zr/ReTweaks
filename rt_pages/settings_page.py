@@ -71,7 +71,7 @@ class SettingsPage:
         self.header.pack(side="left", padx=(8, 20))
         self._lbl(row, "Dashboard banner")
         cur = s.get("banner_style", "cores")
-        self.banner = g["RSelect"](row, [t for t, _ in BANNER_STYLES], width=180, command=self.set_banner)
+        self.banner = g["RSelect"](row, [t for t, _ in BANNER_STYLES], width=220, command=self.set_banner)
         self.banner.set(next((t for t, k in BANNER_STYLES if k == cur), BANNER_STYLES[0][0]))
         self.banner.pack(side="left", padx=8)
         # banner colour (v2.0.6): settings banner_color / banner_custom_color

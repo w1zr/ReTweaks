@@ -57,13 +57,23 @@ def rr(x1, y1, x2, y2, r):
 
 
 _fonts = {}
+_widths = {}          # (font spec, text) -> pixels. v2.0.9: measuring is slow on Windows and a language switch
+                      # measures thousands of labels; the same text in the same font always has the same width.
 
 
 def text_w(spec, text):
+    key = (spec, text)
+    w = _widths.get(key)
+    if w is not None:
+        return w
     f = _fonts.get(spec)
     if f is None:
         f = _fonts[spec] = tkfont.Font(font=spec)
-    return f.measure(text)
+    w = f.measure(text)
+    if len(_widths) > 50000:
+        _widths.clear()
+    _widths[key] = w
+    return w
 
 
 def _bg_of(w):
