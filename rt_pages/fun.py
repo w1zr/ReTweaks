@@ -30,6 +30,7 @@ class RawMouseListener:
         self._hwnd = None
         self._thread = None
         self._ready = threading.Event()
+        self._procs = []        # every window procedure ever handed to Windows stays alive (see _run)
 
     def start(self, timeout=1.0):
         if sys.platform != "win32":
@@ -121,7 +122,11 @@ class RawMouseListener:
                         pass
                 return user32.DefWindowProcW(hwnd, msg, wp, lp)
 
-            self._proc = WNDPROC(proc)          # keep a reference for the window's lifetime
+            # Opening the page again reruns this. Up to 2.0.9 the second RegisterClassW failed (same name)
+            # and Windows kept the first run's procedure, which Python had freed: the app crashed on the next
+            # message. Now the class is unregistered when the loop ends, and no procedure is ever freed.
+            self._proc = WNDPROC(proc)
+            self._procs.append(self._proc)
             hinst = kernel32.GetModuleHandleW(None)
             cls = WNDCLASSW()
             cls.lpfnWndProc = self._proc
@@ -149,6 +154,7 @@ class RawMouseListener:
             user32.DispatchMessageW(ctypes.byref(msg))
         try:
             user32.DestroyWindow(hwnd)
+            user32.UnregisterClassW(cls.lpszClassName, hinst)
         except Exception:
             pass
         self.ok = False

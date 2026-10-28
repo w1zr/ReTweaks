@@ -30,9 +30,10 @@ end = time.time() + 30
 while rt_i18n.busy() and time.time() < end:
     hub.update()
 assert not rt_i18n.busy()
-hidden = [w for w in rt_i18n._walk(hub) if w.__dict__.get("_i18n_en", {}).get("text") == "Graphics benchmark"]
+hidden = [w for w in rt_i18n._walk(hub) if w.__dict__.get("_i18n_en", {}).get("text") == "Ready to check"]
+assert hidden, "no 'Ready to check' widget found, so hidden-page switching was not tested"
 for w in hidden:
-    assert "Grafik" in str(w.tk.call(w._w, "cget", "-text")), w.tk.call(w._w, "cget", "-text")
+    assert "Bereit" in str(w.tk.call(w._w, "cget", "-text")), w.tk.call(w._w, "cget", "-text")
 # a second switch while one is running takes over cleanly
 rt_i18n.set_language(hub, "es"); rt_i18n.set_language(hub, "en")
 while rt_i18n.busy():

@@ -3605,7 +3605,8 @@
   "Sets Fortnite's own resolution and Fullscreen mode. Windows and other apps keep their normal desktop resolution. Close Fortnite before applying.\n\nFullscreen is required; Windowed Fullscreen uses the desktop size. Fortnite resets its settings file when it starts, so the file is made read-only (Restore unlocks it). Your graphics card must offer the size, and its scaling must be set to Full-screen to stretch instead of showing black bars. Start the game afterward to check the result.": "Legt Fortnites eigene Auflösung und den Vollbildmodus fest. Windows und andere Apps behalten ihre normale Desktop-Auflösung. Schließe Fortnite vor dem Anwenden.\n\nVollbild ist nötig; Fenster-Vollbild nutzt die Desktop-Größe. Fortnite setzt seine Einstellungsdatei beim Start zurück, daher wird die Datei schreibgeschützt (Wiederherstellen entsperrt sie). Deine Grafikkarte muss die Größe anbieten, und ihre Skalierung muss auf Vollbild stehen, damit das Bild gestreckt wird statt schwarze Balken zu zeigen. Starte danach das Spiel, um das Ergebnis zu prüfen.",
   "Looking for Fortnite's settings file…": "Fortnites Einstellungsdatei wird gesucht…",
   "Fortnite's settings file wasn't found. Start Fortnite once and close it, or use Choose Fortnite settings file.": "Fortnites Einstellungsdatei wurde nicht gefunden. Starte Fortnite einmal und schließe es, oder nutze Fortnite-Einstellungsdatei wählen.",
-  "Found Fortnite settings: ": "Fortnite-Einstellungen gefunden: "
+  "Found Fortnite settings: ": "Fortnite-Einstellungen gefunden: ",
+  "Step {n} of {total}": "Schritt {n} von {total}"
  },
  "templates": {
   "\n\nAlready set ({0}): ": "\n\nBereits gesetzt ({0}): ",
@@ -4138,6 +4139,7 @@
   "\n\nYour graphics card does not offer {0} × {1} on this monitor yet, so Fortnite can't use it in Fullscreen. Add it as a custom resolution in your graphics driver first (NVIDIA Control Panel → Change resolution → Customize), and set scaling to Full-screen.": "\n\nDeine Grafikkarte bietet {0} × {1} auf diesem Monitor noch nicht an, daher kann Fortnite sie im Vollbild nicht nutzen. Füge sie zuerst als benutzerdefinierte Auflösung im Grafiktreiber hinzu (NVIDIA-Systemsteuerung → Auflösung ändern → Anpassen) und stelle die Skalierung auf Vollbild.",
   "\n\nYour graphics card offers {0} × {1}. If you see black bars, set the scaling to Full-screen (NVIDIA Control Panel → Adjust desktop size and position, or AMD/Intel display settings).": "\n\nDeine Grafikkarte bietet {0} × {1} an. Wenn du schwarze Balken siehst, stelle die Skalierung auf Vollbild (NVIDIA-Systemsteuerung → Desktopgröße und -position anpassen, oder die AMD/Intel-Anzeigeeinstellungen).",
   "Fortnite already had {0} and Fullscreen. The file is now read-only so Fortnite can't reset it.": "Fortnite hatte bereits {0} und Vollbild. Die Datei ist jetzt schreibgeschützt, damit Fortnite sie nicht zurücksetzen kann.",
-  "Saved {0} and Fullscreen in Fortnite's settings. A backup was saved.{1} Windows desktop resolution is unchanged. Start Fortnite and check its Video settings.": "{0} und Vollbild in den Fortnite-Einstellungen gespeichert. Eine Sicherung wurde angelegt.{1} Die Desktop-Auflösung von Windows bleibt gleich. Starte Fortnite und prüfe die Videoeinstellungen."
+  "Saved {0} and Fullscreen in Fortnite's settings. A backup was saved.{1} Windows desktop resolution is unchanged. Start Fortnite and check its Video settings.": "{0} und Vollbild in den Fortnite-Einstellungen gespeichert. Eine Sicherung wurde angelegt.{1} Die Desktop-Auflösung von Windows bleibt gleich. Starte Fortnite und prüfe die Videoeinstellungen.",
+  "Step {0} of {1}": "Schritt {0} von {1}"
  }
 }

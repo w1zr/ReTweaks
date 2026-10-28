@@ -5,6 +5,9 @@ RETWEAKS addition (combined app): volume lock for the default speaker and defaul
 0.5 s while RETWEAKS runs, even with this page hidden, follows whichever device is the default and
 never touches mute."""
 import os
+import queue
+import threading
+import time
 import tkinter as tk
 from tkinter import ttk
 from volume_slider import VolumeSlider
@@ -82,6 +85,7 @@ class AudioPanel:
         self.hub=hub;self.tab=tab;self.g=g;self.backend=backend;self.views=[]
         self.window=None;self.closed=False;self.job=None;self.state=None
         self.lock_io=lock_io;self.lock_job=None;self.volume_lock=None;self.lock_error=''
+        self.lock_thread=None;self.lock_log=queue.SimpleQueue()
         from core import audio_lock
         self.audio_lock=audio_lock
         body=hub.page(tab,'Audio Mixer','Control app volumes, speakers and microphones. Pop the mixer out to keep it beside your other apps.')
@@ -112,20 +116,56 @@ class AudioPanel:
                 if row.get('lock_kind')==kind:
                     row['updating']=True;row['lock'].set(percent is not None);row['updating']=False
 
+    def lock_active(self):
+        return any(self.lock_value(k) is not None for k in self.audio_lock.KEYS)
+
     def lock_tick(self):
+        """UI-thread timer. Reading the default device through Core Audio takes ~100+ ms (it lists every
+        device), which froze the window twice a second (perf.log), so the real lock runs on a worker
+        thread; this tick only starts it and hands its log lines to the UI. An injected lock_io (checks)
+        still runs inline."""
         self.lock_job=None
         if self.closed:return
-        if any(self.lock_value(k) is not None for k in self.audio_lock.KEYS):
-            try:
-                if self.lock_io is None:self.lock_io=LockIO()
-                if self.volume_lock is None:
-                    self.volume_lock=self.audio_lock.VolumeLock(
-                        read=lambda k:self.lock_io.read(k),write=lambda k,p:self.lock_io.write(k,p),
-                        get_lock=lambda k:self.lock_value(k),log=getattr(self.hub,'log_action',None))
-                self.volume_lock.tick();self.lock_error=''
-            except Exception as exc:
-                self.lock_error=f'Volume lock is unavailable: {exc}'
+        if self.lock_active():
+            if self.lock_io is None or isinstance(self.lock_io,LockIO):
+                if self.lock_thread is None or not self.lock_thread.is_alive():
+                    self.lock_thread=threading.Thread(target=self._lock_worker,name='RETWEAKS volume lock',daemon=True)
+                    self.lock_thread.start()
+            else:
+                self._lock_step()
+        self._flush_lock_log()
         self.lock_job=self.hub.after(self.audio_lock.INTERVAL_MS,self.lock_tick)
+
+    def _lock_step(self):
+        try:
+            if self.lock_io is None:self.lock_io=LockIO()
+            if self.volume_lock is None:
+                self.volume_lock=self.audio_lock.VolumeLock(
+                    read=lambda k:self.lock_io.read(k),write=lambda k,p:self.lock_io.write(k,p),
+                    get_lock=lambda k:self.lock_value(k),log=lambda *a:self.lock_log.put(a))
+            self.volume_lock.tick();self.lock_error=''
+        except Exception as exc:
+            self.lock_error=f'Volume lock is unavailable: {exc}'
+
+    def _lock_worker(self):
+        """Runs while a lock is on; COM objects are created and used on this thread only."""
+        from core.audio import com_scope
+        try:
+            with com_scope():
+                while not self.closed and self.lock_active():
+                    self._lock_step()
+                    time.sleep(self.audio_lock.INTERVAL_MS/1000)
+        except Exception as exc:
+            self.lock_error=f'Volume lock is unavailable: {exc}'
+
+    def _flush_lock_log(self):
+        log=getattr(self.hub,'log_action',None)
+        while True:
+            try:entry=self.lock_log.get_nowait()
+            except queue.Empty:return
+            if log:
+                try:log(*entry)
+                except Exception:pass
 
     def add_view(self,parent):
         g=self.g

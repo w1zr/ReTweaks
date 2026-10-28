@@ -37,6 +37,9 @@ def run_bg(hub, fn, done=None, *args):
             except tk.TclError:
                 pass
 
+    if done is not None:            # perf.log names the slow page callback, not this shared helper
+        check.__module__ = getattr(done, "__module__", check.__module__)
+        check.__qualname__ = "run_bg->" + (getattr(done, "__qualname__", None) or type(done).__name__)
     t = threading.Thread(target=work, daemon=True)
     t.start()
     hub.after(60, check)

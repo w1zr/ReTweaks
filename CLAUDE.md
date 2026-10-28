@@ -538,9 +538,13 @@ Development moved mostly to Claude Code on 2026-10-27. The full handoff, `docs/C
 
 ### Open work and known bugs
 - **First-launch error on a friend's PC (2026-10-26):** cause unknown; 2.0.8 only added a restart-once guard. Needs that PC's `%APPDATA%\RETWEAKS\crash.log` (`STARTUP FAILED` / `STARTUP STEP FAILED`).
-- **2.0.9 language switch:** cause was inferred, not confirmed on Windows. Check that text switches and sidebar icons stay.
-- **Welcome tour:** "Step {n} of {total}" (`rt_welcome.py`) has no translation in `i18n/`, so it stays English.
-- **`checks/check_rt_language_switch.py`:** the hidden-page loop passes without testing anything if no widget's English text is exactly "Graphics benchmark".
+- **2.0.9 language switch:** `checks/check_rt_language_switch.py` passed on Windows 11 from source on 2026-10-27 (screen switched in 0.11 s, icons kept). Still worth one manual check in the built .exe.
+- **Fixed 2026-10-27:** the welcome tour's "Step {n} of {total}" is translated (strings + template "Step {0} of {1}" in each `i18n/*.json`); the language-switch check now asserts it found its hidden-page labels ("Ready to check") instead of passing when none exist.
+- **Fixed 2026-10-27 (smoothness, from perf.log: ~1,700 freezes of ~130 ms):** the volume lock (`audio_panel.AudioPanel.lock_tick`) reads/writes Core Audio on its own thread (`_lock_worker`, COM via `core.audio.com_scope`); the UI tick only starts it and passes its log lines to `log_action`. An injected `lock_io` (checks) still runs inline. UI cost per tick went from ~130 ms to 0.4 ms.
+- **Fixed 2026-10-27 (crash):** opening Fun tools a second time crashed the whole process (0xC000041D): `RawMouseListener` re-registered its window class under the same name, Windows kept the first run's freed WNDPROC. The class is now unregistered when the listener stops and every WNDPROC is kept alive (`_procs`).
+- `run_bg` renames its polling callback after `done`, so perf.log names the slow page callback instead of `common.run_bg.check`.
+- **Page switching** (measured on Windows 2026-10-27, source, second visit): median 88 ms over 47 pages; slowest are base-app tabs 2 and 23 (~360–410 ms on first visit).
+- **Testing from source:** taskbar buttons of python.exe test windows can show a stale cached icon; `RETWEAKS.exe` shows the chip. Not a bug in the app.
 - **v2.0.5 release page:** the full description (commit `05d2a9c`) was pushed after publishing; unconfirmed whether the release page shows it.
 - **README badge:** confirm on GitHub that the shields.io badge shows the right version.
 - **Antivirus/SmartScreen:** not re-checked since 2.0.8.
