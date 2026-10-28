@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+import time
 import tkinter as tk
 from tkinter import messagebox
 
@@ -506,8 +507,10 @@ def _relabel_widgets(widgets):
             continue
 
 
-_switch = {"gen": 0, "busy": False}
-BATCH = 250            # widgets re-labelled per step of a background switch
+_switch = {"gen": 0, "busy": False, "left": None}
+BATCH = 250            # (kept for older callers) the background switch is now time-sliced, see SLICE_MS
+SLICE_MS = 4           # 2.1.1: re-label hidden widgets for at most ~4 ms, then let the window repaint for a frame
+CHUNK = 5              # widgets per time check (each re-label also triggers resizes/redraws, so slices stay small)
 
 
 def busy():
@@ -572,21 +575,47 @@ def set_language(hub, code, sync=False):
         return code
     _switch["busy"] = True
 
-    def step(i=0):
+    # 2.1.1 (owner: "the whole page lags when you change the language"): steps of 250 widgets took ~100 ms each
+    # and followed each other 1 ms apart, so for ~1.4 s the window repainted only every ~110 ms. Now each step
+    # works for at most SLICE_MS and the next one waits a frame (16 ms): measured median gap between repaints
+    # 26-29 ms during the switch, hidden pages done in ~2-3 s. A page opened meanwhile is switched first (flush()).
+    left = list(hidden)
+    _switch["left"] = left
+
+    def step():
         if gen != _switch["gen"]:
             return                                   # a newer switch took over
-        _relabel_widgets(hidden[i:i + BATCH])
-        if i + BATCH < len(hidden):
-            try:
-                hub.after(1, lambda: step(i + BATCH))
-            except tk.TclError:
-                _switch["busy"] = False
-            return
-        finished()
+        try:
+            until = time.perf_counter() + SLICE_MS / 1000
+            while left and time.perf_counter() < until:
+                chunk, left[:CHUNK] = left[:CHUNK], []
+                _relabel_widgets(chunk)
+            if left:
+                hub.after(16, step)
+                return
+        except Exception:
+            pass                                     # never leave busy() stuck on (a waiting caller would hang)
+        if gen == _switch["gen"]:
+            _switch["left"] = None
+            finished()
     try:
         hub.update_idletasks()                       # draw the switched screen before the rest continues
-        hub.after(1, step)
+        hub.after(16, step)
     except tk.TclError:
         _relabel_widgets(hidden)
+        _switch["left"] = None
         finished()
     return code
+
+
+def flush(root):
+    """A page is being shown while a switch is still running: re-label its widgets now (hubplus show_tab)."""
+    left = _switch.get("left")
+    if not _switch["busy"] or not left or root is None:
+        return
+    prefix = str(root)
+    mine = [w for w in left if str(w) == prefix or str(w).startswith(prefix + ".")]
+    if mine:
+        keep = set(map(id, mine))
+        left[:] = [w for w in left if id(w) not in keep]
+        _relabel_widgets(mine)

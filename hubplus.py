@@ -260,6 +260,11 @@ def install(g):
             before=self.cur_tab
             with rt_perf.paint_once(getattr(self,'content',None)):
                 self._show_tab_now(i)
+                try:                                       # a language switch still running: this page first
+                    import rt_i18n
+                    if rt_i18n.busy() and 0<=self.cur_tab<len(self.tabs):rt_i18n.flush(self.tabs[self.cur_tab])
+                except Exception:
+                    pass
             if self.cur_tab!=before and before!=-1 and getattr(self,'content',None) is not None:
                 try:                                       # page fades in (rt_anim; owner request 2026-10-27)
                     if getattr(self,'page_fade',None) is None:

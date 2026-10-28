@@ -2,9 +2,9 @@
 "laggy and black occurs" on every page, and some buttons get no reaction).
 
 1. smooth_scroll(canvas): wheel ticks are added up and applied once per screen refresh (~16 ms) instead of one
-   scroll per event, so fast wheel turns don't queue dozens of full repaints. On Windows the canvas is told not to
-   paint while it moves (WM_SETREDRAW) and is then repainted once with all its child windows (RedrawWindow), which
-   removes the black gaps Windows shows while hundreds of child widgets catch up.
+   scroll per event, so fast wheel turns don't queue dozens of full repaints. (Up to 2.1 each step also froze
+   painting with WM_SETREDRAW, flushed all idle work and forced a full repaint against black gaps; 2.1.1 drops that,
+   see apply(): tall frames (3.) removed the gaps, and the flush caused second-long stalls right after startup.)
 2. install(): every Python callback Tk runs on the UI thread (button commands, key/mouse bindings, timers) is timed;
    anything taking 100 ms or more is appended to %APPDATA%\\RETWEAKS\\perf.log with its name and duration. While a
    callback runs, the window can't react to clicks or scrolling, so this log shows exactly what makes buttons feel
@@ -284,9 +284,13 @@ def smooth_scroll(cv, units_per_tick=3):
     """Replace direct yview_scroll for wheel input on canvas `cv` with a coalescing, flicker-free version.
     Sets cv.wheel_scroll(delta_units) which the app's global wheel handler calls."""
     state = {"pending": 0, "job": None}
-    user32 = _win32()
 
     def apply():
+        # 2.1.1: no WM_SETREDRAW / update_idletasks / RedrawWindow(ALLCHILDREN|UPDATENOW) around the scroll any
+        # more. update_idletasks ran every queued idle job in the app inside the scroll step (once 588-1067 ms
+        # right after startup: "dashboard lags when scrolling on start"), and the forced full repaint cost
+        # ~9 ms a step. With tall frames painted by Windows (3.), screenshots on a grey theme show no black gaps
+        # without it, and the Dashboard step went from ~14 to ~5 ms.
         state["job"] = None
         n, state["pending"] = state["pending"], 0
         if not n:
@@ -295,26 +299,10 @@ def smooth_scroll(cv, units_per_tick=3):
             speed_up_tall_frames(cv)                               # see 3. in the module notes
         except Exception:
             pass
-        hwnd = None
-        if user32 is not None:
-            try:
-                hwnd = cv.winfo_id()
-                user32.SendMessageW(hwnd, 0x000B, 0, 0)            # WM_SETREDRAW off
-            except Exception:
-                hwnd = None
         try:
             cv.yview_scroll(n, "units")
-            cv.update_idletasks()
         except tk.TclError:
             return
-        finally:
-            if hwnd is not None:
-                try:
-                    user32.SendMessageW(hwnd, 0x000B, 1, 0)         # WM_SETREDRAW on
-                    # RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_FRAME
-                    user32.RedrawWindow(hwnd, None, None, 0x0001 | 0x0004 | 0x0080 | 0x0100 | 0x0400)
-                except Exception:
-                    pass
 
     def wheel_scroll(units):
         state["pending"] += units
