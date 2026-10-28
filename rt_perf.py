@@ -11,6 +11,7 @@
    dead or scrolling lag. Small, capped (256 KB), never raises.
 """
 import os
+import contextlib
 import sys
 import time
 import tkinter as tk
@@ -98,6 +99,39 @@ def _win32():
         return ctypes.windll.user32
     except Exception:
         return None
+
+
+@contextlib.contextmanager
+def paint_once(widget):
+    """Windows paints `widget` and its children once, after the block, instead of piece by piece while the
+    block packs and lays out hundreds of widgets (owner report 2026-10-27: page switches showed black boxes).
+    Same WM_SETREDRAW / RedrawWindow pair as smooth_scroll. Nested blocks only act at the outermost one; a
+    hidden widget or a non-Windows system just runs the block."""
+    user32 = _win32()
+    hwnd = None
+    if user32 is not None and widget is not None and not getattr(widget, "_rt_paint_once", False):
+        try:
+            if widget.winfo_viewable():
+                hwnd = widget.winfo_id()
+                user32.SendMessageW(hwnd, 0x000B, 0, 0)                 # WM_SETREDRAW off
+                widget._rt_paint_once = True
+        except Exception:
+            hwnd = None
+    try:
+        yield
+    finally:
+        if hwnd is not None:
+            try:
+                widget.update_idletasks()                               # finish layout while nothing paints
+            except tk.TclError:
+                pass
+            try:
+                widget._rt_paint_once = False
+                user32.SendMessageW(hwnd, 0x000B, 1, 0)                 # WM_SETREDRAW on
+                # RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_FRAME
+                user32.RedrawWindow(hwnd, None, None, 0x0001 | 0x0004 | 0x0080 | 0x0100 | 0x0400)
+            except Exception:
+                pass
 
 
 def smooth_scroll(cv, units_per_tick=3):

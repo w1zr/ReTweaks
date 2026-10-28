@@ -255,6 +255,12 @@ def install(g):
             return 'break'
 
         def show_tab(self,i):
+            # one paint of the finished page instead of black boxes while it lays out (owner report 2026-10-27)
+            import rt_perf
+            with rt_perf.paint_once(getattr(self,'content',None)):
+                self._show_tab_now(i)
+
+        def _show_tab_now(self,i):
             opened=getattr(g.get('RSelect'),'_open_one',None)
             if opened is not None:
                 try:opened._close_popup()
