@@ -530,7 +530,7 @@ Development moved mostly to Claude Code on 2026-10-27. The full handoff, `docs/C
 ### Owner rules
 - **Isolation:** keep this project's work inside this project. GitHub is the only approved connector; don't use other connectors, memory or files on the machine. RETWEAKS must never run on a work laptop.
 - **CLAUDE.md source:** only this file (`C:\pc_optimizer` or the repo root). Ignore older copies in backup folders.
-- **Windows Activation page** (added by the friend in 2.0.4): Claude doesn't work on it, translate it, or mention it in release notes.
+- **Windows Activation page** (added by the friend in 2.0.4): Claude may mention it, for example in release notes, the README or feature lists (owner change 2026-10-27). Claude still doesn't work on its code or translate it.
 - **Release notes (owner change 2026-10-27):** from 2.1 on, each release's notes describe the whole app: "What's new in X" first, then "Everything in ReTweaks X" and "Good to know", kept up to date with every change since. Don't link to an older release for the feature list. (`release-notes/v2.0.6`–`v2.0.9` linked to 2.0.5; `v2.1.md` is the current full description.)
 - **Re-releasing a version is allowed** (2.0.7 was re-published 2026-10-24). The updater compares version numbers, so people already on it don't get the rebuild.
 - **"Unlimited AI" / Freebuff tab: on hold** (2026-10-24). Freebuff has no public chat API; the unofficial `freebuff2api` proxy was refused (imitates the official client, rotates accounts). If built later: an official API only, and not called "Unlimited".
