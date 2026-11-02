@@ -1,0 +1,252 @@
+{
+ "counts": {
+  "backgrounds": 11,
+  "categories": 13,
+  "crosshairs": 33,
+  "exact_undo": 53,
+  "games": 11,
+  "languages": 5,
+  "pages": 19,
+  "presets": 12,
+  "themes": 15,
+  "tweaks": 117
+ },
+ "languages": [
+  "English",
+  "Español",
+  "Français",
+  "Deutsch",
+  "Português (Brasil)"
+ ],
+ "pages": [
+  "Dashboard",
+  "Hardware & cooling",
+  "Health & recovery",
+  "Benchmark & FPS",
+  "Tweaks & presets",
+  "Gaming tools",
+  "Network",
+  "Drivers",
+  "Storage & cleanup",
+  "File Transfers",
+  "Windows backgrounds",
+  "Windows appearance",
+  "App Starter",
+  "Windows tools",
+  "PC planning",
+  "Audio Mixer",
+  "Browser",
+  "AI assistant",
+  "Help & activity"
+ ],
+ "presets": {
+  "balanced": {
+   "ids": [
+    "gamedvr",
+    "gamemode",
+    "bg_apps",
+    "startup_delay",
+    "telemetry",
+    "ads",
+    "adid",
+    "activity",
+    "bing",
+    "delivery",
+    "fileext",
+    "temp"
+   ],
+   "name": "BALANCED (safe for everyone)"
+  },
+  "maxfps": {
+   "ids": [
+    "ultimate",
+    "prio_sep",
+    "power_throttle",
+    "usb_suspend",
+    "bg_apps",
+    "gamedvr",
+    "gamemode",
+    "hags",
+    "mmcss",
+    "mouse_accel",
+    "sticky",
+    "net_throttle",
+    "nagle",
+    "visual_fx",
+    "transparency",
+    "telemetry",
+    "ads",
+    "widgets",
+    "startup_delay",
+    "delivery",
+    "temp"
+   ],
+   "name": "MAX FPS"
+  },
+  "privacy": {
+   "ids": [
+    "telemetry",
+    "ads",
+    "adid",
+    "activity",
+    "bing",
+    "delivery",
+    "widgets"
+   ],
+   "name": "PRIVACY LOCKDOWN"
+  }
+ },
+ "tweaks": {
+  "activity": [
+   "Disable Activity History / Timeline",
+   "Safe",
+   0,
+   0
+  ],
+  "adid": [
+   "Disable advertising ID",
+   "Safe",
+   0,
+   0
+  ],
+  "ads": [
+   "Disable Start menu ads & suggestions",
+   "Safe",
+   0,
+   0
+  ],
+  "bg_apps": [
+   "Disable background apps",
+   "Safe",
+   0,
+   0
+  ],
+  "bing": [
+   "Disable web results in Start search",
+   "Safe",
+   0,
+   0
+  ],
+  "delivery": [
+   "Disable Windows Update P2P sharing",
+   "Safe",
+   0,
+   0
+  ],
+  "fileext": [
+   "Show file extensions & hidden files",
+   "Safe",
+   0,
+   0
+  ],
+  "gamedvr": [
+   "Disable Game DVR / Xbox capture",
+   "Safe",
+   0,
+   0
+  ],
+  "gamemode": [
+   "Enable Game Mode",
+   "Safe",
+   0,
+   0
+  ],
+  "hags": [
+   "Hardware-accelerated GPU scheduling",
+   "Safe",
+   1,
+   0
+  ],
+  "mmcss": [
+   "Game task priority (MMCSS)",
+   "Safe",
+   0,
+   0
+  ],
+  "mouse_accel": [
+   "Disable mouse acceleration",
+   "Safe",
+   0,
+   0
+  ],
+  "nagle": [
+   "Disable Nagle's algorithm (lower latency)",
+   "Medium",
+   0,
+   0
+  ],
+  "net_throttle": [
+   "Disable network throttling",
+   "Safe",
+   0,
+   0
+  ],
+  "power_throttle": [
+   "Disable power throttling",
+   "Safe",
+   0,
+   0
+  ],
+  "prio_sep": [
+   "Foreground app priority boost",
+   "Safe",
+   0,
+   0
+  ],
+  "startup_delay": [
+   "Remove startup app delay",
+   "Safe",
+   0,
+   0
+  ],
+  "sticky": [
+   "Disable Sticky Keys popup",
+   "Safe",
+   0,
+   0
+  ],
+  "telemetry": [
+   "Reduce telemetry & disable tracking services",
+   "Safe",
+   0,
+   0
+  ],
+  "temp": [
+   "Clean temp files",
+   "Safe",
+   0,
+   1
+  ],
+  "transparency": [
+   "Disable transparency effects",
+   "Safe",
+   0,
+   0
+  ],
+  "ultimate": [
+   "Ultimate Performance power plan",
+   "Safe",
+   0,
+   0
+  ],
+  "usb_suspend": [
+   "Disable USB selective suspend",
+   "Safe",
+   0,
+   0
+  ],
+  "visual_fx": [
+   "Reduce visual effects / animations",
+   "Safe",
+   0,
+   0
+  ],
+  "widgets": [
+   "Disable Widgets / News & Interests",
+   "Safe",
+   0,
+   0
+  ]
+ },
+ "version": "2.1.1"
+}

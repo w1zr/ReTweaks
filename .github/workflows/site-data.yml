@@ -1,0 +1,48 @@
+# Keeps docs/site-data.json (the website's counts, page list and preset lists) in step with the app code.
+# Runs when the code the numbers come from changes on main, when a release is published, or by hand.
+name: Site data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "retweaks_data.py"
+      - "appearance.py"
+      - "rt_i18n.py"
+      - "rt_sidebar.py"
+      - "core/**"
+      - ".github/scripts/make_site_data.py"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to commit docs/site-data.json back to main
+
+jobs:
+  site-data:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Read the numbers from the app code
+        run: python .github/scripts/make_site_data.py
+
+      - name: Commit if anything changed
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/site-data.json; then echo "Site data unchanged"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/site-data.json
+          git commit -m "RETWEAKS"
+          git push
