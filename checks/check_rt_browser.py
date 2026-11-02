@@ -201,8 +201,10 @@ page2 = bp.BrowserPage(hub, tab2, g)
 page2.settings_payload = lambda: {"engine": "FAIL", "engines": []}
 page2.payload = page2.settings_payload
 page2.bridge = None
+bp.START_RETRY_DELAYS = (100, 100)      # v2.1.2: two automatic retries first (3 s / 8 s in the app)
 page2.on_shown()
 wait(lambda: page2.o_title.cget("text") == "The browser can't start", what="error state")
+assert sum(1 for a in hub.actions if a[1] == "Start the browser" and a[2] == "Retrying") == 2
 assert page2.b_restart.winfo_manager() and page2.b_runtime.winfo_manager()
 assert any(a[1] == "Start the browser" and a[2] == "Failed" for a in hub.actions)
 page2.close()

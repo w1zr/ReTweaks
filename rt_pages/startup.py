@@ -13,6 +13,26 @@ from rt_pages.common import NA, confirm, info, run_bg
 FILTERS = ["All apps", "Enabled", "Disabled", "Current user", "All users", "Registry", "Startup folder",
            "Scheduled tasks"]
 CHECK = "✔"
+ROW_PIC = (42, 18)          # first-column picture: tick area (0-17) + 16 px app icon at x 24
+
+
+def read_icons(commands):
+    """{startup command: 16x16 PIL icon or None} from Windows' shell (worker thread; no Tk here)."""
+    from file_icons import app_icon
+    return {cmd: app_icon(cmd) for cmd in commands}
+
+
+def row_picture(icon, ticked, color):
+    """The tick (when ticked) in `color`, then the app's icon, on a transparent background."""
+    from PIL import Image, ImageDraw
+    w, h = ROW_PIC
+    pic = Image.new("RGBA", (w * 2, h * 2), (0, 0, 0, 0))    # drawn at 2x, then scaled down for smooth lines
+    if ticked:
+        ImageDraw.Draw(pic).line([(6, 19), (13, 27), (28, 9)], fill=color, width=4, joint="curve")
+    pic = pic.resize((w, h), Image.LANCZOS)
+    if icon is not None:
+        pic.alpha_composite(icon.convert("RGBA"), (24, 1))
+    return pic
 
 
 def list_startup_apps(include_windows_tasks=False):
@@ -47,8 +67,9 @@ def matches(entry, text, mode):
                 or (mode == "Scheduled tasks" and source != SCHED_SOURCE))
 
 
-def make_table(hub, g, parent, columns, headings, height, widths=None, expand=False):
-    """A Treeview styled like the base app's Storage Explorer tables."""
+def make_table(hub, g, parent, columns, headings, height, widths=None, expand=False, tree_width=None):
+    """A Treeview styled like the base app's Storage Explorer tables. tree_width: also show the tree column
+    (#0, first) at that width, for a per-row picture."""
     style = ttk.Style(hub)
     style.configure("RT.Treeview", background=g["PANEL"], fieldbackground=g["PANEL"], foreground=g["FG"],
                     rowheight=28, borderwidth=0, bordercolor=g["LINE"], lightcolor=g["PANEL"],
@@ -60,8 +81,11 @@ def make_table(hub, g, parent, columns, headings, height, widths=None, expand=Fa
                     arrowcolor=g["MUTED"], bordercolor=g["PANEL"])
     frame = tk.Frame(parent, bg=parent.cget("bg"))
     frame.pack(fill="both" if expand else "x", expand=expand, padx=16, pady=6)
-    tree = ttk.Treeview(frame, columns=columns, show="headings", height=height, selectmode="browse",
-                        style="RT.Treeview")
+    tree = ttk.Treeview(frame, columns=columns, show="tree headings" if tree_width else "headings", height=height,
+                        selectmode="browse", style="RT.Treeview")
+    if tree_width:
+        tree.heading("#0", text="")
+        tree.column("#0", width=tree_width, minwidth=tree_width, stretch=False, anchor="w")
     vs = ttk.Scrollbar(frame, orient="vertical", command=tree.yview, style="RT.Vertical.TScrollbar")
     tree.configure(yscrollcommand=vs.set)
     frame.columnconfigure(0, weight=1)
@@ -114,10 +138,12 @@ class StartupPage:
         self.count_lbl = tk.Label(sel, text="Selected: 0", bg=b.cget("bg"), fg=g["MUTED"], font=(g["UI"], 9))
         self.count_lbl.pack(side="right")
 
-        self.table = make_table(hub, g, b, ("sel", "name", "publisher", "source", "status", "scope"),
-                                ("", "Application", "Publisher", "Source", "Status", "Scope"), 14,
-                                {"sel": 34, "name": 300, "publisher": 170, "source": 190, "status": 150, "scope": 110})
-        self.table.column("sel", stretch=False, anchor="center")
+        # first column: the tick (left) and the app's own icon (owner request 2.1.2), drawn as one picture
+        self.table = make_table(hub, g, b, ("name", "publisher", "source", "status", "scope"),
+                                ("Application", "Publisher", "Source", "Status", "Scope"), 14,
+                                {"name": 300, "publisher": 170, "source": 190, "status": 150, "scope": 110},
+                                tree_width=ROW_PIC[0] + 14)
+        self._icons, self._row_pics = {}, {}    # command -> PIL icon (or None); (command, ticked, colour) -> image
         self.table.bind("<ButtonRelease-1>", self._click)
         self.table.bind("<space>", lambda e: self._toggle(self.table.focus()))
         self.table.bind("<Motion>", self._hover)
@@ -162,6 +188,29 @@ class StartupPage:
         ids = {e.get("id") for e in self.entries}
         self.checked &= ids
         self.filter_table()
+        todo = sorted({e.get("path", "") for e in self.entries} - set(self._icons))
+        if todo:                                  # icons come from Windows' shell; read them off the UI thread
+            run_bg(self.hub, read_icons, self._icons_read, todo)
+
+    def _icons_read(self, res):
+        if isinstance(res, dict):
+            self._icons.update(res)
+            for iid, e in getattr(self, "_row_entry", {}).items():
+                try:
+                    self.table.item(iid, image=self._row_pic(e))
+                except tk.TclError:
+                    pass
+
+    def _row_pic(self, e):
+        """Tick + app icon as one Tk image (cached), or '' when there's nothing to show."""
+        managed = bool(e.get("managed"))
+        ticked = not managed and e.get("id") in self.checked
+        key = (e.get("path", ""), ticked, self.g["FG"], e.get("path", "") in self._icons)   # icon read yet?
+        if key not in self._row_pics:
+            from PIL import ImageTk
+            self._row_pics[key] = ImageTk.PhotoImage(row_picture(self._icons.get(key[0]), ticked, self.g["FG"]),
+                                                     master=self.table)
+        return self._row_pics[key]
 
     def _win_tasks_toggled(self):
         self.hub.settings["startup_show_windows_tasks"] = bool(self.win_tasks.get())
@@ -183,8 +232,7 @@ class StartupPage:
             status = e.get("status", "Enabled")
             iid = f"r{i}"
             self._row_entry[iid] = e
-            t.insert("", "end", iid=iid, values=(
-                "" if managed else (CHECK if e.get("id") in self.checked else ""),
+            t.insert("", "end", iid=iid, image=self._row_pic(e), values=(
                 e.get("name", ""), e.get("publisher") or "Unknown", e.get("source", ""),
                 "Managed in Settings" if managed else status, e.get("scope", "")),
                 tags=("managed",) if managed else (("bad",) if status == "Disabled" else ("good",)))
@@ -198,11 +246,11 @@ class StartupPage:
             self.checked.discard(e["id"])
         else:
             self.checked.add(e["id"])
-        self.table.set(iid, "sel", CHECK if e["id"] in self.checked else "")
+        self.table.item(iid, image=self._row_pic(e))
         self.update_count()
 
     def _click(self, event):
-        if self.table.identify_region(event.x, event.y) != "cell":
+        if self.table.identify_region(event.x, event.y) not in ("cell", "tree"):
             return
         self._toggle(self.table.identify_row(event.y))
 

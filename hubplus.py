@@ -910,7 +910,7 @@ def install(g):
             elif kind=='context_request':
                 self.ai_bridge.send(self.ai_context_message())
             elif kind=='ready':
-                self.ai_ready=True;self.ai_status.config(text='Chat ready. Messages use GeminiChat’s existing connection.')
+                self.ai_ready=True;self.ai_start_retries=0;self.ai_status.config(text='Chat ready. Messages use GeminiChat’s existing connection.')
                 from rt_pages import ai_key
                 self.ai_bridge.send({'op':'model','name':ai_key.saved_model(self)})
                 self.ai_bridge.send({'op':'load_models'})
@@ -921,7 +921,12 @@ def install(g):
                 self.ai_ready=False;msg=data.get('message','AI could not load. Use Retry AI.')
                 from rt_pages import ai_key
                 if ai_key.is_key_error(msg):msg+='  Google rejected the built-in AI keys. Update RETWEAKS from GitHub or try again later.'
+                elif self._ai_retry_start():return
                 self.ai_status.config(text=msg)
+            elif (kind=='stopped' and not self.ai_ready and self.ai_bridge is not None
+                  and (self.ai_bridge.process is None or self.ai_bridge.process.poll() is not None)   # not a stale event
+                  and self._ai_retry_start()):
+                pass                                   # helper quit before it was ready (first start): retrying
             elif kind=='stopped' and self.ai_ready:
                 self.ai_ready=False;self.ai_status.config(text='AI stopped. Use Retry AI to reload it.')
             elif kind=='theme':self.ai_last_theme=data
@@ -963,6 +968,20 @@ def install(g):
         def retry_ai(self):
             if self.ai_bridge is not None:self.ai_bridge.close()
             self.ai_bridge=None;self.ai_ready=False;self.ensure_ai()
+
+        def _ai_retry_start(self):
+            """The AI failed while starting. On a new PC the first start can fail (WebView2 builds its profile,
+            Windows scans the new helper), so retry twice on our own before asking (owner report 2.1.2).
+            Returns True when a retry was scheduled."""
+            tries=getattr(self,'ai_start_retries',0)
+            if tries>=2 or getattr(self,'_ai_retry_job',None) is not None:return tries<2
+            self.ai_start_retries=tries+1
+            self.ai_status.config(text='Starting the AI… The first start on a PC can take a moment.')
+            def go():
+                self._ai_retry_job=None
+                if not self.ai_ready:self.retry_ai()
+            self._ai_retry_job=self.after((3000,8000)[tries],go)
+            return True
 
         def close_embedded_ai(self,event):
             if event.widget is self:

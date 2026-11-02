@@ -52,8 +52,31 @@ def available(key):
         for base in ('ProgramFiles(x86)', 'ProgramFiles', 'LOCALAPPDATA'):
             folder = Path(os.environ.get(base, '')) / 'Microsoft' / 'EdgeWebView' / 'Application'
             if folder.is_dir() and any(folder.glob('*/msedgewebview2.exe')):return True
-        return False
+        return bool(webview2_registry_version())
     raise ValueError('Unknown dependency')
+
+
+WEBVIEW2_CLIENT = r'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+
+
+def webview2_registry_version():
+    """The installed WebView2 Runtime version from Microsoft's documented 'pv' registry value, or ''.
+    Catches runtimes the folder check misses (other install locations on a new PC; owner report 2.1.2)."""
+    try:
+        import winreg
+    except ImportError:
+        return ''
+    for root, path in ((winreg.HKEY_LOCAL_MACHINE, 'SOFTWARE\\WOW6432Node\\' + WEBVIEW2_CLIENT),
+                       (winreg.HKEY_LOCAL_MACHINE, 'SOFTWARE\\' + WEBVIEW2_CLIENT),
+                       (winreg.HKEY_CURRENT_USER, 'Software\\' + WEBVIEW2_CLIENT)):
+        try:
+            with winreg.OpenKey(root, path) as key:
+                version = str(winreg.QueryValueEx(key, 'pv')[0] or '')
+        except OSError:
+            continue
+        if version and version != '0.0.0.0':
+            return version
+    return ''
 
 
 def download(url, path, expected=None):

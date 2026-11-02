@@ -31,6 +31,7 @@ DEFAULT_SHORTCUTS = [("Google", "https://www.google.com/"), ("YouTube", "https:/
                      ("Discord", "https://discord.com/app"), ("GitHub", "https://github.com/"),
                      ("Steam", "https://store.steampowered.com/")]
 AUTO_RESTART_GAP = 30.0        # restart by itself once; a second stop within this many seconds asks the user
+START_RETRY_DELAYS = (3000, 8000)   # ms: automatic retries when the browser fails to start, before asking
 
 
 def profile_dir():
@@ -174,12 +175,23 @@ class BrowserPage:
             return
         if kind in ("ready", "loaded"):
             self.failed = False
+            self.start_retries = 0
             self._hide_overlay()
             self._set_status("")
             if self.bridge is not None:
                 self.bridge.send({"op": "visibility", "visible": self.visible})
         elif kind == "error":
             msg = d.get("message") or "The browser couldn't start."
+            tries = getattr(self, "start_retries", 0)
+            if d.get("reason") != "missing_component" and tries < len(START_RETRY_DELAYS):
+                # First start on a new PC: WebView2 builds its profile and Windows scans the new helper, so the
+                # first try can fail; retry on our own before asking the user (owner report 2.1.2)
+                self.start_retries = tries + 1
+                self.failed = True             # ignore the old helper's "stopped"; restart() clears this
+                self._show_overlay("Starting the browser…", "The first start on a PC can take a moment.", buttons=False)
+                self._log("Start the browser", "Retrying", msg)
+                self.tab.after(START_RETRY_DELAYS[tries], self.restart)
+                return
             self.failed = True
             self._show_overlay("The browser can't start", msg, buttons=True,
                                runtime=d.get('reason') != 'missing_component')

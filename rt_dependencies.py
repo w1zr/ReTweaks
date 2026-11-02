@@ -40,11 +40,14 @@ def ensure(hub,key,done=None):
 def on_page(hub,index):
     if not deps.enabled(hub):return
     tabs=getattr(hub,'rt_tabs',{})
-    if index in (19,25,28,29,tabs.get('Browser')):
+    if index in (19,20,25,28,29,tabs.get('Browser')):
         def restart():
             page=getattr(hub,'rt_pages',{}).get('Browser')
             if index==tabs.get('Browser'):
                 if page and page.bridge is not None:page.restart()
+                return
+            if index==20:                      # AI assistant (owner report 2.1.2: it was left out)
+                if getattr(hub,'enable_ai',False):hub.retry_ai()
                 return
             prefix={19:'site',25:'builder',28:'activation',29:'windhawk'}.get(index)
             bridge=getattr(hub,prefix+'_bridge',None)

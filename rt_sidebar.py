@@ -185,7 +185,8 @@ class NavButton(tk.Canvas):
             self.create_rectangle(x1 + 1, y1 + 1, x2 - 1, y2 - 1, outline=s.c("ACC"))
         fg = s.c("FG") if (self.active or self.hover) else s.c("MUTED")
         icon = s.icon(self.name, fg)
-        if icon is not None:
+        self._img = icon                  # the row keeps its own picture alive (owner report 2.1.1: the selected
+        if icon is not None:              # row's icon vanished; a deleted Tk image draws as nothing)
             self.create_image(16, self.H // 2, image=icon)
         self.create_text(36, self.H // 2, text=self.name, anchor="w", fill=fg,
                          font=(s.g["UI"], 10, "bold" if self.active else "normal"))
@@ -219,6 +220,12 @@ class Sidebar:
 
     def icon(self, name, color):
         key = (name, color)
+        img = self._icons.get(key)
+        if img is not None:
+            try:
+                self.side.tk.call("image", "width", str(img))     # still a live Tk image?
+            except tk.TclError:
+                del self._icons[key]                              # deleted underneath us: make it again
         if key not in self._icons:
             p = ASSETS / "nav" / f"{slug(name)}.png"
             if not p.is_file() and name == 'Windows backgrounds':
@@ -439,6 +446,8 @@ class Sidebar:
         for n, b in self.buttons.items():
             if b.active != (n == name):
                 b._set(active=(n == name))
+        if name in self.buttons:          # once the new page has settled, draw the selected row again (icon check)
+            self.side.after(120, lambda b=self.buttons[name]: b.winfo_exists() and b.draw())
         self.current = name
         if name and name in self.buttons and self.buttons[name].master is self.holder:
             self._scroll_into_view(self.buttons[name])
